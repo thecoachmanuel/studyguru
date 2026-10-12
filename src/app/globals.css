@@ -8362,27 +8362,69 @@ body {
 }
 
 .ai-tutor-prompts-bar {
-  margin-bottom: 14px;
-  padding: 10px 14px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
   background: var(--bg-surface);
   border: 1px dashed var(--border);
   border-radius: var(--radius-sm);
+  transition: all var(--transition);
+}
+
+.ai-tutor-prompts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  gap: 8px;
 }
 
 .ai-tutor-prompts-label {
-  display: block;
-  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
   font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  margin-bottom: 8px;
+  margin-bottom: 0;
+}
+
+.ai-tutor-toggle-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  padding: 2px 8px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.ai-tutor-toggle-pill:hover {
+  color: var(--primary);
+  border-color: var(--primary);
+  background: var(--accent-subtle);
 }
 
 .ai-tutor-prompts-chips {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
   gap: 8px;
+  margin-top: 8px;
+  padding-bottom: 3px;
+}
+
+.ai-tutor-prompts-chips::-webkit-scrollbar {
+  display: none;
 }
 
 .ai-tutor-chip {
@@ -8391,10 +8433,12 @@ body {
   color: var(--text-primary);
   padding: 6px 12px;
   border-radius: var(--radius-xs);
-  font-size: 12.5px;
+  font-size: 12px;
   cursor: pointer;
   transition: all var(--transition);
   text-align: left;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .ai-tutor-chip:hover {
@@ -8411,7 +8455,7 @@ body {
 }
 
 .ai-tutor-prompts-bar--compact {
-  padding: 8px 12px;
+  padding: 6px 10px;
   margin-bottom: 10px;
 }
 
@@ -8429,10 +8473,17 @@ body {
 
 .ai-sidebar-tutor-chips {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
   gap: 6px;
   margin-bottom: 8px;
-  padding: 0 2px;
+  padding: 0 2px 3px 2px;
+}
+
+.ai-sidebar-tutor-chips::-webkit-scrollbar {
+  display: none;
 }
 
 .ai-sidebar-chip {
@@ -8445,6 +8496,7 @@ body {
   cursor: pointer;
   transition: all var(--transition);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .ai-sidebar-chip:hover:not(:disabled) {
