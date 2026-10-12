@@ -111,32 +111,41 @@ export function extractJson(text) {
   if (!text || typeof text !== 'string') return null;
   
   let cleaned = text.trim();
-  // Remove markdown code fences if present
-  if (cleaned.startsWith('```')) {
+  
+  // 1. Extract markdown code fences from anywhere in the text
+  const codeBlockMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+  if (codeBlockMatch && codeBlockMatch[1]) {
+    cleaned = codeBlockMatch[1].trim();
+  } else if (cleaned.startsWith('```')) {
     cleaned = cleaned.replace(/^```[a-zA-Z]*\n?/, '').replace(/\n?```$/, '').trim();
   }
 
+  // Helper to remove trailing commas which cause JSON.parse syntax errors
+  const sanitizeJson = (str) => str.replace(/,\s*([}\]])/g, '$1');
+
   try {
-    return JSON.parse(cleaned);
-  } catch {
-    const firstBracket = cleaned.indexOf('[');
-    const lastBracket = cleaned.lastIndexOf(']');
-    if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
-      try {
-        return JSON.parse(cleaned.slice(firstBracket, lastBracket + 1));
-      } catch {}
-    }
+    return JSON.parse(sanitizeJson(cleaned));
+  } catch {}
 
-    const firstBrace = cleaned.indexOf('{');
-    const lastBrace = cleaned.lastIndexOf('}');
-    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-      try {
-        return JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
-      } catch {}
-    }
-
-    return null;
+  // 2. Try finding array slice [ ... ]
+  const firstBracket = cleaned.indexOf('[');
+  const lastBracket = cleaned.lastIndexOf(']');
+  if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+    try {
+      return JSON.parse(sanitizeJson(cleaned.slice(firstBracket, lastBracket + 1)));
+    } catch {}
   }
+
+  // 3. Try finding object slice { ... }
+  const firstBrace = cleaned.indexOf('{');
+  const lastBrace = cleaned.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    try {
+      return JSON.parse(sanitizeJson(cleaned.slice(firstBrace, lastBrace + 1)));
+    } catch {}
+  }
+
+  return null;
 }
 
 /**
