@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import { getDatabase } from '@/lib/mongodb';
 import { retrieveRelevantChunks } from '@/lib/vectorSearch';
 import { generateContentWithFallback, extractJson } from '@/lib/llm';
 
@@ -19,6 +20,24 @@ export async function POST(req) {
     }
 
     const userId = session.user.id;
+    const db = await getDatabase();
+    const isRegenerate = Boolean(body.regenerate || body.forceRefresh);
+
+    // High-concurrency cache hit: Serve existing flashcards immediately
+    if (!isRegenerate) {
+      try {
+        const cached = await db.collection('rag_study_outputs').findOne({
+          document_id: documentId,
+          output_type: 'flashcards',
+        });
+        if (Array.isArray(cached?.content) && cached.content.length > 0) {
+          return NextResponse.json({ flashcards: cached.content });
+        }
+      } catch (cacheErr) {
+        console.warn('Flashcard cache lookup notice:', cacheErr.message);
+      }
+    }
+
     const chunks = await retrieveRelevantChunks({
       query: 'key concepts definitions principles formulas facts study flashcards',
       documentId,
@@ -81,6 +100,24 @@ ${contextText}`;
           answer: 'They break complex course syllabi into digestible atomic Q&A prompts for spaced repetition.',
         },
       ];
+    }
+
+    // Cache generated flashcards in database for high-concurrency reuse
+    try {
+      await db.collection('rag_study_outputs').updateOne(
+        { document_id: documentId, output_type: 'flashcards' },
+        {
+          $set: {
+            document_id: documentId,
+            output_type: 'flashcards',
+            content: flashcards,
+            updated_at: new Date(),
+          },
+        },
+        { upsert: true }
+      );
+    } catch (saveErr) {
+      console.warn('Failed to cache flashcards:', saveErr.message);
     }
 
     return NextResponse.json({ flashcards });

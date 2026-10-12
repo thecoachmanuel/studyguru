@@ -613,7 +613,10 @@ export default function DashboardPage() {
           onLogout={handleLogout}
           channelSidebarOpen={channelSidebarOpen}
           onToggleChannelSidebar={() => setChannelSidebarOpen((p) => !p)}
-          onMobileBack={() => setMobilePanelView('sidebar')}
+          onMobileBack={() => {
+            setActiveChannelId(null);
+            setMobilePanelView('sidebar');
+          }}
           workspace={workspace}
           onOpenResource={handleOpenResource}
           onBackToSearch={() => {
@@ -632,7 +635,10 @@ export default function DashboardPage() {
           activeServerId={activeServerId}
           userId={user?.id}
           profile={profile}
-          onMobileBack={() => setMobilePanelView('sidebar')}
+          onMobileBack={() => {
+            setActiveChannelId(null);
+            setMobilePanelView('sidebar');
+          }}
           voiceSession={voiceSession}
           onToggleRightPanel={() => setRightPanelOpen((p) => !p)}
           rightPanelOpen={rightPanelOpen}
@@ -651,7 +657,10 @@ export default function DashboardPage() {
               onLogout={handleLogout}
               channelSidebarOpen={channelSidebarOpen}
               onToggleChannelSidebar={() => setChannelSidebarOpen((p) => !p)}
-              onMobileBack={() => setMobilePanelView('sidebar')}
+              onMobileBack={() => {
+                setActiveChannelId(null);
+                setMobilePanelView('sidebar');
+              }}
               onBack={handleBackToChannel}
               backLabel={`Back to #${activeChannelName || 'channel'}`}
               onRatingSummary={handleChannelRatingSummary}
@@ -676,7 +685,10 @@ export default function DashboardPage() {
               onLogout={handleLogout}
               channelSidebarOpen={channelSidebarOpen}
               onToggleChannelSidebar={() => setChannelSidebarOpen((p) => !p)}
-              onMobileBack={() => setMobilePanelView('sidebar')}
+              onMobileBack={() => {
+                setActiveChannelId(null);
+                setMobilePanelView('sidebar');
+              }}
               activeServerId={activeServerId}
               userId={user?.id}
               currentRole={currentRole}
@@ -721,13 +733,14 @@ export default function DashboardPage() {
         onShareToChannel={handleShareAiToChannel}
       />
 
-      {/* ── 6. Cogni-style Mobile Bottom Navigation Bar (≤ 768px) ── */}
-      {!isJoinedInVoiceRoom && (
+      {/* ── 6. Cogni-style Mobile Bottom Navigation Bar (≤ 768px, hidden when any channel is opened) ── */}
+      {!isJoinedInVoiceRoom && !activeChannelId && (
         <nav className="cogni-mobile-nav" aria-label="StudyGuru Mobile Navigation" suppressHydrationWarning>
           <button
             type="button"
             className={`cogni-mobile-nav__item ${mobilePanelView === 'sidebar' && !rightPanelOpen ? 'cogni-mobile-nav__item--active' : ''}`}
             onClick={() => {
+              setActiveChannelId(null);
               setMobilePanelView('sidebar');
               setRightPanelOpen(false);
             }}

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import { getDatabase } from '@/lib/mongodb';
 import { retrieveRelevantChunks } from '@/lib/vectorSearch';
 import { generateContentWithFallback, extractJson } from '@/lib/llm';
 
@@ -18,6 +19,23 @@ export async function POST(req) {
     }
 
     const userId = session.user.id;
+    const db = await getDatabase();
+    const isRegenerate = Boolean(body.regenerate || body.forceRefresh);
+
+    // High-concurrency cache hit: Serve existing summary immediately without burning API quota
+    if (!isRegenerate) {
+      try {
+        const cached = await db.collection('rag_study_outputs').findOne({
+          document_id: documentId,
+          output_type: 'summary',
+        });
+        if (cached?.content?.executive_summary) {
+          return NextResponse.json(cached.content);
+        }
+      } catch (cacheErr) {
+        console.warn('Summary cache lookup notice:', cacheErr.message);
+      }
+    }
 
     // Retrieve high-level chunks across document
     const chunks = await retrieveRelevantChunks({
@@ -101,6 +119,24 @@ ${contextText}`;
       summary.key_points = ['Review core sections carefully.', 'Practice spaced repetition.'];
     } else {
       summary.key_points = summary.key_points.map(p => (typeof p === 'string' ? p : JSON.stringify(p)));
+    }
+
+    // Persist to study outputs cache for instant access by any subsequent viewer
+    try {
+      await db.collection('rag_study_outputs').updateOne(
+        { document_id: documentId, output_type: 'summary' },
+        {
+          $set: {
+            document_id: documentId,
+            output_type: 'summary',
+            content: summary,
+            updated_at: new Date(),
+          },
+        },
+        { upsert: true }
+      );
+    } catch (saveErr) {
+      console.warn('Failed to cache generated summary:', saveErr.message);
     }
 
     return NextResponse.json(summary);

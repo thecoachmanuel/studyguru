@@ -50,6 +50,15 @@ function TrashIcon({ size = 13 }) {
   );
 }
 
+function ReplyIcon({ size = 13 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="9 17 4 12 9 7" />
+      <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
+    </svg>
+  );
+}
+
 // Curated avatar palette for multi-user channels & groups
 const AVATAR_PALETTE = [
   '#2563EB', '#7C3AED', '#DB2777', '#059669',
@@ -76,6 +85,7 @@ function MessageActionsMenu({
   onCopy,
   onPin,
   onDelete,
+  onReply,
 }) {
   const menuRef = useRef(null);
 
@@ -112,6 +122,18 @@ function MessageActionsMenu({
       className={`message-actions__menu ${isOwnMessage ? 'message-actions__menu--own' : 'message-actions__menu--other'}`}
       role="menu"
     >
+      {onReply && (
+        <button
+          type="button"
+          className="message-actions__item"
+          role="menuitem"
+          onClick={() => onReply(msg)}
+        >
+          <ReplyIcon size={13} />
+          Reply
+        </button>
+      )}
+
       {msg.content ? (
         <button
           type="button"
@@ -210,6 +232,81 @@ export default function MainPanel({
   const [pinnedPanelOpen, setPinnedPanelOpen] = useState(false);
   const pinRequestRef = useRef(0);
   const messagesEndRef = useRef(null);
+  const messageInputRef = useRef(null);
+
+  // ---------- reply & touch swipe state ----------
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [swipingMsgId, setSwipingMsgId] = useState(null);
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const touchStartRef = useRef(null);
+
+  const getReplySnippet = useCallback((msg) => {
+    if (msg?.content) {
+      const clean = msg.content.replace(/^>\s*↩\s*\*\*@[^*]+\*\*:[^\n]*\n\n/, '').trim();
+      return clean.length > 90 ? clean.slice(0, 87) + '…' : clean;
+    }
+    if (msg?.attachment?.file_name) {
+      return `📎 ${msg.attachment.file_name}`;
+    }
+    return 'Message';
+  }, []);
+
+  const handleStartReply = useCallback((msg) => {
+    if (!msg) return;
+    const author = msg.profiles?.username || msg.username || (msg.user_id === userId ? (profile?.username || 'You') : 'Member');
+    setReplyingTo({
+      id: msg.id,
+      author,
+      content: getReplySnippet(msg),
+    });
+    setOpenMessageMenuId(null);
+    setTimeout(() => {
+      messageInputRef.current?.focus();
+    }, 50);
+  }, [userId, profile, getReplySnippet]);
+
+  const handleTouchStart = useCallback((e, msg) => {
+    if (e.touches.length !== 1) return;
+    touchStartRef.current = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
+      msg,
+      isSwiping: false,
+    };
+  }, []);
+
+  const handleTouchMove = useCallback((e, msg) => {
+    if (!touchStartRef.current || touchStartRef.current.msg.id !== msg.id) return;
+    const dx = e.touches[0].clientX - touchStartRef.current.x;
+    const dy = e.touches[0].clientY - touchStartRef.current.y;
+
+    if (!touchStartRef.current.isSwiping) {
+      if (Math.abs(dy) > Math.abs(dx) || Math.abs(dx) < 8) {
+        return;
+      }
+      touchStartRef.current.isSwiping = true;
+    }
+
+    if (dx > 0) {
+      const offset = Math.min(dx * 0.45, 65);
+      setSwipingMsgId(msg.id);
+      setSwipeOffset(offset);
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback((e, msg) => {
+    if (touchStartRef.current && touchStartRef.current.msg.id === msg.id) {
+      if (swipeOffset >= 35) {
+        handleStartReply(msg);
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+          try { navigator.vibrate(15); } catch {}
+        }
+      }
+    }
+    setSwipingMsgId(null);
+    setSwipeOffset(0);
+    touchStartRef.current = null;
+  }, [swipeOffset, handleStartReply]);
 
   // ---------- file attachment state ----------
   const fileInputRef = useRef(null);
@@ -519,9 +616,14 @@ export default function MainPanel({
       }
 
       // ---- Message payload ----
-      const messageContent = hasText
+      let messageContent = hasText
         ? trimmed
         : '';
+
+      if (replyingTo && (hasText || pendingFile)) {
+        const quoteHeader = `> ↩ **@${replyingTo.author}**: ${replyingTo.content}\n\n`;
+        messageContent = quoteHeader + (hasText ? trimmed : (pendingFile ? `📎 ${pendingFile.name}` : ''));
+      }
 
       const msgData = await apiRequest(`/api/channels/${encodeURIComponent(channelId)}/messages`, {
         method: 'POST',
@@ -585,6 +687,7 @@ export default function MainPanel({
 
       // ---- Clear inputs ----
       setMessageText('');
+      setReplyingTo(null);
       clearPendingFile();
 
     } catch (err) {
@@ -809,7 +912,25 @@ export default function MainPanel({
           ].filter(Boolean).join(' ')}
           key={msg.id}
           id={`message-${msg.id}`}
+          data-reply-author={username}
+          onTouchStart={(e) => handleTouchStart(e, msg)}
+          onTouchMove={(e) => handleTouchMove(e, msg)}
+          onTouchEnd={(e) => handleTouchEnd(e, msg)}
+          onTouchCancel={(e) => handleTouchEnd(e, msg)}
         >
+          {/* Swipe-to-reply cue indicator on mobile */}
+          {swipingMsgId === msg.id && (
+            <div
+              className={`message-swipe-reply-cue ${swipeOffset >= 35 ? 'message-swipe-reply-cue--active' : ''}`}
+              style={{
+                opacity: Math.min(swipeOffset / 35, 1),
+                transform: `translateY(-50%) translateX(${Math.min(swipeOffset * 0.4, 20)}px)`,
+              }}
+            >
+              <ReplyIcon size={14} />
+            </div>
+          )}
+
           {/* Avatar on Left (for other users) */}
           {!isOwnMessage && (
             isGroupStart ? (
@@ -866,13 +987,20 @@ export default function MainPanel({
                     setDeleteError('');
                     setOpenMessageMenuId(null);
                   }}
+                  onReply={handleStartReply}
                 />
               )}
             </DismissableMenu>
           )}
 
           {/* Main Bubble Content Container */}
-          <div className={`message-bubble-wrapper ${isOwnMessage ? 'message-bubble-wrapper--own' : 'message-bubble-wrapper--other'}`}>
+          <div 
+            className={`message-bubble-wrapper ${isOwnMessage ? 'message-bubble-wrapper--own' : 'message-bubble-wrapper--other'}`}
+            style={swipingMsgId === msg.id ? {
+              transform: `translateX(${swipeOffset}px)`,
+              transition: 'none',
+            } : undefined}
+          >
             {/* Show author name & role for others at group start */}
             {!isOwnMessage && isGroupStart && (
               <div className="message-bubble-author">
@@ -940,9 +1068,40 @@ export default function MainPanel({
                   ? trimmedContent.replace(/^📎\s*/, '')
                   : trimmedContent;
                 if (!cleanContent) return null;
+
+                // Check for swipe-and-reply quote prefix:
+                // > ↩ **@Author**: Snippet...\n\nBody
+                const replyMatch = cleanContent.match(/^>\s*↩\s*\*\*@([^*]+)\*\*:\s*([^\n]+)\n\n([\s\S]*)$/);
+                let replyQuote = null;
+                let displayBody = cleanContent;
+
+                if (replyMatch) {
+                  const replyAuthor = replyMatch[1];
+                  const replySnippet = replyMatch[2];
+                  displayBody = replyMatch[3].trim();
+                  replyQuote = (
+                    <div 
+                      className="message-reply-quote"
+                      onClick={() => {
+                        const matchingRow = document.querySelector(`[data-reply-author="${replyAuthor}"]`);
+                        if (matchingRow) {
+                          matchingRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          matchingRow.classList.add('message-row--jump-highlight');
+                          setTimeout(() => matchingRow.classList.remove('message-row--jump-highlight'), 1800);
+                        }
+                      }}
+                      title={`Replying to @${replyAuthor}`}
+                    >
+                      <div className="message-reply-quote__author">@{replyAuthor}</div>
+                      <div className="message-reply-quote__snippet">{replySnippet}</div>
+                    </div>
+                  );
+                }
+
                 return (
                   <div className="message-text">
-                    <ChatMarkdownMessage content={cleanContent} />
+                    {replyQuote}
+                    {displayBody ? <ChatMarkdownMessage content={displayBody} /> : null}
                   </div>
                 );
               })()}
@@ -995,6 +1154,7 @@ export default function MainPanel({
                     setDeleteError('');
                     setOpenMessageMenuId(null);
                   }}
+                  onReply={handleStartReply}
                 />
               )}
             </DismissableMenu>
@@ -1236,6 +1396,37 @@ export default function MainPanel({
                 </div>
               )}
 
+              {/* Replying banner */}
+              {replyingTo && (
+                <div className="compose-reply-banner">
+                  <div className="compose-reply-banner__left">
+                    <div className="compose-reply-banner__icon">
+                      <ReplyIcon size={14} />
+                    </div>
+                    <div className="compose-reply-banner__info">
+                      <div className="compose-reply-banner__author">
+                        Replying to <strong>@{replyingTo.author}</strong>
+                      </div>
+                      <div className="compose-reply-banner__snippet">
+                        {replyingTo.content}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="compose-reply-banner__close"
+                    onClick={() => setReplyingTo(null)}
+                    aria-label="Cancel reply"
+                    title="Cancel reply"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+
               <form className="compose-bar" onSubmit={handleSendMessage}>
                 {/* Hidden file input */}
                 <input
@@ -1263,11 +1454,21 @@ export default function MainPanel({
 
                 <input
                   id="message-input"
+                  ref={messageInputRef}
                   className="compose-bar__input"
                   type="text"
-                  placeholder={pendingFile ? `Add a message with ${pendingFileLabel}…` : `Message #${channelName}`}
+                  placeholder={
+                    replyingTo
+                      ? `Replying to @${replyingTo.author}…`
+                      : (pendingFile ? `Add a message with ${pendingFileLabel}…` : `Message #${channelName}`)
+                  }
                   value={messageText}
                   onChange={(e) => setMessageText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape' && replyingTo) {
+                      setReplyingTo(null);
+                    }
+                  }}
                   disabled={sending}
                   autoComplete="off"
                 />

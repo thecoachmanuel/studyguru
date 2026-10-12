@@ -1978,6 +1978,196 @@ body {
   color: #fff;
 }
 
+/* ===================== SWIPE TO REPLY & QUOTE STYLES ===================== */
+.message-row {
+  position: relative;
+  touch-action: pan-y;
+}
+
+.message-swipe-reply-cue {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 10;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.16);
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+}
+
+.message-swipe-reply-cue--active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #FFFFFF;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+}
+
+.message-reply-quote {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px;
+  margin-bottom: 6px;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  user-select: none;
+}
+
+.message-reply-quote:hover {
+  opacity: 0.88;
+}
+
+.message-reply-quote:active {
+  transform: scale(0.99);
+}
+
+.message-bubble--other .message-reply-quote {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+}
+
+.message-bubble--other .message-reply-quote__author {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--primary);
+  line-height: 1.2;
+}
+
+.message-bubble--other .message-reply-quote__snippet {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.message-bubble--own .message-reply-quote {
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-left: 3px solid #FEF08A;
+}
+
+.message-bubble--own .message-reply-quote__author {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #FEF08A;
+  line-height: 1.2;
+}
+
+.message-bubble--own .message-reply-quote__snippet {
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.92);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* Compose bar reply banner */
+.compose-reply-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 12px;
+  margin-bottom: 6px;
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-sm);
+  animation: reply-banner-slide-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes reply-banner-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.compose-reply-banner__left {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  flex: 1;
+}
+
+.compose-reply-banner__icon {
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.compose-reply-banner__info {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.compose-reply-banner__author {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  line-height: 1.2;
+}
+
+.compose-reply-banner__author strong {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.compose-reply-banner__snippet {
+  font-size: 12.5px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.compose-reply-banner__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--transition);
+}
+
+.compose-reply-banner__close:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
 /* ===================== PINNED MESSAGES ===================== */
 .pinned-panel__backdrop {
   position: fixed;
@@ -3199,6 +3389,10 @@ body {
 }
 
 @media (max-width: 768px) {
+  .dashboard-shell--chat-active .cogni-mobile-nav {
+    display: none !important;
+  }
+
   .cogni-mobile-nav {
     display: flex;
     position: fixed;

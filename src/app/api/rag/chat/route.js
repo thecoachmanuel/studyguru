@@ -4,6 +4,10 @@ import { getDatabase, safeObjectId } from '@/lib/mongodb';
 import { retrieveRelevantChunks } from '@/lib/vectorSearch';
 import { generateStreamWithFallback } from '@/lib/llm';
 
+// In-memory cache for common student questions on documents
+const chatResponseCache = new Map();
+const CHAT_CACHE_TTL = 1000 * 60 * 30; // 30 minutes
+
 export async function POST(req) {
   try {
     const session = await auth();
@@ -104,6 +108,37 @@ ${contextText}`;
     }
 
     // Default JSON response expected by RightPanel.jsx apiRequest
+    const normalizedQuestion = message.trim().toLowerCase();
+    const chatCacheKey = `${documentId || 'general'}:${normalizedQuestion}`;
+    const cachedEntry = chatResponseCache.get(chatCacheKey);
+    if (cachedEntry && Date.now() - cachedEntry.time < CHAT_CACHE_TTL) {
+      if (sessionId) {
+        try {
+          const now = new Date();
+          const querySessionId = safeObjectId(sessionId);
+          await db.collection('rag_sessions').updateOne(
+            { $or: [{ _id: querySessionId }, { id: sessionId }] },
+            {
+              $push: {
+                messages: {
+                  $each: [
+                    { role: 'user', content: message, created_at: now },
+                    { role: 'assistant', content: cachedEntry.answer, created_at: now },
+                  ],
+                },
+              },
+              $set: { updated_at: now },
+            }
+          );
+        } catch {}
+      }
+      return NextResponse.json({
+        answer: cachedEntry.answer,
+        success: true,
+        cached: true,
+      });
+    }
+
     let fullAnswer = '';
     const generator = generateStreamWithFallback({
       prompt: `Student question: ${message}`,
@@ -112,6 +147,13 @@ ${contextText}`;
 
     for await (const chunk of generator) {
       fullAnswer += chunk;
+    }
+
+    if (fullAnswer.trim()) {
+      chatResponseCache.set(chatCacheKey, {
+        answer: fullAnswer,
+        time: Date.now(),
+      });
     }
 
     if (!fullAnswer.trim()) {

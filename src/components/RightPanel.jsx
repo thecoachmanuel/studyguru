@@ -250,7 +250,7 @@ export default function RightPanel({
     };
   };
 
-  const fetchSummary = async (identity) => {
+  const fetchSummary = async (identity, regenerate = false) => {
     const targetIdentity = getResolvedIdentity(identity);
     if (!targetIdentity || loadingSummary) {
       if (!targetIdentity) setUploadError('Please upload or select a document first.');
@@ -266,7 +266,7 @@ export default function RightPanel({
         outputType: 'summary',
         requestOutput: () => apiRequest('/api/rag/summary', {
           method: 'POST',
-          body: JSON.stringify({ doc_id: targetIdentity.documentId }),
+          body: JSON.stringify({ doc_id: targetIdentity.documentId, regenerate }),
         }),
         isActive: isTargetActive,
         onDisplay: setSummaryData,
@@ -286,7 +286,7 @@ export default function RightPanel({
     }
   };
 
-  const fetchFlashcards = async (identity) => {
+  const fetchFlashcards = async (identity, regenerate = false) => {
     const targetIdentity = getResolvedIdentity(identity);
     if (!targetIdentity || loadingFlashcards) {
       if (!targetIdentity) setUploadError('Please upload or select a document first.');
@@ -303,7 +303,7 @@ export default function RightPanel({
         requestOutput: async () => {
           const data = await apiRequest('/api/rag/flashcards', {
             method: 'POST',
-            body: JSON.stringify({ doc_id: targetIdentity.documentId }),
+            body: JSON.stringify({ doc_id: targetIdentity.documentId, regenerate }),
           });
           return data.flashcards;
         },
@@ -329,7 +329,7 @@ export default function RightPanel({
     }
   };
 
-  const fetchMcqs = async (identity) => {
+  const fetchMcqs = async (identity, regenerate = false) => {
     const targetIdentity = getResolvedIdentity(identity);
     if (!targetIdentity || loadingMcqs) {
       if (!targetIdentity) setUploadError('Please upload or select a document first.');
@@ -346,7 +346,7 @@ export default function RightPanel({
         requestOutput: async () => {
           const data = await apiRequest('/api/rag/mcq', {
             method: 'POST',
-            body: JSON.stringify({ doc_id: targetIdentity.documentId }),
+            body: JSON.stringify({ doc_id: targetIdentity.documentId, regenerate }),
           });
           return data.mcqs || data.mcq;
         },
@@ -2020,7 +2020,7 @@ export default function RightPanel({
                         type="button"
                         className="btn btn-secondary"
                         style={{ width: 'auto', padding: '6px 14px', fontSize: '13px', marginBottom: '10px' }}
-                        onClick={() => fetchSummary()}
+                        onClick={() => fetchSummary(undefined, true)}
                       >
                         Regenerate
                       </button>
@@ -2142,7 +2142,7 @@ export default function RightPanel({
                           type="button"
                           className="btn btn-secondary"
                           style={{ width: 'auto', padding: '6px 14px', fontSize: '13px' }}
-                          onClick={() => fetchFlashcards()}
+                          onClick={() => fetchFlashcards(undefined, true)}
                         >
                           Regenerate
                         </button>
@@ -2238,7 +2238,7 @@ export default function RightPanel({
                           type="button"
                           className="btn btn-secondary"
                           style={{ width: 'auto', padding: '6px 14px', fontSize: '13px' }}
-                          onClick={() => fetchMcqs()}
+                          onClick={() => fetchMcqs(undefined, true)}
                         >
                           Regenerate
                         </button>
@@ -2609,7 +2609,7 @@ export default function RightPanel({
                                 type="button"
                                 className="btn btn-secondary"
                                 style={{ width: 'auto', padding: '8px 18px', fontSize: '13px' }}
-                                onClick={() => fetchSummary()}
+                                onClick={() => fetchSummary(undefined, true)}
                               >
                                 Regenerate Summary
                               </button>
@@ -2731,7 +2731,7 @@ export default function RightPanel({
                                 type="button"
                                 className="btn btn-secondary"
                                 style={{ width: 'auto', padding: '8px 18px', fontSize: '13px' }}
-                                onClick={() => fetchFlashcards()}
+                                onClick={() => fetchFlashcards(undefined, true)}
                               >
                                 Regenerate Flashcards
                               </button>
@@ -2827,7 +2827,7 @@ export default function RightPanel({
                                 type="button"
                                 className="btn btn-secondary"
                                 style={{ width: 'auto', padding: '8px 18px', fontSize: '13px' }}
-                                onClick={() => fetchMcqs()}
+                                onClick={() => fetchMcqs(undefined, true)}
                               >
                                 Regenerate MCQ Quiz
                               </button>

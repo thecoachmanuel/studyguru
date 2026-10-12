@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import { getDatabase } from '@/lib/mongodb';
 import { retrieveRelevantChunks } from '@/lib/vectorSearch';
 import { generateContentWithFallback, extractJson } from '@/lib/llm';
 
@@ -19,6 +20,24 @@ export async function POST(req) {
     }
 
     const userId = session.user.id;
+    const db = await getDatabase();
+    const isRegenerate = Boolean(body.regenerate || body.forceRefresh);
+
+    // High-concurrency cache hit: Serve existing MCQs immediately
+    if (!isRegenerate) {
+      try {
+        const cached = await db.collection('rag_study_outputs').findOne({
+          document_id: documentId,
+          output_type: 'mcq',
+        });
+        if (Array.isArray(cached?.content) && cached.content.length > 0) {
+          return NextResponse.json({ mcqs: cached.content, mcq: cached.content });
+        }
+      } catch (cacheErr) {
+        console.warn('MCQ cache lookup notice:', cacheErr.message);
+      }
+    }
+
     const chunks = await retrieveRelevantChunks({
       query: 'quiz test questions concepts details comprehension exam practice',
       documentId,
@@ -129,6 +148,24 @@ ${contextText}`;
           explanation: 'Self-testing strengthens memory pathways and identifies concepts that require further review.',
         },
       ];
+    }
+
+    // Cache generated quiz questions in database for high-concurrency reuse
+    try {
+      await db.collection('rag_study_outputs').updateOne(
+        { document_id: documentId, output_type: 'mcq' },
+        {
+          $set: {
+            document_id: documentId,
+            output_type: 'mcq',
+            content: questions,
+            updated_at: new Date(),
+          },
+        },
+        { upsert: true }
+      );
+    } catch (saveErr) {
+      console.warn('Failed to cache MCQs:', saveErr.message);
     }
 
     return NextResponse.json({ mcqs: questions, mcq: questions });
