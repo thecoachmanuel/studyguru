@@ -4,6 +4,7 @@
   line-height: 1.62;
   overflow-wrap: anywhere;
   word-break: normal;
+  color: var(--text-primary);
 }
 
 .chat-ai-markdown > :first-child {
@@ -16,6 +17,7 @@
 
 .chat-ai-markdown p {
   margin: 0 0 0.75em;
+  color: inherit;
 }
 
 .chat-ai-markdown h1,
@@ -25,7 +27,7 @@
 .chat-ai-markdown h5,
 .chat-ai-markdown h6 {
   margin: 1em 0 0.45em;
-  color: #fff;
+  color: var(--text-primary);
   font-weight: 650;
   line-height: 1.3;
   letter-spacing: 0;
@@ -55,6 +57,7 @@
 .chat-ai-markdown li {
   margin: 0.35em 0;
   padding-left: 0.15em;
+  color: inherit;
 }
 
 .chat-ai-markdown li > p {
@@ -63,17 +66,19 @@
 
 .chat-ai-markdown blockquote {
   margin: 0.8em 0;
-  padding: 0.2em 0 0.2em 0.8em;
-  border-left: 2px solid #737373;
-  color: #d4d4d4;
+  padding: 0.3em 0 0.3em 0.8em;
+  border-left: 3px solid var(--border-subtle);
+  color: var(--text-secondary);
+  background-color: var(--bg-elevated);
+  border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
 }
 
 .chat-ai-markdown code {
-  padding: 0.12em 0.32em;
-  border: 1px solid #404040;
+  padding: 0.15em 0.35em;
+  border: 1px solid var(--border);
   border-radius: 3px;
-  background: #171717;
-  color: #f5f5f5;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
   font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
   font-size: 0.9em;
 }
@@ -83,9 +88,10 @@
   margin: 0.8em 0;
   padding: 0.85em;
   overflow-x: auto;
-  border: 1px solid #404040;
-  border-radius: 5px;
-  background: #0a0a0a;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: var(--bg-darkest);
+  color: var(--text-primary);
   line-height: 1.5;
 }
 
@@ -112,20 +118,24 @@
 
 .chat-ai-markdown th,
 .chat-ai-markdown td {
-  padding: 0.5em 0.65em;
-  border: 1px solid #525252;
+  padding: 0.55em 0.75em;
+  border: 1px solid var(--border);
   text-align: left;
   vertical-align: top;
 }
 
 .chat-ai-markdown th {
-  background: #171717;
-  color: #fff;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
   font-weight: 650;
 }
 
+.chat-ai-markdown td {
+  color: var(--text-secondary);
+}
+
 .chat-ai-markdown a {
-  color: #fff;
+  color: var(--primary);
   text-decoration: underline;
   text-underline-offset: 2px;
   overflow-wrap: anywhere;
@@ -134,10 +144,10 @@
 .chat-ai-markdown hr {
   margin: 0.9em 0;
   border: 0;
-  border-top: 1px solid #525252;
+  border-top: 1px solid var(--border);
 }
 
 .chat-ai-markdown strong {
-  color: #fff;
+  color: var(--text-primary);
   font-weight: 700;
 }

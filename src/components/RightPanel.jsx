@@ -774,10 +774,10 @@ export default function RightPanel({
           min-width: 0;
         }
         .right-panel__section-title {
-          font-size: 11px;
+          font-size: 12px;
           font-weight: 600;
           text-transform: uppercase;
-          letter-spacing: 0.04em;
+          letter-spacing: 0.05em;
           color: var(--text-muted);
           margin: 0 0 10px 0;
         }
@@ -801,47 +801,52 @@ export default function RightPanel({
         .ai-quick-actions {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 6px;
+          gap: 8px;
           margin-top: 8px;
         }
         .ai-quick-action {
           min-width: 0;
-          padding: 7px 6px;
+          padding: 8px 8px;
           color: var(--text-secondary);
           background-color: var(--bg-darkest);
           border: 1px solid var(--border);
           border-radius: var(--radius-xs);
-          font-size: 10.5px;
+          font-size: 12.5px;
           font-weight: 500;
           text-align: center;
           cursor: pointer;
           transition: background-color var(--transition), color var(--transition), border-color var(--transition);
         }
-        .ai-quick-action:hover,
-        .ai-quick-action--active {
+        .ai-quick-action:hover {
           color: var(--text-primary);
           background-color: var(--bg-elevated);
           border-color: var(--border-subtle);
+        }
+        .ai-quick-action--active {
+          color: var(--primary);
+          background-color: var(--accent-subtle);
+          border-color: var(--primary);
+          font-weight: 600;
         }
         .shared-resources-empty {
           display: flex;
           align-items: flex-start;
           gap: 8px;
           color: var(--text-muted);
-          font-size: 11px;
-          line-height: 1.45;
+          font-size: 13px;
+          line-height: 1.5;
         }
         .shared-resources-empty__icon {
-          width: 14px;
-          height: 14px;
+          width: 16px;
+          height: 16px;
           flex-shrink: 0;
           margin-top: 1px;
         }
         .ai-study-tagline {
           margin: 0 0 12px;
           color: var(--text-secondary);
-          font-size: 12px;
-          line-height: 1.45;
+          font-size: 13.5px;
+          line-height: 1.5;
         }
         .ai-study-upload-card,
         .ai-study-document-card {
@@ -877,12 +882,13 @@ export default function RightPanel({
           color: var(--text-muted);
         }
         .ai-study-upload-card__title {
-          font-size: 12px;
+          font-size: 13.5px;
           font-weight: 600;
+          color: var(--text-primary);
         }
         .ai-study-upload-card__formats {
           color: var(--text-muted);
-          font-size: 10.5px;
+          font-size: 12px;
           letter-spacing: 0.03em;
         }
         .ai-features,
@@ -895,13 +901,15 @@ export default function RightPanel({
         .ai-recent-sessions__title {
           margin: 0;
           color: var(--text-primary);
-          font-size: 11px;
+          font-size: 12px;
           font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
         }
         .ai-features__list {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 7px 10px;
+          gap: 8px 10px;
           margin: 9px 0 0;
           padding: 0;
           list-style: none;
@@ -909,17 +917,17 @@ export default function RightPanel({
         .ai-features__item {
           position: relative;
           padding-left: 10px;
-          color: var(--text-muted);
-          font-size: 10.5px;
-          line-height: 1.35;
+          color: var(--text-secondary);
+          font-size: 13px;
+          line-height: 1.4;
         }
         .ai-features__item::before {
           content: '';
           position: absolute;
           top: 0.55em;
           left: 0;
-          width: 3px;
-          height: 3px;
+          width: 4px;
+          height: 4px;
           border-radius: 50%;
           background-color: currentColor;
         }
@@ -928,8 +936,8 @@ export default function RightPanel({
           flex-shrink: 0;
           width: auto;
           margin-top: 0;
-          padding: 5px 9px;
-          font-size: 10px;
+          padding: 5px 11px;
+          font-size: 12px;
         }
         .ai-recent-sessions__header {
           display: flex;
@@ -950,7 +958,7 @@ export default function RightPanel({
           align-items: center;
           justify-content: flex-start;
           gap: 10px;
-          padding: 8px 10px;
+          padding: 8px 12px;
           color: var(--text-primary);
           background-color: var(--bg-surface);
           border: 1px solid var(--border);
@@ -981,7 +989,7 @@ export default function RightPanel({
           display: block;
           overflow: hidden;
           color: var(--text-primary);
-          font-size: 13px;
+          font-size: 13.5px;
           font-weight: 600;
           text-overflow: ellipsis;
           white-space: nowrap;
@@ -992,19 +1000,19 @@ export default function RightPanel({
           justify-content: flex-start;
           gap: 6px;
           color: var(--text-secondary);
-          font-size: 10.5px;
+          font-size: 12px;
         }
         .ai-study-document-card__status-icon {
-          width: 12px;
-          height: 12px;
+          width: 13px;
+          height: 13px;
           flex-shrink: 0;
-          color: #22c55e;
+          color: var(--success);
         }
         .ai-study-document-card__new {
           flex-shrink: 0;
           width: auto;
-          padding: 3px 7px;
-          font-size: 9px;
+          padding: 4px 10px;
+          font-size: 12px;
         }
         .ai-history {
           display: flex;
@@ -1028,26 +1036,26 @@ export default function RightPanel({
         }
         .ai-history__title {
           color: var(--text-primary);
-          font-size: 12px;
+          font-size: 14px;
           font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.05em;
         }
         .ai-history__subtitle {
           color: var(--text-muted);
-          font-size: 11px;
+          font-size: 13px;
           line-height: 1.4;
           margin-top: 3px;
         }
         .ai-history__back {
           width: auto;
           flex-shrink: 0;
-          padding: 5px 9px;
-          font-size: 10px;
+          padding: 6px 12px;
+          font-size: 12.5px;
         }
         .ai-history__error {
-          padding: 7px 9px;
-          font-size: 11px;
+          padding: 8px 12px;
+          font-size: 13px;
         }
         .ai-history__list {
           display: flex;
@@ -1060,7 +1068,7 @@ export default function RightPanel({
           display: flex;
           flex-direction: column;
           gap: 5px;
-          padding: 10px 11px;
+          padding: 10px 12px;
           color: var(--text-primary);
           background-color: var(--bg-surface);
           border: 1px solid var(--border);
@@ -1088,19 +1096,19 @@ export default function RightPanel({
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
-          font-size: 12px;
+          font-size: 13.5px;
           font-weight: 500;
         }
         .ai-history__item-type {
           flex-shrink: 0;
           color: var(--text-muted);
-          font-size: 9px;
+          font-size: 11.5px;
           letter-spacing: 0.05em;
         }
         .ai-history__item-date,
         .ai-history__empty {
           color: var(--text-muted);
-          font-size: 10.5px;
+          font-size: 12.5px;
         }
         .ai-history__empty {
           padding: 18px 12px;
@@ -1109,9 +1117,9 @@ export default function RightPanel({
           text-align: center;
         }
         .ai-sidebar-content {
-          max-height: 340px;
+          max-height: 400px;
           overflow-y: auto;
-          font-size: 12.5px;
+          font-size: 13.5px;
           padding-right: 4px;
         }
         .ai-sidebar-content::-webkit-scrollbar { width: 4px; }
@@ -1144,7 +1152,7 @@ export default function RightPanel({
           display: flex;
           align-items: center;
           gap: 8px;
-          font-size: 12px;
+          font-size: 13px;
           font-weight: 500;
           color: var(--text-secondary);
         }
@@ -1155,9 +1163,9 @@ export default function RightPanel({
           100% { background-position: 250px 0; }
         }
         .skeleton-line {
-          height: 11px;
+          height: 12px;
           border-radius: 4px;
-          background: linear-gradient(90deg, #1e1e1e 0%, #2e2e2e 50%, #1e1e1e 100%);
+          background: linear-gradient(90deg, var(--bg-elevated) 0%, var(--bg-hover) 50%, var(--bg-elevated) 100%);
           background-size: 500px 100%;
           animation: aiShimmer 1.4s infinite ease-in-out;
           margin-bottom: 8px;
@@ -1168,10 +1176,10 @@ export default function RightPanel({
           background-color: var(--bg-surface);
           border: 1px solid var(--border);
           border-radius: var(--radius-sm);
-          padding: 10px 12px;
+          padding: 12px 14px;
         }
         .ai-sidebar-summary__sec-title {
-          font-size: 11px;
+          font-size: 12px;
           font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.05em;
@@ -1179,9 +1187,10 @@ export default function RightPanel({
           margin-bottom: 6px;
         }
         .ai-sidebar-concept-row {
-          padding: 6px 0;
+          padding: 7px 0;
           border-bottom: 1px solid var(--border);
-          line-height: 1.45;
+          line-height: 1.5;
+          font-size: 13.5px;
         }
         .ai-sidebar-concept-row:last-child {
           border-bottom: none;
@@ -1193,27 +1202,27 @@ export default function RightPanel({
           flex-direction: column;
           gap: 10px;
           margin-bottom: 10px;
-          max-height: 240px;
+          max-height: 260px;
           overflow-y: auto;
         }
         .ai-sidebar-chat-list::-webkit-scrollbar { width: 3px; }
         .ai-sidebar-bubble {
-          padding: 8px 12px;
+          padding: 9px 13px;
           border-radius: var(--radius-sm);
-          line-height: 1.45;
+          line-height: 1.5;
           word-break: break-word;
           max-width: 92%;
-          font-size: 12px;
+          font-size: 13.5px;
         }
         .ai-sidebar-bubble--ai {
           background-color: var(--bg-surface);
           border: 1px solid var(--border);
           align-self: flex-start;
-          color: var(--text-secondary);
+          color: var(--text-primary);
         }
         .ai-sidebar-bubble--user {
-          background-color: #FFFFFF;
-          color: #000000;
+          background-color: var(--primary);
+          color: var(--primary-foreground);
           align-self: flex-end;
           font-weight: 450;
         }
@@ -1223,22 +1232,34 @@ export default function RightPanel({
         }
         .ai-sidebar-chat-input {
           flex: 1;
-          padding: 8px 12px;
-          font-size: 12px;
+          padding: 9px 12px;
+          font-size: 13.5px;
           border: 1px solid var(--border);
           border-radius: var(--radius-xs);
-          background-color: var(--bg-darkest);
+          background-color: var(--bg-surface);
           color: var(--text-primary);
           outline: none;
         }
+        .ai-sidebar-chat-input:focus {
+          border-color: var(--primary);
+        }
         .ai-sidebar-chat-btn {
-          background-color: #FFFFFF;
-          color: #000000;
+          background-color: var(--primary);
+          color: var(--primary-foreground);
           border: none;
-          padding: 0 12px;
+          padding: 0 14px;
           border-radius: var(--radius-xs);
           cursor: pointer;
           font-weight: 600;
+          font-size: 14px;
+          transition: background-color var(--transition);
+        }
+        .ai-sidebar-chat-btn:hover:not(:disabled) {
+          background-color: var(--primary-hover);
+        }
+        .ai-sidebar-chat-btn:disabled {
+          opacity: 0.45;
+          cursor: not-allowed;
         }
 
         /* Sidebar Flashcard */
@@ -1246,6 +1267,7 @@ export default function RightPanel({
           border: 1px solid var(--border);
           border-radius: var(--radius-md);
           background-color: var(--bg-surface);
+          color: var(--text-primary);
           min-height: 140px;
           padding: 16px;
           display: flex;
@@ -1262,9 +1284,10 @@ export default function RightPanel({
           border-color: var(--border-subtle);
         }
         .ai-sidebar-card__content {
-          font-size: 12.5px;
+          font-size: 14.5px;
           font-weight: 500;
           line-height: 1.5;
+          color: var(--text-primary);
           margin-top: 6px;
           margin-bottom: 6px;
         }
@@ -1276,30 +1299,40 @@ export default function RightPanel({
           border-radius: var(--radius-sm);
           padding: 12px;
           margin-bottom: 10px;
+          color: var(--text-primary);
         }
         .ai-sidebar-mcq-opt {
-          padding: 8px 10px;
+          padding: 9px 12px;
           border: 1px solid var(--border);
           border-radius: var(--radius-xs);
           background-color: var(--bg-darkest);
+          color: var(--text-secondary);
           margin-top: 6px;
           cursor: pointer;
-          font-size: 11.5px;
+          font-size: 13.5px;
           line-height: 1.4;
           transition: all var(--transition);
         }
+        .ai-sidebar-mcq-opt:hover:not(.ai-sidebar-mcq-opt--disabled) {
+          border-color: var(--primary);
+          color: var(--text-primary);
+          background-color: var(--bg-hover);
+        }
         .ai-sidebar-mcq-opt--selected {
-          border-color: #FFFFFF;
+          border-color: var(--primary);
+          background-color: var(--accent-subtle);
+          color: var(--primary);
+          font-weight: 600;
         }
         .ai-sidebar-mcq-opt--correct {
           border-color: rgba(34, 197, 94, 0.4);
-          background-color: rgba(34, 197, 94, 0.1);
-          color: #4ade80;
+          background-color: rgba(34, 197, 94, 0.12);
+          color: var(--success) !important;
         }
         .ai-sidebar-mcq-opt--incorrect {
           border-color: rgba(239, 68, 68, 0.4);
-          background-color: rgba(239, 68, 68, 0.1);
-          color: #f87171;
+          background-color: rgba(239, 68, 68, 0.12);
+          color: var(--error-color) !important;
         }
 
         /* Workspace Modal */
@@ -1307,7 +1340,7 @@ export default function RightPanel({
           position: fixed;
           inset: 0;
           z-index: 1000;
-          background-color: rgba(0, 0, 0, 0.7);
+          background-color: rgba(15, 23, 42, 0.65);
           backdrop-filter: blur(8px);
           -webkit-backdrop-filter: blur(8px);
           display: flex;
@@ -1324,7 +1357,7 @@ export default function RightPanel({
           display: flex;
           flex-direction: column;
           overflow: hidden;
-          box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+          box-shadow: var(--card-shadow);
           animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
         @keyframes scaleIn {
@@ -1332,13 +1365,13 @@ export default function RightPanel({
           to { opacity: 1; transform: scale(1) translateY(0); }
         }
         .ai-workspace-header {
-          height: 56px;
+          height: 58px;
           padding: 0 20px;
           display: flex;
           align-items: center;
           justify-content: space-between;
           border-bottom: 1px solid var(--border);
-          background-color: var(--bg-panel1);
+          background-color: var(--bg-surface);
         }
         .ai-workspace-header__left {
           display: flex;
@@ -1346,18 +1379,18 @@ export default function RightPanel({
           gap: 12px;
         }
         .ai-workspace-title {
-          font-size: 12px;
-          font-weight: 600;
+          font-size: 15px;
+          font-weight: 700;
           text-transform: uppercase;
           letter-spacing: 0.05em;
-          color: #FFF;
+          color: var(--text-primary);
           margin: 0;
         }
         .ai-workspace-docname {
-          font-size: 11px;
-          color: var(--text-muted);
+          font-size: 12.5px;
+          color: var(--text-secondary);
           background-color: var(--bg-elevated);
-          padding: 2px 8px;
+          padding: 3px 10px;
           border-radius: var(--radius-xs);
           border: 1px solid var(--border);
         }
@@ -1374,7 +1407,7 @@ export default function RightPanel({
           line-height: 1;
         }
         .ai-workspace-close:hover {
-          color: #FFF;
+          color: var(--text-primary);
         }
         .ai-workspace-body {
           flex: 1;
@@ -1388,7 +1421,7 @@ export default function RightPanel({
           width: 100%;
         }
         .ai-workspace-tabs {
-          width: 200px;
+          width: 220px;
           background-color: var(--bg-panel1);
           border-right: 1px solid var(--border);
           padding: 20px 10px;
@@ -1399,12 +1432,12 @@ export default function RightPanel({
         .ai-workspace-tab-btn {
           width: 100%;
           text-align: left;
-          padding: 10px 14px;
-          font-size: 12px;
+          padding: 11px 14px;
+          font-size: 13.5px;
           font-weight: 500;
           border: 1px solid transparent;
           background: transparent;
-          color: var(--text-muted);
+          color: var(--text-secondary);
           cursor: pointer;
           border-radius: var(--radius-sm);
           transition: all var(--transition);
@@ -1414,10 +1447,11 @@ export default function RightPanel({
           color: var(--text-primary);
         }
         .ai-workspace-tab-btn--active {
-          background-color: var(--bg-hover);
+          background-color: var(--bg-surface);
           border-color: var(--border);
-          color: #FFF;
+          color: var(--primary);
           font-weight: 600;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
         .ai-workspace-content {
           flex: 1;
@@ -1442,7 +1476,7 @@ export default function RightPanel({
         }
         .ai-workspace-loading {
           text-align: center;
-          font-size: 13px;
+          font-size: 14px;
           color: var(--text-muted);
           margin-top: 48px;
         }
@@ -1490,8 +1524,8 @@ export default function RightPanel({
           flex-direction: row-reverse;
         }
         .ai-message__avatar {
-          width: 32px;
-          height: 32px;
+          width: 34px;
+          height: 34px;
           border-radius: 50%;
           background-color: var(--bg-elevated);
           border: 1px solid var(--border);
@@ -1499,32 +1533,32 @@ export default function RightPanel({
           align-items: center;
           justify-content: center;
           font-weight: 600;
-          font-size: 11px;
+          font-size: 12px;
           flex-shrink: 0;
-          color: var(--text-secondary);
+          color: var(--text-primary);
         }
         .ai-message__bubble {
           padding: 12px 16px;
           border-radius: var(--radius-md);
-          line-height: 1.5;
-          font-size: 13.5px;
+          line-height: 1.55;
+          font-size: 14.5px;
           word-break: break-word;
         }
         .ai-message--ai .ai-message__bubble {
           background-color: var(--bg-surface);
           border: 1px solid var(--border);
-          color: var(--text-secondary);
+          color: var(--text-primary);
           border-top-left-radius: 2px;
         }
         .ai-message--user .ai-message__bubble {
-          background-color: #FFFFFF;
-          color: #000000;
+          background-color: var(--primary);
+          color: var(--primary-foreground);
           border-top-right-radius: 2px;
           font-weight: 450;
         }
         .ai-message__time {
-          font-size: 10px;
-          color: var(--text-dark);
+          font-size: 11.5px;
+          color: var(--text-muted);
           margin-top: 4px;
           display: block;
         }
@@ -1543,7 +1577,7 @@ export default function RightPanel({
           border-top-left-radius: 2px;
           width: fit-content;
           align-self: flex-start;
-          margin-left: 44px;
+          margin-left: 46px;
         }
         .ai-typing-dot {
           width: 6px;
@@ -1560,7 +1594,7 @@ export default function RightPanel({
           display: flex;
           gap: 10px;
           background-color: var(--bg-surface);
-          padding: 6px;
+          padding: 8px;
           border: 1px solid var(--border);
           border-radius: var(--radius-md);
         }
@@ -1569,26 +1603,26 @@ export default function RightPanel({
           background: transparent;
           border: none;
           color: var(--text-primary);
-          font-size: 13.5px;
+          font-size: 14.5px;
           padding: 10px 14px;
           outline: none;
         }
         .ai-chat-submit {
-          padding: 10px 20px;
-          font-size: 12.5px;
+          padding: 10px 22px;
+          font-size: 13.5px;
           font-weight: 600;
           border: none;
           border-radius: var(--radius-sm);
-          background-color: #FFFFFF;
-          color: #000000;
+          background-color: var(--primary);
+          color: var(--primary-foreground);
           cursor: pointer;
           transition: background-color var(--transition);
         }
         .ai-chat-submit:hover:not(:disabled) {
-          background-color: var(--accent-hover);
+          background-color: var(--primary-hover);
         }
         .ai-chat-submit:disabled {
-          opacity: 0.4;
+          opacity: 0.45;
           cursor: not-allowed;
         }
 
@@ -1614,7 +1648,7 @@ export default function RightPanel({
         }
         .ai-flashcard:hover {
           transform: translateY(-4px);
-          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
         }
         .ai-flashcard--flipped {
           transform: rotateY(180deg) translateY(-4px);
@@ -1632,32 +1666,33 @@ export default function RightPanel({
           align-items: center;
           justify-content: center;
           text-align: center;
-          box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+          box-shadow: var(--card-shadow);
           transition: border-color var(--transition);
         }
         .ai-flashcard__front {
           background-color: var(--bg-surface);
-          color: #FFFFFF;
+          color: var(--text-primary);
         }
         .ai-flashcard__back {
           background-color: var(--bg-elevated);
-          color: var(--text-secondary);
+          color: var(--text-primary);
           transform: rotateY(180deg);
           border-color: var(--border-subtle);
         }
         .ai-flashcard__label {
-          font-size: 9.5px;
+          font-size: 11.5px;
           text-transform: uppercase;
           letter-spacing: 0.12em;
           color: var(--text-muted);
           margin-bottom: 16px;
         }
         .ai-flashcard__content {
-          font-size: 17px;
-          font-weight: 500;
+          font-size: 18px;
+          font-weight: 600;
           line-height: 1.6;
           margin: 0;
           max-width: 90%;
+          color: var(--text-primary);
         }
         .ai-flashcard-controls {
           display: flex;
@@ -1674,17 +1709,17 @@ export default function RightPanel({
           padding: 16px 20px;
         }
         .ai-workspace-mcq-progress__bar-bg {
-          height: 6px;
+          height: 8px;
           width: 100%;
           background-color: var(--bg-darkest);
-          border-radius: 3px;
+          border-radius: 4px;
           margin-top: 8px;
           overflow: hidden;
         }
         .ai-workspace-mcq-progress__bar-fill {
           height: 100%;
-          background-color: #FFFFFF;
-          border-radius: 3px;
+          background-color: var(--primary);
+          border-radius: 4px;
           transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .ai-workspace-mcq-item-card {
@@ -1699,11 +1734,11 @@ export default function RightPanel({
           border-color: var(--border-subtle);
         }
         .ai-workspace-mcq-question {
-          font-size: 15px;
+          font-size: 16px;
           font-weight: 600;
           margin: 0 0 18px 0;
           line-height: 1.5;
-          color: #FFFFFF;
+          color: var(--text-primary);
         }
         .ai-workspace-mcq-options {
           display: grid;
@@ -1719,31 +1754,31 @@ export default function RightPanel({
           border: 1px solid var(--border);
           background-color: var(--bg-darkest);
           cursor: pointer;
-          font-size: 13px;
+          font-size: 14px;
           transition: all var(--transition);
           color: var(--text-secondary);
         }
         .ai-workspace-mcq-option-btn:hover:not(.ai-workspace-mcq-option-btn--disabled) {
-          border-color: var(--text-muted);
+          border-color: var(--primary);
           background-color: var(--bg-hover);
-          color: #FFFFFF;
+          color: var(--text-primary);
         }
         .ai-workspace-mcq-option-btn--selected {
-          border-color: #FFFFFF;
-          background-color: var(--bg-hover);
-          color: #FFFFFF;
-          font-weight: 500;
+          border-color: var(--primary);
+          background-color: var(--accent-subtle);
+          color: var(--primary);
+          font-weight: 600;
         }
         .ai-workspace-mcq-option-btn--correct {
           border-color: rgba(34, 197, 94, 0.5);
-          background-color: rgba(34, 197, 94, 0.1);
-          color: #4ade80 !important;
+          background-color: rgba(34, 197, 94, 0.12);
+          color: var(--success) !important;
           font-weight: 500;
         }
         .ai-workspace-mcq-option-btn--incorrect {
           border-color: rgba(239, 68, 68, 0.5);
-          background-color: rgba(239, 68, 68, 0.1);
-          color: #f87171 !important;
+          background-color: rgba(239, 68, 68, 0.12);
+          color: var(--error-color) !important;
         }
         .ai-workspace-mcq-option-btn--disabled {
           cursor: default;
@@ -1943,7 +1978,7 @@ export default function RightPanel({
                       <button
                         type="button"
                         className="btn btn-secondary"
-                        style={{ width: 'auto', padding: '5px 12px', fontSize: '12.5px', marginBottom: '10px' }}
+                        style={{ width: 'auto', padding: '6px 14px', fontSize: '13px', marginBottom: '10px' }}
                         onClick={() => fetchSummary()}
                       >
                         Regenerate
@@ -1952,7 +1987,7 @@ export default function RightPanel({
                         <button
                           type="button"
                           className="btn btn-primary"
-                          style={{ width: 'auto', padding: '5px 12px', fontSize: '12.5px', marginBottom: '10px', marginLeft: '8px' }}
+                          style={{ width: 'auto', padding: '6px 14px', fontSize: '13px', marginBottom: '10px', marginLeft: '8px' }}
                           onClick={handleShareSummary}
                           title={`Share summary to #${activeChannelName || 'Chat'}`}
                         >
@@ -1961,7 +1996,7 @@ export default function RightPanel({
                       )}
                       <div className="ai-sidebar-summary__sec">
                         <div className="ai-sidebar-summary__sec-title">Executive Summary</div>
-                        <p style={{ margin: 0, color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: '14px' }}>
+                        <p style={{ margin: 0, color: 'var(--text-primary)', lineHeight: 1.6, fontSize: '14.5px' }}>
                           {summaryData.executive_summary}
                         </p>
                       </div>
@@ -1971,8 +2006,8 @@ export default function RightPanel({
                           <div className="ai-sidebar-summary__sec-title">Key Concepts</div>
                           {summaryData.key_concepts.map((c, i) => (
                             <div key={i} className="ai-sidebar-concept-row">
-                              <span style={{ fontWeight: 600, color: '#FFF' }}>{c.concept}: </span>
-                              <span style={{ color: 'var(--text-muted)' }}>{c.description}</span>
+                              <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '14px' }}>{c.concept}: </span>
+                              <span style={{ color: 'var(--text-secondary)', fontSize: '13.5px' }}>{c.description}</span>
                             </div>
                           ))}
                         </div>
@@ -1981,9 +2016,9 @@ export default function RightPanel({
                       {summaryData.key_points && summaryData.key_points.length > 0 && (
                         <div className="ai-sidebar-summary__sec">
                           <div className="ai-sidebar-summary__sec-title">Key Takeaways</div>
-                          <ul style={{ paddingLeft: '16px', margin: 0, color: 'var(--text-secondary)' }}>
+                          <ul style={{ paddingLeft: '18px', margin: 0, color: 'var(--text-secondary)' }}>
                             {summaryData.key_points.map((p, i) => (
-                              <li key={i} style={{ marginBottom: '6px', lineHeight: 1.45 }}>{p}</li>
+                              <li key={i} style={{ marginBottom: '6px', lineHeight: 1.5, fontSize: '13.5px', color: 'var(--text-primary)' }}>{p}</li>
                             ))}
                           </ul>
                         </div>
@@ -2018,7 +2053,7 @@ export default function RightPanel({
                             <button
                               type="button"
                               className="btn btn-secondary"
-                              style={{ width: 'auto', padding: '2px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              style={{ width: 'auto', padding: '3px 10px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                               onClick={() => handleShareChatMessage(msg.content)}
                               title={`Share answer to #${activeChannelName || 'Chat'}`}
                             >
@@ -2029,7 +2064,7 @@ export default function RightPanel({
                       </div>
                     ))}
                     {sendingChat && (
-                      <div className="ai-sidebar-bubble ai-sidebar-bubble--ai" style={{ opacity: 0.85, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div className="ai-sidebar-bubble ai-sidebar-bubble--ai" style={{ opacity: 0.85, display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
                         <svg className="ai-spinner" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                           <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                         </svg>
@@ -2065,7 +2100,7 @@ export default function RightPanel({
                         <button
                           type="button"
                           className="btn btn-secondary"
-                          style={{ width: 'auto', padding: '5px 12px', fontSize: '12.5px' }}
+                          style={{ width: 'auto', padding: '6px 14px', fontSize: '13px' }}
                           onClick={() => fetchFlashcards()}
                         >
                           Regenerate
@@ -2074,7 +2109,7 @@ export default function RightPanel({
                           <button
                             type="button"
                             className="btn btn-primary"
-                            style={{ width: 'auto', padding: '5px 12px', fontSize: '12.5px' }}
+                            style={{ width: 'auto', padding: '6px 14px', fontSize: '13px' }}
                             onClick={handleShareFlashcards}
                             title={`Share deck to #${activeChannelName || 'Chat'}`}
                           >
@@ -2094,7 +2129,7 @@ export default function RightPanel({
                             ? flashcards[currentFlashcardIndex].answer 
                             : flashcards[currentFlashcardIndex].question}
                         </div>
-                        <span style={{ fontSize: '12px', color: 'var(--text-muted)', opacity: 0.7, marginTop: 'auto' }}>
+                        <span style={{ fontSize: '12.5px', color: 'var(--text-muted)', opacity: 0.75, marginTop: 'auto' }}>
                           Click to flip
                         </span>
                       </div>
@@ -2102,7 +2137,7 @@ export default function RightPanel({
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '10px', gap: '6px' }}>
                         <button 
                           className="btn btn-secondary" 
-                          style={{ width: 'auto', padding: '6px 12px', fontSize: '12.5px' }}
+                          style={{ width: 'auto', padding: '6px 14px', fontSize: '13px' }}
                           disabled={currentFlashcardIndex === 0}
                           onClick={() => {
                             setCurrentFlashcardIndex(prev => prev - 1);
@@ -2111,14 +2146,14 @@ export default function RightPanel({
                         >
                           Prev
                         </button>
-                        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                        <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
                           {currentFlashcardIndex + 1} of {flashcards.length}
                         </span>
                         {onShareToChannel && (
                           <button
                             type="button"
                             className="btn btn-secondary"
-                            style={{ width: 'auto', padding: '6px 10px', fontSize: '11.5px' }}
+                            style={{ width: 'auto', padding: '6px 12px', fontSize: '12.5px' }}
                             onClick={() => handleShareSingleFlashcard(currentFlashcardIndex)}
                             title="Share this card to channel"
                           >
@@ -2127,7 +2162,7 @@ export default function RightPanel({
                         )}
                         <button 
                           className="btn btn-secondary" 
-                          style={{ width: 'auto', padding: '6px 12px', fontSize: '12.5px' }}
+                          style={{ width: 'auto', padding: '6px 14px', fontSize: '13px' }}
                           disabled={currentFlashcardIndex === flashcards.length - 1}
                           onClick={() => {
                             setCurrentFlashcardIndex(prev => prev + 1);
@@ -2161,7 +2196,7 @@ export default function RightPanel({
                         <button
                           type="button"
                           className="btn btn-secondary"
-                          style={{ width: 'auto', padding: '5px 12px', fontSize: '12.5px' }}
+                          style={{ width: 'auto', padding: '6px 14px', fontSize: '13px' }}
                           onClick={() => fetchMcqs()}
                         >
                           Regenerate
@@ -2170,7 +2205,7 @@ export default function RightPanel({
                           <button
                             type="button"
                             className="btn btn-primary"
-                            style={{ width: 'auto', padding: '5px 12px', fontSize: '12.5px' }}
+                            style={{ width: 'auto', padding: '6px 14px', fontSize: '13px' }}
                             onClick={handleShareQuiz}
                             title={`Share quiz to #${activeChannelName || 'Chat'}`}
                           >
@@ -2185,7 +2220,7 @@ export default function RightPanel({
 
                         return (
                           <div key={qIdx} className="ai-sidebar-mcq-item">
-                            <div style={{ fontWeight: 600, marginBottom: '6px', lineHeight: 1.4 }}>Q{qIdx + 1}. {q.question}</div>
+                            <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)', marginBottom: '8px', lineHeight: 1.45 }}>Q{qIdx + 1}. {q.question}</div>
                             
                             {q.options.map((opt, oIdx) => {
                               let optClass = 'ai-sidebar-mcq-opt';
@@ -2207,28 +2242,28 @@ export default function RightPanel({
                               );
                             })}
 
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
                               {!isChecked ? (
                                 <button 
                                   className="btn btn-secondary" 
-                                  style={{ width: 'auto', padding: '6px 14px', fontSize: '12.5px' }}
+                                  style={{ width: 'auto', padding: '6px 14px', fontSize: '13px' }}
                                   disabled={selectedOptIdx === undefined}
                                   onClick={() => handleCheckMcq(qIdx)}
                                 >
                                   Check Answer
                                 </button>
                               ) : (
-                                <div style={{ fontSize: '13px', fontWeight: '500' }}>
+                                <div style={{ fontSize: '13.5px', fontWeight: '500' }}>
                                   {selectedOptIdx === correctOptIdx 
-                                    ? <span style={{ color: '#4ade80' }}>✓ Correct</span> 
-                                    : <span style={{ color: '#f87171' }}>✗ Incorrect (Ans: {q.correct_answer})</span>}
+                                    ? <span style={{ color: 'var(--success)' }}>✓ Correct</span> 
+                                    : <span style={{ color: 'var(--error-color)' }}>✗ Incorrect (Ans: {q.correct_answer})</span>}
                                 </div>
                               )}
                               {onShareToChannel && (
                                 <button
                                   type="button"
                                   className="btn btn-secondary"
-                                  style={{ width: 'auto', padding: '5px 10px', fontSize: '11.5px', marginLeft: 'auto' }}
+                                  style={{ width: 'auto', padding: '5px 12px', fontSize: '12.5px', marginLeft: 'auto' }}
                                   onClick={() => handleShareSingleMcq(qIdx)}
                                   title="Share question to channel"
                                 >
@@ -2454,8 +2489,8 @@ export default function RightPanel({
                       <polyline points="17 8 12 3 7 8" />
                       <line x1="12" y1="3" x2="12" y2="15" />
                     </svg>
-                    <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#FFF', marginBottom: '8px' }}>Start your learning session</h3>
-                    <p style={{ fontSize: '14.5px', color: 'var(--text-muted)', marginBottom: '24px', lineHeight: 1.55 }}>
+                    <h3 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '8px' }}>Start your learning session</h3>
+                    <p style={{ fontSize: '14.5px', color: 'var(--text-secondary)', marginBottom: '24px', lineHeight: 1.55 }}>
                       Upload your study document to automatically generate summarized notes, Q&A chat assistants, interactive flashcards, or revision quizzes.
                     </p>
                     <button 
@@ -2550,24 +2585,24 @@ export default function RightPanel({
                               )}
                             </div>
                             <div className="ai-summary-card" style={{ padding: '24px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
-                              <h4 className="ai-summary-card__title" style={{ fontSize: '13px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '12px' }}>Executive Summary</h4>
-                              <p className="ai-summary-card__text" style={{ fontSize: '15px', lineHeight: 1.6, color: 'var(--text-secondary)' }}>{summaryData.executive_summary}</p>
+                              <h4 className="ai-summary-card__title" style={{ fontSize: '13px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '12px' }}>Executive Summary</h4>
+                              <p className="ai-summary-card__text" style={{ fontSize: '15px', lineHeight: 1.65, color: 'var(--text-primary)' }}>{summaryData.executive_summary}</p>
                             </div>
                             
-                            <h4 className="ai-summary-card__title" style={{ marginTop: '28px', fontSize: '13px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Key Concepts</h4>
+                            <h4 className="ai-summary-card__title" style={{ marginTop: '28px', fontSize: '13px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)' }}>Key Concepts</h4>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px', marginBottom: '24px', marginTop: '12px' }}>
                               {summaryData.key_concepts?.map((c, i) => (
                                 <div key={i} className="ai-concept-card" style={{ padding: '18px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
-                                  <h5 className="ai-concept-card__name" style={{ fontSize: '15px', marginBottom: '6px', color: '#FFF', fontWeight: '600' }}>{c.concept}</h5>
+                                  <h5 className="ai-concept-card__name" style={{ fontSize: '15.5px', marginBottom: '6px', color: 'var(--text-primary)', fontWeight: '600' }}>{c.concept}</h5>
                                   <p className="ai-concept-card__desc" style={{ fontSize: '14px', lineHeight: 1.55, color: 'var(--text-secondary)' }}>{c.description}</p>
                                 </div>
                               ))}
                             </div>
  
-                            <h4 className="ai-summary-card__title" style={{ marginTop: '28px', fontSize: '13px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Key Takeaways</h4>
-                            <ul className="ai-points-list" style={{ marginTop: '12px', color: 'var(--text-secondary)', paddingLeft: '20px' }}>
+                            <h4 className="ai-summary-card__title" style={{ marginTop: '28px', fontSize: '13px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)' }}>Key Takeaways</h4>
+                            <ul className="ai-points-list" style={{ marginTop: '12px', color: 'var(--text-primary)', paddingLeft: '20px' }}>
                               {summaryData.key_points?.map((p, i) => (
-                                <li key={i} style={{ fontSize: '14.5px', marginBottom: '8px', lineHeight: 1.55 }}>{p}</li>
+                                <li key={i} style={{ fontSize: '14.5px', marginBottom: '8px', lineHeight: 1.6, color: 'var(--text-primary)' }}>{p}</li>
                               ))}
                             </ul>
                           </div>
@@ -2600,7 +2635,7 @@ export default function RightPanel({
                                     <button
                                       type="button"
                                       className="btn btn-secondary"
-                                      style={{ width: 'auto', padding: '2px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                      style={{ width: 'auto', padding: '3px 10px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                                       onClick={() => handleShareChatMessage(msg.content)}
                                       title={`Share answer to #${activeChannelName || 'Chat'}`}
                                     >
@@ -2678,13 +2713,13 @@ export default function RightPanel({
                               >
                                 <div className="ai-flashcard__side ai-flashcard__front" style={{ padding: '36px' }}>
                                   <span className="ai-flashcard__label">Question</span>
-                                  <p className="ai-flashcard__content" style={{ fontSize: '18px' }}>{flashcards[currentFlashcardIndex].question}</p>
-                                  <span className="ai-flashcard__label" style={{ marginTop: 'auto', marginBottom: 0, opacity: 0.5 }}>Click to reveal answer</span>
+                                  <p className="ai-flashcard__content" style={{ fontSize: '18px', color: 'var(--text-primary)' }}>{flashcards[currentFlashcardIndex].question}</p>
+                                  <span className="ai-flashcard__label" style={{ marginTop: 'auto', marginBottom: 0, opacity: 0.65 }}>Click to reveal answer</span>
                                 </div>
                                 <div className="ai-flashcard__side ai-flashcard__back" style={{ padding: '36px' }}>
                                   <span className="ai-flashcard__label">Answer</span>
-                                  <p className="ai-flashcard__content" style={{ fontSize: '16px' }}>{flashcards[currentFlashcardIndex].answer}</p>
-                                  <span className="ai-flashcard__label" style={{ marginTop: 'auto', marginBottom: 0, opacity: 0.5 }}>Click to flip back</span>
+                                  <p className="ai-flashcard__content" style={{ fontSize: '17px', color: 'var(--text-primary)' }}>{flashcards[currentFlashcardIndex].answer}</p>
+                                  <span className="ai-flashcard__label" style={{ marginTop: 'auto', marginBottom: 0, opacity: 0.65 }}>Click to flip back</span>
                                 </div>
                               </div>
                             </div>
@@ -2828,15 +2863,15 @@ export default function RightPanel({
                                     ) : (
                                       <div style={{ fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                         {selectedOptIdx === correctOptIdx 
-                                          ? <span style={{ color: '#4ade80' }}>✓ Correct! Well done.</span> 
-                                          : <span style={{ color: '#f87171' }}>✗ Incorrect. Correct answer: {q.correct_answer}</span>}
+                                          ? <span style={{ color: 'var(--success)' }}>✓ Correct! Well done.</span> 
+                                          : <span style={{ color: 'var(--error-color)' }}>✗ Incorrect. Correct answer: {q.correct_answer}</span>}
                                       </div>
                                     )}
                                     {onShareToChannel && (
                                       <button
                                         type="button"
                                         className="btn btn-secondary"
-                                        style={{ width: 'auto', padding: '7px 14px', fontSize: '12.5px', marginLeft: 'auto' }}
+                                        style={{ width: 'auto', padding: '8px 16px', fontSize: '13px', marginLeft: 'auto' }}
                                         onClick={() => handleShareSingleMcq(qIdx)}
                                         title="Share question to channel"
                                       >
