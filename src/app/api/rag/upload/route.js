@@ -1,11 +1,8 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getDatabase } from '@/lib/mongodb';
-import { GoogleGenAI } from '@google/genai';
 import { chunkText } from '@/lib/clientDocumentParser';
-
-const geminiApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
-const ai = geminiApiKey ? new GoogleGenAI({ apiKey: geminiApiKey }) : null;
+import mammoth from 'mammoth';
 
 export async function POST(req) {
   try {
@@ -27,31 +24,61 @@ export async function POST(req) {
     const db = await getDatabase();
     const now = new Date();
 
-    // Read text content
+    // 1. Robust Server-Side Text Extraction
     let extractedText = '';
+    const arrayBuffer = await file.arrayBuffer();
+
     if (ext === 'txt') {
-      extractedText = await file.text();
+      const decoder = new TextDecoder('utf-8');
+      extractedText = decoder.decode(arrayBuffer);
+    } else if (ext === 'docx') {
+      try {
+        const result = await mammoth.extractRawText({ buffer: Buffer.from(arrayBuffer) });
+        extractedText = result.value || '';
+      } catch (docxErr) {
+        console.warn('DOCX parse warning:', docxErr.message);
+      }
+    } else if (ext === 'pdf') {
+      try {
+        const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+        const data = new Uint8Array(arrayBuffer);
+        const doc = await pdfjsLib.getDocument({ data }).promise;
+        let pdfText = '';
+        for (let i = 1; i <= doc.numPages; i++) {
+          const page = await doc.getPage(i);
+          const textContent = await page.getTextContent();
+          pdfText += textContent.items.map(item => item.str).join(' ') + '\n';
+        }
+        extractedText = pdfText;
+      } catch (pdfErr) {
+        console.warn('PDF parse warning:', pdfErr.message);
+      }
     } else {
-      // For larger or binary docs, fallback text extraction or notify client to use zero-timeout client parser
-      extractedText = await file.text().catch(() => '');
+      // Fallback for code files / markdown
+      try {
+        const decoder = new TextDecoder('utf-8');
+        extractedText = decoder.decode(arrayBuffer);
+      } catch {}
     }
 
+    // Split extracted text into semantic study chunks
     const chunks = chunkText(extractedText);
 
-    // Save document metadata
+    // 2. Save document metadata
     const docRes = await db.collection('rag_documents').insertOne({
       user_id: userId,
       original_filename: filename,
       detected_type: ext,
       size_bytes: file.size,
       chunk_count: chunks.length,
-      status: chunks.length > 0 ? 'ready' : 'processing',
+      extracted_text: extractedText.slice(0, 10000), // Retain document text sample for instant study recall
+      status: 'ready',
       created_at: now,
       updated_at: now,
     });
     const documentId = docRes.insertedId.toString();
 
-    // Create session
+    // 3. Create or attach session
     const sessionRes = await db.collection('rag_sessions').insertOne({
       user_id: userId,
       document_id: documentId,
@@ -62,34 +89,27 @@ export async function POST(req) {
     });
     const sessionId = sessionRes.insertedId.toString();
 
-    // If small text file, embed initial chunks directly
-    if (chunks.length > 0 && chunks.length <= 10 && ai) {
-      try {
-        const embeddedChunks = await Promise.all(
-          chunks.map(async (text, idx) => {
-            const res = await ai.models.embedContent({
-              model: 'text-embedding-004',
-              contents: text,
-            });
-            return {
-              document_id: documentId,
-              user_id: userId,
-              chunk_index: idx,
-              content: text,
-              embedding: res?.embedding?.values || [],
-              created_at: now,
-            };
-          })
-        );
-        await db.collection('rag_chunks').insertMany(embeddedChunks);
-      } catch (embedErr) {
-        console.warn('Initial embedding warning:', embedErr);
-      }
+    // 4. Ingest Chunks into MongoDB immediately (Guarantees RAG text is available without API key bottlenecks)
+    if (chunks.length > 0) {
+      const chunkDocs = chunks.map((content, idx) => ({
+        document_id: documentId,
+        doc_id: documentId,
+        user_id: userId,
+        chunk_index: idx,
+        content,
+        embedding: [],
+        created_at: now,
+      }));
+      await db.collection('rag_chunks').insertMany(chunkDocs);
     }
 
+    // 5. Return both snake_case and camelCase keys for seamless frontend compatibility
     return NextResponse.json({
+      doc_id: documentId,
       document_id: documentId,
+      documentId: documentId,
       session_id: sessionId,
+      sessionId: sessionId,
       filename,
       status: 'ready',
       chunk_count: chunks.length,

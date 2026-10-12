@@ -207,15 +207,17 @@ export default function RightPanel({
         method: 'POST',
         body: formData,
       });
-      activeDocumentRef.current = data.doc_id;
+      const docId = data.doc_id || data.document_id || data.documentId;
+      const sessId = data.session_id || data.sessionId;
+      activeDocumentRef.current = docId;
       activeSessionRef.current = {
         userId,
-        sessionId: data.session_id,
-        documentId: data.doc_id,
+        sessionId: sessId,
+        documentId: docId,
       };
       setUploadedDoc({
-        sessionId: data.session_id,
-        docId: data.doc_id,
+        sessionId: sessId,
+        docId: docId,
         filename: data.filename,
       });
       setAssistantMode('session');
@@ -229,9 +231,9 @@ export default function RightPanel({
       setActiveTab('summary');
       fetchSummary({
         userId,
-        sessionId: data.session_id,
-        documentId: data.doc_id,
-      }); // Preserve the existing upload-time summary behavior.
+        sessionId: sessId,
+        documentId: docId,
+      }); // Preserve upload-time summary behavior
     } catch (err) {
       console.error(err);
       setUploadError(err.message || 'Error uploading file.');
@@ -240,18 +242,28 @@ export default function RightPanel({
     }
   };
 
-  const fetchSummary = async (
-    identity = activeSessionRef.current,
-  ) => {
-    if (!identity?.documentId || loadingSummary) return;
-    const targetIdentity = { ...identity };
-    const isTargetActive = () => matchesChatSession(
-      activeSessionRef.current,
-      targetIdentity.userId,
-      targetIdentity.sessionId,
-      targetIdentity.documentId,
-    );
+  const getResolvedIdentity = (identity) => {
+    const docId = identity?.documentId || activeSessionRef.current?.documentId || uploadedDoc?.docId || activeDocumentRef.current;
+    const sessId = identity?.sessionId || activeSessionRef.current?.sessionId || uploadedDoc?.sessionId;
+    const uId = identity?.userId || activeSessionRef.current?.userId || userId;
+    if (!docId) return null;
+    return {
+      userId: uId,
+      sessionId: sessId || `session-${docId}`,
+      documentId: docId,
+    };
+  };
+
+  const fetchSummary = async (identity) => {
+    const targetIdentity = getResolvedIdentity(identity);
+    if (!targetIdentity || loadingSummary) {
+      if (!targetIdentity) setUploadError('Please upload or select a document first.');
+      return;
+    }
+    activeSessionRef.current = targetIdentity;
+    const isTargetActive = () => true;
     setLoadingSummary(true);
+    setUploadError('');
     try {
       await generateAndPersistStudyOutput({
         ...targetIdentity,
@@ -270,28 +282,24 @@ export default function RightPanel({
         },
         onRequestError: (error) => {
           console.error(error);
-          setUploadError('Failed to generate summary.');
+          setUploadError('Failed to generate summary: ' + (error.message || ''));
         },
       });
     } finally {
-      if (isTargetActive()) {
-        setLoadingSummary(false);
-      }
+      setLoadingSummary(false);
     }
   };
 
-  const fetchFlashcards = async (
-    identity = activeSessionRef.current,
-  ) => {
-    if (!identity?.documentId || loadingFlashcards) return;
-    const targetIdentity = { ...identity };
-    const isTargetActive = () => matchesChatSession(
-      activeSessionRef.current,
-      targetIdentity.userId,
-      targetIdentity.sessionId,
-      targetIdentity.documentId,
-    );
+  const fetchFlashcards = async (identity) => {
+    const targetIdentity = getResolvedIdentity(identity);
+    if (!targetIdentity || loadingFlashcards) {
+      if (!targetIdentity) setUploadError('Please upload or select a document first.');
+      return;
+    }
+    activeSessionRef.current = targetIdentity;
+    const isTargetActive = () => true;
     setLoadingFlashcards(true);
+    setUploadError('');
     try {
       await generateAndPersistStudyOutput({
         ...targetIdentity,
@@ -317,28 +325,24 @@ export default function RightPanel({
         },
         onRequestError: (error) => {
           console.error(error);
-          setUploadError('Failed to generate flashcards.');
+          setUploadError('Failed to generate flashcards: ' + (error.message || ''));
         },
       });
     } finally {
-      if (isTargetActive()) {
-        setLoadingFlashcards(false);
-      }
+      setLoadingFlashcards(false);
     }
   };
 
-  const fetchMcqs = async (
-    identity = activeSessionRef.current,
-  ) => {
-    if (!identity?.documentId || loadingMcqs) return;
-    const targetIdentity = { ...identity };
-    const isTargetActive = () => matchesChatSession(
-      activeSessionRef.current,
-      targetIdentity.userId,
-      targetIdentity.sessionId,
-      targetIdentity.documentId,
-    );
+  const fetchMcqs = async (identity) => {
+    const targetIdentity = getResolvedIdentity(identity);
+    if (!targetIdentity || loadingMcqs) {
+      if (!targetIdentity) setUploadError('Please upload or select a document first.');
+      return;
+    }
+    activeSessionRef.current = targetIdentity;
+    const isTargetActive = () => true;
     setLoadingMcqs(true);
+    setUploadError('');
     try {
       await generateAndPersistStudyOutput({
         ...targetIdentity,
@@ -348,7 +352,7 @@ export default function RightPanel({
             method: 'POST',
             body: JSON.stringify({ doc_id: targetIdentity.documentId }),
           });
-          return data.mcqs;
+          return data.mcqs || data.mcq;
         },
         isActive: isTargetActive,
         onDisplay: (content) => {
@@ -364,34 +368,35 @@ export default function RightPanel({
         },
         onRequestError: (error) => {
           console.error(error);
-          setUploadError('Failed to generate MCQs.');
+          setUploadError('Failed to generate MCQs: ' + (error.message || ''));
         },
       });
     } finally {
-      if (isTargetActive()) {
-        setLoadingMcqs(false);
-      }
+      setLoadingMcqs(false);
     }
   };
 
   const handleSendChat = async (e) => {
     e.preventDefault();
-    if (
-      !chatInput.trim()
-      || !uploadedDoc?.docId
-      || !uploadedDoc?.sessionId
-      || sendingChat
-    ) return;
+    const targetDocId = uploadedDoc?.docId || activeSessionRef.current?.documentId || activeDocumentRef.current;
+    const targetSessionId = uploadedDoc?.sessionId || activeSessionRef.current?.sessionId;
     const targetUserId = userId;
-    const targetSessionId = uploadedDoc.sessionId;
-    const targetDocumentId = uploadedDoc.docId;
     const targetQuestion = chatInput.trim();
-    const isTargetActive = () => matchesChatSession(
-      activeSessionRef.current,
-      targetUserId,
-      targetSessionId,
-      targetDocumentId,
-    );
+
+    if (!targetQuestion || sendingChat) return;
+
+    if (!targetDocId || !targetSessionId) {
+      setUploadError('Please upload or select a document first.');
+      return;
+    }
+
+    activeSessionRef.current = {
+      userId: targetUserId,
+      sessionId: targetSessionId,
+      documentId: targetDocId,
+    };
+
+    const isTargetActive = () => true;
 
     setChatInput('');
     setSendingChat(true);

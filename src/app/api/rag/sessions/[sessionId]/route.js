@@ -36,7 +36,13 @@ export async function GET(req, { params }) {
 
     return NextResponse.json({
       id: studySession._id.toString(),
+      session_id: studySession._id.toString(),
+      sessionId: studySession._id.toString(),
       document_id: studySession.document_id,
+      doc_id: studySession.document_id,
+      documentId: studySession.document_id,
+      original_filename: document?.original_filename || studySession.title,
+      filename: document?.original_filename || studySession.title,
       title: studySession.title,
       messages: studySession.messages || [],
       created_at: studySession.created_at,

@@ -20,8 +20,11 @@ export async function GET() {
 
     return NextResponse.json(sessions.map(s => ({
       id: s._id.toString(),
+      session_id: s._id.toString(),
       document_id: s.document_id,
+      doc_id: s.document_id,
       title: s.title,
+      original_filename: s.title,
       created_at: s.created_at,
       updated_at: s.updated_at,
     })));

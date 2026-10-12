@@ -84,8 +84,32 @@ export async function retrieveRelevantChunks({
   }
 
   // Graceful in-memory fallback
-  const chunks = await db.collection('rag_chunks').find(filter).toArray();
-  if (chunks.length === 0) return [];
+  const safeId = safeObjectId(documentId);
+  const mongoFilter = {};
+  if (documentId) {
+    mongoFilter.$or = [
+      { document_id: documentId },
+      { doc_id: documentId },
+      ...(safeId ? [{ document_id: safeId }, { doc_id: safeId }] : []),
+    ];
+  }
+  if (serverId) mongoFilter.server_id = serverId;
+  if (userId && !serverId) mongoFilter.user_id = userId;
+
+  const chunks = await db.collection('rag_chunks').find(mongoFilter).toArray();
+  if (chunks.length === 0) {
+    if (documentId) {
+      try {
+        const doc = await db.collection('rag_documents').findOne({
+          $or: [{ _id: safeId }, { id: documentId }, { document_id: documentId }],
+        });
+        if (doc?.extracted_text) {
+          return [doc.extracted_text.slice(0, 4000)];
+        }
+      } catch {}
+    }
+    return [];
+  }
 
   if (queryEmbedding.length > 0) {
     const scored = chunks.map((chunk) => ({
