@@ -177,6 +177,37 @@ export default function RightPanel({
     };
   }, [isExpanded]);
 
+  // Lock body scroll on mobile when full workspace modal is open
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (isExpanded) {
+      const scrollY = window.scrollY || window.pageYOffset || 0;
+      const prevBodyOverflow = document.body.style.overflow;
+      const prevHtmlOverflow = document.documentElement.style.overflow;
+      const prevTouchAction = document.body.style.touchAction;
+      const prevPosition = document.body.style.position;
+      const prevTop = document.body.style.top;
+      const prevWidth = document.body.style.width;
+
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+
+      return () => {
+        document.body.style.overflow = prevBodyOverflow;
+        document.documentElement.style.overflow = prevHtmlOverflow;
+        document.body.style.touchAction = prevTouchAction;
+        document.body.style.position = prevPosition;
+        document.body.style.top = prevTop;
+        document.body.style.width = prevWidth;
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [isExpanded]);
+
   const handleCopy = () => {
     if (!serverInviteCode) return;
     navigator.clipboard.writeText(serverInviteCode);
@@ -1796,6 +1827,14 @@ export default function RightPanel({
             z-index: 100000 !important;
             position: fixed !important;
             inset: 0 !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            background-color: var(--bg-dark) !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            overscroll-behavior: none !important;
           }
           .ai-workspace-card {
             width: 100vw !important;
@@ -1810,6 +1849,7 @@ export default function RightPanel({
             flex-direction: column !important;
             overflow: hidden !important;
             background-color: var(--bg-dark) !important;
+            position: relative !important;
           }
           .ai-workspace-header {
             height: auto !important;
@@ -1951,6 +1991,19 @@ export default function RightPanel({
             -webkit-overflow-scrolling: touch !important;
             padding: 12px 10px calc(16px + env(safe-area-inset-bottom, 0px)) !important;
           }
+          .ai-workspace-content--chat {
+            padding: 0 !important;
+            overflow: hidden !important;
+            display: flex !important;
+            flex-direction: column !important;
+            height: 100% !important;
+            min-height: 0 !important;
+            flex: 1 !important;
+          }
+          .ai-workspace-content > div {
+            height: 100% !important;
+            animation: none !important;
+          }
           .ai-workspace-empty-wrap {
             flex: 1 !important;
             display: flex !important;
@@ -2020,34 +2073,50 @@ export default function RightPanel({
             display: flex !important;
             flex-direction: column !important;
             min-height: 0 !important;
+            flex: 1 !important;
+            overflow: hidden !important;
+            position: relative !important;
             background-color: var(--bg-dark) !important;
           }
           .ai-chat-messages {
-            flex: 1 !important;
+            flex: 1 1 0% !important;
             min-height: 0 !important;
             overflow-y: auto !important;
             -webkit-overflow-scrolling: touch !important;
-            padding: 10px !important;
+            overscroll-behavior: contain !important;
+            padding: 10px 10px 6px 10px !important;
             margin-bottom: 0 !important;
             gap: 12px !important;
+            display: flex !important;
+            flex-direction: column !important;
           }
           .ai-message {
             max-width: 92% !important;
           }
           .ai-chat-compose {
-            position: sticky !important;
+            flex-shrink: 0 !important;
+            position: relative !important;
             bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            width: 100% !important;
             background-color: var(--bg-surface) !important;
-            padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+            padding: 8px 10px max(10px, env(safe-area-inset-bottom, 8px)) 10px !important;
             border-top: 1px solid var(--border) !important;
             border-radius: 0 !important;
             border-left: none !important;
             border-right: none !important;
             border-bottom: none !important;
-            z-index: 10 !important;
+            z-index: 20 !important;
+            box-sizing: border-box !important;
+            margin: 0 !important;
           }
           .ai-chat-input {
             font-size: 16px !important;
+            background-color: var(--bg-elevated) !important;
+            border: 1px solid var(--border-subtle) !important;
+            border-radius: var(--radius-sm) !important;
+            color: var(--text-primary) !important;
           }
           .ai-tutor-prompts-bar {
             margin-bottom: 6px !important;
@@ -2216,6 +2285,15 @@ export default function RightPanel({
           height: 100%;
           position: relative;
         }
+        .ai-workspace-content--chat {
+          padding: 20px 24px !important;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+          min-height: 0;
+          flex: 1;
+        }
         .ai-workspace-content > div {
           height: 100%;
           animation: tabFadeIn 0.25s ease-out forwards;
@@ -2241,7 +2319,6 @@ export default function RightPanel({
           height: 100%;
           display: flex;
           flex-direction: column;
-          justify-content: space-between;
           background-color: var(--bg-dark);
           border-radius: var(--radius-md);
         }
@@ -3441,7 +3518,7 @@ export default function RightPanel({
                   </div>
                   
                   {/* Content Area */}
-                  <div className="ai-workspace-content">
+                  <div className={`ai-workspace-content ${activeTab === 'chat' ? 'ai-workspace-content--chat' : ''}`}>
                     {activeTab === 'summary' && (
                       <div className="ai-workspace-summary" style={{ overflowY: 'auto', paddingRight: '10px' }}>
                         {loadingSummary ? (
@@ -3504,8 +3581,8 @@ export default function RightPanel({
                     )}
                     
                     {activeTab === 'chat' && (
-                      <div className="ai-workspace-chat" style={{ height: '100%', justifyContent: 'space-between' }}>
-                        <div className="ai-chat-messages" style={{ flex: 1, overflowY: 'auto', paddingRight: '10px', marginBottom: '16px' }}>
+                      <div className="ai-workspace-chat">
+                        <div className="ai-chat-messages">
                           {chatMessages.length === 0 && (
                             <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text-muted)' }}>
                               <div style={{ fontSize: '36px', marginBottom: '12px' }}>🎓</div>
@@ -3676,6 +3753,11 @@ export default function RightPanel({
                             placeholder="Ask anything about the document..."
                             value={chatInput}
                             onChange={e => setChatInput(e.target.value)}
+                            onFocus={() => {
+                              setTimeout(() => {
+                                chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                              }, 150);
+                            }}
                             disabled={sendingChat}
                           />
                           <button type="submit" className="ai-chat-submit" style={{ height: '42px', padding: '0 24px' }} disabled={!chatInput.trim() || sendingChat}>
