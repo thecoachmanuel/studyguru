@@ -229,11 +229,7 @@ export default function RightPanel({
       setLocalPersistenceWarning('');
       setChatMessages([createWelcomeMessage(data.filename)]);
       setActiveTab('summary');
-      fetchSummary({
-        userId,
-        sessionId: sessId,
-        documentId: docId,
-      }); // Preserve upload-time summary behavior
+      // Summary will only generate when user clicks "Generate Summary"
     } catch (err) {
       console.error(err);
       setUploadError(err.message || 'Error uploading file.');
