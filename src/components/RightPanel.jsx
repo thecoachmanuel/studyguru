@@ -19,6 +19,7 @@ import {
 import { matchesChatSession, persistChatTurn } from '../lib/ragChatFlow';
 import { getSessionStudyOutputs } from '../lib/ragStudyOutputs';
 import { generateAndPersistStudyOutput } from '../lib/ragStudyOutputFlow';
+import { parseDocumentLocally } from '../lib/clientDocumentParser';
 
 const AI_FEATURES = [
   'Ask questions',
@@ -207,6 +208,16 @@ export default function RightPanel({
     setUploading(true);
     const formData = new FormData();
     formData.append('file', file);
+
+    // Fast in-browser parse backup to guarantee text availability
+    try {
+      const localParsed = await parseDocumentLocally(file);
+      if (localParsed?.fullText && localParsed.fullText.trim().length > 10) {
+        formData.append('extractedText', localParsed.fullText.trim());
+      }
+    } catch (parseErr) {
+      console.warn('Local document parse notice (falling back to server extraction):', parseErr.message);
+    }
 
     try {
       const data = await apiRequest('/api/rag/upload', {
