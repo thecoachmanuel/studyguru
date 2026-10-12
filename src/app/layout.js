@@ -1,6 +1,13 @@
 import './globals.css';
 import Providers from '@/components/Providers';
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  interactiveWidget: 'resizes-content',
+};
+
 export const metadata = {
   title: 'StudyGuru – AI-Powered Student Collaboration Platform',
   description:

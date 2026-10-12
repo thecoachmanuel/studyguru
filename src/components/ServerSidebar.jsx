@@ -69,6 +69,16 @@ export default function ServerSidebar({
     setJoining(false);
   };
 
+  const handleKeypadFocus = (e) => {
+    const target = e.currentTarget;
+    setTimeout(() => {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+    setTimeout(() => {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 320);
+  };
+
   return (
     <>
       <aside className="server-sidebar" id="server-sidebar">
@@ -168,11 +178,7 @@ export default function ServerSidebar({
                 onChange={(e) => setNewServerName(e.target.value)}
                 autoComplete="off"
                 inputMode="text"
-                onFocus={(e) => {
-                  setTimeout(() => {
-                    e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                  }, 120);
-                }}
+                onFocus={handleKeypadFocus}
                 disabled={creating}
               />
 
@@ -230,11 +236,7 @@ export default function ServerSidebar({
                 autoComplete="off"
                 inputMode="text"
                 autoCapitalize="characters"
-                onFocus={(e) => {
-                  setTimeout(() => {
-                    e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                  }, 120);
-                }}
+                onFocus={handleKeypadFocus}
                 disabled={joining}
                 style={{ textTransform: 'uppercase' }}
               />

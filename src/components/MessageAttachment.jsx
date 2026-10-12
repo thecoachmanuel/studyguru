@@ -54,7 +54,6 @@ export default function MessageAttachment({
   attachment,
   resourceMetadata = null,
   onOpenResource,
-  onAiStudy,
 }) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
