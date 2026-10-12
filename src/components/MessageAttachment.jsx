@@ -126,16 +126,6 @@ export default function MessageAttachment({
         )}
         <span className="attachment-doc__meta">{prettyType(file_type)} · {formatFileSize(file_size)}</span>
       </div>
-      {onAiStudy && (
-        <button
-          type="button"
-          className="attachment-doc__open attachment-doc__ai-btn"
-          onClick={() => onAiStudy(attachment)}
-          title="Open in AI Study Helper"
-        >
-          ✨ AI Study
-        </button>
-      )}
       {resourceMetadata && (
         <button
           type="button"

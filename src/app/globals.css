@@ -3726,6 +3726,33 @@ body {
   .dashboard-shell--right-open .right-panel {
     transform: translateX(0);
   }
+
+  /* Mobile modals responsive to keypad */
+  .modal-overlay {
+    align-items: flex-start !important;
+    padding: max(16px, env(safe-area-inset-top, 0px) + 12px) 14px calc(24px + env(safe-area-inset-bottom, 0px)) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+  }
+
+  .modal-card {
+    margin: auto 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: calc(100dvh - 36px) !important;
+    overflow-y: auto !important;
+    padding: 22px 18px !important;
+    border-radius: var(--radius-md) !important;
+  }
+
+  .form-input,
+  .group-modal-input {
+    font-size: 16px !important; /* CRITICAL: prevents iOS Safari auto-zoom on keypad */
+    min-height: 46px !important;
+  }
 }
 
 /* ===================== MODAL OVERLAY ===================== */
@@ -3738,6 +3765,8 @@ body {
   align-items: center;
   justify-content: center;
   padding: 24px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   animation: fadeIn 0.15s ease forwards;
 }
 .modal-card {
@@ -3747,6 +3776,8 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 28px 24px;
+  max-height: 90dvh;
+  overflow-y: auto;
 }
 .modal-card__title {
   font-size: 16px;

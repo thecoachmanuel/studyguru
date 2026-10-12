@@ -161,12 +161,18 @@ export default function ServerSidebar({
               </label>
               <input
                 id="server-name-input"
-                className="form-input"
+                className="form-input group-modal-input"
                 type="text"
                 placeholder="e.g. CS 301 Study Group"
                 value={newServerName}
                 onChange={(e) => setNewServerName(e.target.value)}
-                autoFocus
+                autoComplete="off"
+                inputMode="text"
+                onFocus={(e) => {
+                  setTimeout(() => {
+                    e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }, 120);
+                }}
                 disabled={creating}
               />
 
@@ -215,13 +221,20 @@ export default function ServerSidebar({
               </label>
               <input
                 id="join-code-input"
-                className="form-input"
+                className="form-input group-modal-input"
                 type="text"
                 placeholder="e.g. AB12CD"
                 maxLength={10}
                 value={inviteCode}
                 onChange={(e) => setInviteCode(e.target.value)}
-                autoFocus
+                autoComplete="off"
+                inputMode="text"
+                autoCapitalize="characters"
+                onFocus={(e) => {
+                  setTimeout(() => {
+                    e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }, 120);
+                }}
                 disabled={joining}
                 style={{ textTransform: 'uppercase' }}
               />

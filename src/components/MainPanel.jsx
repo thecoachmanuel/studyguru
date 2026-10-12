@@ -1066,14 +1066,6 @@ export default function MainPanel({
                         }
                       : null}
                     onOpenResource={onOpenResource}
-                    onAiStudy={(att) => {
-                      onRag1Activated?.({
-                        filename: att.file_name,
-                        downloadUrl: att.file_url,
-                        resourceId: att.resource_id,
-                        session_id: att.resource_id,
-                      });
-                    }}
                   />
                 </div>
               )}
