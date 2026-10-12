@@ -112,24 +112,35 @@ export function initializeRagChatDb() {
 export async function getSessionMessages(userId, sessionId) {
   const safeUserId = requireIdentity(userId, 'user_id');
   const safeSessionId = requireIdentity(sessionId, 'session_id');
-  const database = await initializeRagChatDb();
 
-  return new Promise((resolve, reject) => {
-    const transaction = database.transaction(MESSAGE_STORE, 'readonly');
-    const index = transaction.objectStore(MESSAGE_STORE).index(
-      SESSION_SEQUENCE_INDEX,
-    );
-    const request = index.getAll(sessionRange(safeUserId, safeSessionId));
-
-    request.onsuccess = () => {
-      resolve(
-        request.result.sort((left, right) => left.sequence - right.sequence),
+  try {
+    const database = await initializeRagChatDb();
+    return await new Promise((resolve, reject) => {
+      const transaction = database.transaction(MESSAGE_STORE, 'readonly');
+      const index = transaction.objectStore(MESSAGE_STORE).index(
+        SESSION_SEQUENCE_INDEX,
       );
-    };
-    request.onerror = () => reject(
-      request.error || new Error('Chat history could not be read.'),
-    );
-  });
+      const request = index.getAll(sessionRange(safeUserId, safeSessionId));
+
+      request.onsuccess = () => {
+        const results = request.result.sort((left, right) => left.sequence - right.sequence);
+        if (results && results.length > 0) {
+          resolve(results);
+        } else {
+          // If IndexedDB returned empty, check localStorage backup
+          const lsBackup = getLocalStorageBackup(safeUserId, safeSessionId);
+          resolve(lsBackup);
+        }
+      };
+      request.onerror = () => {
+        const lsBackup = getLocalStorageBackup(safeUserId, safeSessionId);
+        resolve(lsBackup);
+      };
+    });
+  } catch (err) {
+    console.warn('IndexedDB unavailable, falling back to localStorage backup:', err);
+    return getLocalStorageBackup(safeUserId, safeSessionId);
+  }
 }
 
 export async function addMessage(
@@ -173,12 +184,165 @@ export async function addMessage(
   };
   store.add(message);
   await transactionDone(transaction);
+
+  // Mirror to localStorage as robust device storage backup
+  try {
+    saveToLocalStorageBackup(safeUserId, safeSessionId, message);
+  } catch {}
+
+  // Update session cookie with 7-day TTL for continued conversation
+  try {
+    setDeviceSessionCookie({ sessionId: safeSessionId, userId: safeUserId });
+  } catch {}
+
   return message;
+}
+
+// ── LocalStorage Fallback & Mirror ──
+const LS_PREFIX = 'studycord_chat_';
+const LS_META_KEY = 'studycord_device_sessions_meta';
+export const COOKIE_TUTOR_SESSION_NAME = 'studycord_tutor_session';
+export const COOKIE_TUTOR_SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
+
+function getLsKey(userId, sessionId) {
+  return `${LS_PREFIX}${userId}_${sessionId}`;
+}
+
+function saveToLocalStorageBackup(userId, sessionId, message) {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  const key = getLsKey(userId, sessionId);
+  let messages = [];
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (raw) messages = JSON.parse(raw);
+  } catch {}
+  if (!Array.isArray(messages)) messages = [];
+  messages.push(message);
+  // Cap at 100 messages per session to avoid quota pressure
+  if (messages.length > 100) messages = messages.slice(-100);
+  window.localStorage.setItem(key, JSON.stringify(messages));
+
+  // Update session metadata index with timestamp for TTL pruning
+  try {
+    const metaRaw = window.localStorage.getItem(LS_META_KEY);
+    const meta = metaRaw ? JSON.parse(metaRaw) : {};
+    meta[`${userId}_${sessionId}`] = {
+      userId,
+      sessionId,
+      updatedAt: Date.now(),
+    };
+    window.localStorage.setItem(LS_META_KEY, JSON.stringify(meta));
+  } catch {}
+}
+
+export function getLocalStorageBackup(userId, sessionId) {
+  if (typeof window === 'undefined' || !window.localStorage) return [];
+  const key = getLsKey(userId, sessionId);
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {}
+  return [];
+}
+
+// ── Cookie Session Tracking (7-day TTL, zero DB storage) ──
+export function setDeviceSessionCookie({ sessionId, documentId, filename, userId } = {}) {
+  if (typeof document === 'undefined') return;
+  try {
+    const existing = getDeviceSessionCookie() || {};
+    const payload = {
+      sessionId: sessionId || existing.sessionId,
+      documentId: documentId || existing.documentId,
+      filename: filename || existing.filename,
+      userId: userId || existing.userId,
+      updatedAt: Date.now(),
+    };
+    const encoded = encodeURIComponent(JSON.stringify(payload));
+    const expires = new Date(Date.now() + COOKIE_TUTOR_SESSION_TTL_SECONDS * 1000).toUTCString();
+    document.cookie = `${COOKIE_TUTOR_SESSION_NAME}=${encoded}; expires=${expires}; max-age=${COOKIE_TUTOR_SESSION_TTL_SECONDS}; path=/; SameSite=Lax`;
+  } catch (err) {
+    console.warn('Could not set device session cookie:', err);
+  }
+}
+
+export function getDeviceSessionCookie() {
+  if (typeof document === 'undefined') return null;
+  try {
+    const cookies = document.cookie ? document.cookie.split('; ') : [];
+    for (const c of cookies) {
+      const [name, ...valParts] = c.split('=');
+      if (name.trim() === COOKIE_TUTOR_SESSION_NAME) {
+        const val = valParts.join('=');
+        if (!val) return null;
+        const parsed = JSON.parse(decodeURIComponent(val));
+        // Verify 7-day TTL
+        if (parsed?.updatedAt && Date.now() - parsed.updatedAt < COOKIE_TUTOR_SESSION_TTL_SECONDS * 1000) {
+          return parsed;
+        }
+        return null;
+      }
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+export function clearDeviceSessionCookie() {
+  if (typeof document === 'undefined') return;
+  try {
+    document.cookie = `${COOKIE_TUTOR_SESSION_NAME}=; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax`;
+  } catch {}
+}
+
+// ── Automatic Device Storage TTL Pruning (Clean up sessions > 7 days) ──
+export function pruneExpiredDeviceSessions(userId, maxAgeMs = 7 * 24 * 60 * 60 * 1000) {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  try {
+    const metaRaw = window.localStorage.getItem(LS_META_KEY);
+    if (!metaRaw) return;
+    const meta = JSON.parse(metaRaw);
+    const now = Date.now();
+    let changed = false;
+
+    for (const [key, record] of Object.entries(meta)) {
+      if (record?.updatedAt && now - record.updatedAt > maxAgeMs) {
+        window.localStorage.removeItem(`${LS_PREFIX}${key}`);
+        delete meta[key];
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      window.localStorage.setItem(LS_META_KEY, JSON.stringify(meta));
+    }
+  } catch (err) {
+    console.warn('Prune device sessions notice:', err);
+  }
 }
 
 export async function clearSessionMessages(userId, sessionId) {
   const safeUserId = requireIdentity(userId, 'user_id');
   const safeSessionId = requireIdentity(sessionId, 'session_id');
+
+  // Clear localStorage mirror
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.removeItem(getLsKey(safeUserId, safeSessionId));
+    }
+  } catch {}
+
+  // Clear cookie if this was the active session
+  try {
+    const cookie = getDeviceSessionCookie();
+    if (cookie?.sessionId === safeSessionId) {
+      clearDeviceSessionCookie();
+    }
+  } catch {}
+
   const database = await initializeRagChatDb();
   const transaction = database.transaction(MESSAGE_STORE, 'readwrite');
   const index = transaction.objectStore(MESSAGE_STORE).index(

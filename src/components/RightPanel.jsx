@@ -9,7 +9,13 @@ import {
 import ChatMarkdownMessage from './ChatMarkdownMessage';
 import ChatbotIcon from './ChatbotIcon';
 import { apiRequest } from '../lib/api';
-import { getSessionMessages } from '../lib/ragChatHistory';
+import {
+  getSessionMessages,
+  getDeviceSessionCookie,
+  setDeviceSessionCookie,
+  clearDeviceSessionCookie,
+  pruneExpiredDeviceSessions,
+} from '../lib/ragChatHistory';
 import { matchesChatSession, persistChatTurn } from '../lib/ragChatFlow';
 import { getSessionStudyOutputs } from '../lib/ragStudyOutputs';
 import { generateAndPersistStudyOutput } from '../lib/ragStudyOutputFlow';
@@ -220,6 +226,12 @@ export default function RightPanel({
         docId: docId,
         filename: data.filename,
       });
+      setDeviceSessionCookie({
+        sessionId: sessId,
+        documentId: docId,
+        filename: data.filename,
+        userId,
+      });
       setAssistantMode('session');
 
       // Clear old data when a new doc is uploaded
@@ -372,12 +384,12 @@ export default function RightPanel({
     }
   };
 
-  const handleSendChat = async (e) => {
-    e.preventDefault();
+  const handleSendChat = async (e, customPrompt = null) => {
+    if (e?.preventDefault) e.preventDefault();
     const targetDocId = uploadedDoc?.docId || activeSessionRef.current?.documentId || activeDocumentRef.current;
     const targetSessionId = uploadedDoc?.sessionId || activeSessionRef.current?.sessionId;
     const targetUserId = userId;
-    const targetQuestion = chatInput.trim();
+    const targetQuestion = (customPrompt || chatInput).trim();
 
     if (!targetQuestion || sendingChat) return;
 
@@ -426,6 +438,15 @@ export default function RightPanel({
         onAssistantMessage: (message) => {
           if (!isTargetActive()) return;
           setChatMessages(prev => [...prev, toUiChatMessage(message)]);
+          // Refresh session cookie on student device (7-day TTL, 0 DB storage used)
+          try {
+            setDeviceSessionCookie({
+              sessionId: targetSessionId,
+              documentId: targetDocId,
+              filename: uploadedDoc?.filename,
+              userId: targetUserId,
+            });
+          } catch {}
         },
         onPersistenceError: (error) => {
           console.warn('RAG chat history persistence failed.', error);
@@ -482,6 +503,7 @@ export default function RightPanel({
   const startNewStudy = () => {
     historyOpenRequestRef.current += 1;
     clearSessionUi();
+    clearDeviceSessionCookie();
     setHistoryError('');
     setAssistantMode('new');
   };
@@ -534,6 +556,12 @@ export default function RightPanel({
         sessionId: session.id,
         docId: session.document_id,
         filename: session.original_filename,
+      });
+      setDeviceSessionCookie({
+        sessionId: session.id,
+        documentId: session.document_id,
+        filename: session.original_filename,
+        userId: targetUserId,
       });
       setAssistantMode('session');
       if (openChat) setActiveTab('chat');
@@ -626,6 +654,17 @@ export default function RightPanel({
     });
   });
 
+  // On mount: prune expired local sessions (>7 days) and auto-restore active tutor session from device cookie
+  useEffect(() => {
+    if (userId) {
+      pruneExpiredDeviceSessions(userId);
+    }
+    const savedCookie = getDeviceSessionCookie();
+    if (savedCookie?.sessionId && !uploadedDoc && !activeSessionRef.current) {
+      void openHistorySession(savedCookie.sessionId);
+    }
+  }, [userId]);
+
   useEffect(() => {
     const requestId = rag1ActivationRequest?.requestId;
     if (!requestId || rag1ActivationHandledRef.current === requestId) return;
@@ -633,6 +672,9 @@ export default function RightPanel({
 
     if (rag1ActivationRequest.targetTab) {
       setActiveTab(rag1ActivationRequest.targetTab);
+      if (rag1ActivationRequest.expandWorkspace || rag1ActivationRequest.targetTab === 'chat') {
+        setIsExpanded(true);
+      }
     }
     const sessionId = rag1ActivationRequest?.session_id;
     if (sessionId) {
@@ -1301,6 +1343,111 @@ export default function RightPanel({
         .ai-sidebar-chat-btn:disabled {
           opacity: 0.45;
           cursor: not-allowed;
+        }
+
+        /* Sidebar Tutor Propel Banner */
+        .ai-sidebar-tutor-propel-banner {
+          background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(139, 92, 246, 0.08));
+          border: 1px solid rgba(99, 102, 241, 0.28);
+          border-radius: var(--radius-sm);
+          padding: 12px;
+          margin-bottom: 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+        .ai-sidebar-tutor-propel-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+        .ai-sidebar-tutor-propel-badge {
+          font-size: 11px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          color: var(--primary);
+          background: var(--accent-subtle);
+          padding: 2px 8px;
+          border-radius: var(--radius-xs);
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+        }
+        .ai-sidebar-tutor-propel-desc {
+          margin: 0;
+          font-size: 12.5px;
+          line-height: 1.45;
+          color: var(--text-secondary);
+        }
+        .ai-sidebar-tutor-propel-cta {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          width: 100%;
+          padding: 8px 12px;
+          font-size: 12.5px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .ai-propel-tag {
+          font-size: 11px;
+          margin-left: 4px;
+          opacity: 0.85;
+          font-weight: 700;
+        }
+
+        /* Tutor Starter Chips & Device Pill in Workspace */
+        .ai-tutor-prompts-bar {
+          margin-bottom: 14px;
+          padding: 10px 14px;
+          background: var(--bg-surface);
+          border: 1px dashed var(--border);
+          border-radius: var(--radius-sm);
+        }
+        .ai-tutor-prompts-label {
+          display: block;
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+          margin-bottom: 8px;
+        }
+        .ai-tutor-prompts-chips {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+        .ai-tutor-chip {
+          background: var(--bg-darkest);
+          border: 1px solid var(--border);
+          color: var(--text-primary);
+          padding: 6px 12px;
+          border-radius: var(--radius-xs);
+          font-size: 12.5px;
+          cursor: pointer;
+          transition: all var(--transition);
+          text-align: left;
+        }
+        .ai-tutor-chip:hover {
+          border-color: var(--primary);
+          background: var(--accent-subtle);
+          color: var(--primary);
+          transform: translateY(-1px);
+        }
+        .ai-device-storage-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          font-size: 11px;
+          color: var(--text-muted);
+          background: var(--bg-surface);
+          padding: 2px 8px;
+          border-radius: var(--radius-xs);
+          border: 1px solid var(--border-subtle);
         }
 
         /* Sidebar Flashcard */
@@ -1995,7 +2142,17 @@ export default function RightPanel({
                 <button type="button" className={`ai-quick-action ${activeTab === 'summary' ? 'ai-quick-action--active' : ''}`} onClick={() => selectTab('summary')}>Summary</button>
                 <button type="button" className={`ai-quick-action ${activeTab === 'flashcards' ? 'ai-quick-action--active' : ''}`} onClick={() => selectTab('flashcards')}>Flashcards</button>
                 <button type="button" className={`ai-quick-action ${activeTab === 'mcq' ? 'ai-quick-action--active' : ''}`} onClick={() => selectTab('mcq')}>Practice Quiz</button>
-                <button type="button" className={`ai-quick-action ${activeTab === 'chat' ? 'ai-quick-action--active' : ''}`} onClick={() => selectTab('chat')}>Ask Questions</button>
+                <button
+                  type="button"
+                  className={`ai-quick-action ${activeTab === 'chat' ? 'ai-quick-action--active' : ''}`}
+                  onClick={() => {
+                    selectTab('chat');
+                    setIsExpanded(true);
+                  }}
+                  title="Open Ask Questions in expanded full-screen tutor workspace"
+                >
+                  Ask Questions <span className="ai-propel-tag">⤢</span>
+                </button>
               </div>
             </div>
 
@@ -2080,6 +2237,48 @@ export default function RightPanel({
 
               {activeTab === 'chat' && (
                 <div style={{ display: 'flex', flexDirection: 'column' }} className="ai-fade-in">
+                  {/* One-Click Propel Banner into Fullscreen Tutor Workspace */}
+                  <div className="ai-sidebar-tutor-propel-banner">
+                    <div className="ai-sidebar-tutor-propel-header">
+                      <div className="ai-sidebar-tutor-propel-badge">🎓 AI Personal Tutor</div>
+                      <button
+                        type="button"
+                        className="ai-expand-btn"
+                        onClick={() => setIsExpanded(true)}
+                        title="Expand to Fullscreen Tutor"
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--primary)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                        }}
+                      >
+                        <span>Full View</span>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <polyline points="15 3 21 3 21 9" />
+                          <polyline points="9 21 3 21 3 15" />
+                          <line x1="21" y1="3" x2="14" y2="10" />
+                          <line x1="3" y1="21" x2="10" y2="14" />
+                        </svg>
+                      </button>
+                    </div>
+                    <p className="ai-sidebar-tutor-propel-desc">
+                      One-click propel to expanded view for comprehensive 1-on-1 tutoring, lessons & code.
+                    </p>
+                    <button
+                      type="button"
+                      className="btn btn-primary ai-sidebar-tutor-propel-cta"
+                      onClick={() => setIsExpanded(true)}
+                    >
+                      <span>Open Full Tutor Workspace ⤢</span>
+                    </button>
+                  </div>
+
                   <div className="ai-sidebar-chat-list">
                     {chatMessages.map(msg => (
                       <div 
@@ -2700,6 +2899,42 @@ export default function RightPanel({
                           )}
                           <div ref={chatEndRef} />
                         </div>
+
+                        {chatMessages.length <= 2 && (
+                          <div className="ai-tutor-prompts-bar">
+                            <span className="ai-tutor-prompts-label">✨ Personal Tutor Quick Actions:</span>
+                            <div className="ai-tutor-prompts-chips">
+                              <button
+                                type="button"
+                                className="ai-tutor-chip"
+                                onClick={() => handleSendChat(null, 'Teach me the topic of this document from scratch')}
+                              >
+                                🎓 Teach me the topic
+                              </button>
+                              <button
+                                type="button"
+                                className="ai-tutor-chip"
+                                onClick={() => handleSendChat(null, 'Explain the core principles using a simple analogy')}
+                              >
+                                💡 Explain with an analogy
+                              </button>
+                              <button
+                                type="button"
+                                className="ai-tutor-chip"
+                                onClick={() => handleSendChat(null, 'Give me a step-by-step breakdown of the main concepts')}
+                              >
+                                📋 Step-by-step breakdown
+                              </button>
+                              <button
+                                type="button"
+                                className="ai-tutor-chip"
+                                onClick={() => handleSendChat(null, 'Quiz my understanding with 3 test questions')}
+                              >
+                                ❓ Test my knowledge
+                              </button>
+                            </div>
+                          </div>
+                        )}
                         
                         <form className="ai-chat-compose" onSubmit={handleSendChat}>
                           <input 
@@ -2715,6 +2950,14 @@ export default function RightPanel({
                             Send
                           </button>
                         </form>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', padding: '0 4px' }}>
+                          <span className="ai-device-storage-pill">
+                            💾 Saved on device (7-day cookie TTL · 0 DB storage used)
+                          </span>
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                            Personal Academic Tutor Mode
+                          </span>
+                        </div>
                       </div>
                     )}
                     

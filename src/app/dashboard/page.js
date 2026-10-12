@@ -453,6 +453,7 @@ export default function DashboardPage() {
   const handleOpenAiTab = (targetTab) => {
     setRag1ActivationRequest({
       targetTab,
+      expandWorkspace: targetTab === 'chat' || true,
       requestId: globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`,
     });
     setRightPanelOpen(true);

@@ -8,6 +8,17 @@ import { generateStreamWithFallback } from '@/lib/llm';
 const chatResponseCache = new Map();
 const CHAT_CACHE_TTL = 1000 * 60 * 30; // 30 minutes
 
+/**
+ * Detects whether a student is requesting a comprehensive pedagogical lesson
+ * (e.g., "teach me the topic", "explain this chapter", "walk me through").
+ */
+function isTeachingOrBroadQuery(query) {
+  if (!query || typeof query !== 'string') return false;
+  const q = query.trim().toLowerCase();
+  if (q.length <= 25) return true;
+  return /teach|explain.*(topic|subject|material|document|everything|chapter|concept|all)|walk.*through|overview|start|syllabus|what is this|lesson|guide me|summary|introduction/i.test(q);
+}
+
 export async function POST(req) {
   try {
     const session = await auth();
@@ -19,6 +30,7 @@ export async function POST(req) {
     const message = body.message || body.question;
     const documentId = body.documentId || body.document_id || body.doc_id;
     const sessionId = body.sessionId || body.session_id;
+    const rawHistory = Array.isArray(body.history) ? body.history : [];
 
     if (!message || !message.trim()) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 });
@@ -27,24 +39,114 @@ export async function POST(req) {
     const userId = session.user.id;
     const db = await getDatabase();
 
-    // 1. Retrieve grounded context
+    // 1. Resolve Document Context (Whole document text + semantic vector chunks)
+    let doc = null;
+    let fullDocumentText = '';
+    let docTitle = '';
+
+    if (documentId) {
+      try {
+        const safeDocId = safeObjectId(documentId);
+        doc = await db.collection('rag_documents').findOne({
+          $or: [{ _id: safeDocId }, { id: documentId }, { document_id: documentId }],
+        });
+
+        // If not found directly, check via session
+        if (!doc && sessionId) {
+          const safeSessId = safeObjectId(sessionId);
+          const sess = await db.collection('rag_sessions').findOne({
+            $or: [{ _id: safeSessId }, { id: sessionId }, { session_id: sessionId }],
+          });
+          if (sess?.document_id) {
+            doc = await db.collection('rag_documents').findOne({
+              $or: [{ _id: safeObjectId(sess.document_id) }, { id: sess.document_id }],
+            });
+          }
+        }
+      } catch (docErr) {
+        console.warn('Document lookup notice in chat:', docErr.message);
+      }
+    }
+
+    if (doc) {
+      docTitle = doc.original_filename || doc.title || 'Study Material';
+      if (doc.extracted_text && typeof doc.extracted_text === 'string') {
+        fullDocumentText = doc.extracted_text.trim();
+      }
+    }
+
+    const isTeachingQuery = isTeachingOrBroadQuery(message);
+
+    // 2. Retrieve relevant semantic chunks
+    const chunkSearchQuery = isTeachingQuery
+      ? `${message} overview introduction core concepts summary`
+      : message;
+
     const contextChunks = await retrieveRelevantChunks({
-      query: message,
-      documentId,
+      query: chunkSearchQuery,
+      documentId: doc?._id?.toString() || documentId,
       userId,
-      limit: 4,
+      limit: isTeachingQuery ? 6 : 4,
     });
 
-    const contextText = contextChunks.length > 0
-      ? `Relevant Document Context:\n${contextChunks.join('\n\n---\n\n')}`
-      : 'No specific document context found.';
+    // 3. Assemble whole-document context
+    let contextText = '';
+    if (docTitle) {
+      contextText += `Document Title / Subject: ${docTitle}\n\n`;
+    }
 
-    const systemPrompt = `You are the StudyGuru AI Study Assistant.
-You help students understand their study documents, answer questions accurately, and explain complex concepts simply.
-Base your answers on the provided document context whenever possible.
-If the information is not in the document context, clearly state that while still providing a helpful academic explanation.
+    if (fullDocumentText) {
+      // Provide deep document context: up to 10,000 characters for teaching queries
+      const textSlice = isTeachingQuery
+        ? fullDocumentText.slice(0, 10000)
+        : fullDocumentText.slice(0, 3500);
+      contextText += `Document Overview & Core Material:\n${textSlice}\n\n`;
+    }
 
-${contextText}`;
+    if (contextChunks.length > 0) {
+      contextText += `Relevant Document Passages:\n${contextChunks.join('\n\n---\n\n')}`;
+    }
+
+    if (!contextText.trim()) {
+      contextText = 'No specific document file attached. Act as an expert academic tutor based on your deep knowledge.';
+    }
+
+    // 4. Incorporate multi-turn conversation history
+    const formattedHistory = rawHistory
+      .filter((turn) => turn && typeof turn.content === 'string' && turn.content.trim())
+      .slice(-8)
+      .map((turn) => `${turn.role === 'user' ? 'Student' : 'Personal Tutor'}: ${turn.content.trim()}`)
+      .join('\n\n');
+
+    // 5. Master Academic Personal Tutor System Prompt
+    const systemPrompt = `You are StudyGuru AI, a world-class, empathetic, and academically brilliant Personal Tutor.
+Your mission is to help the student truly master and understand their study materials with pedagogical excellence, clarity, and confidence.
+
+Study Material Context:
+${contextText}
+
+Teaching & Tutoring Guidelines:
+1. Act as a True Personal Tutor:
+   - Maintain an encouraging, intellectual, friendly, and patient persona.
+   - When the student says "teach me the topic", "explain this chapter", "walk me through", or asks broad conceptual questions, NEVER give a brief or dismissive 2-sentence answer. Instead, give a structured, pedagogical masterclass lesson!
+2. Pedagogical Lesson Structure (for teaching & conceptual questions):
+   - 🌟 **The Big Picture & Intuition**: Start with a relatable real-world analogy or clear big-picture hook so the student instantly understands why the topic exists and matters.
+   - 🔍 **Core Concepts & Foundations**: Break the topic down into structured, digestible building blocks. Use clear headings, bullet points, and numbered steps.
+   - 🧠 **Key Terminology**: Bold essential terms, definitions, formulas, or theorems (e.g. **Active Recall**, **Newton's Second Law: F = ma**).
+   - 💡 **Concrete Walkthrough / Example**: Provide an intuitive, step-by-step example demonstrating how the concept works in practice.
+   - 🎯 **Key Takeaway**: A crisp 1-2 sentence golden takeaway.
+   - ❓ **Check for Understanding**: Conclude with a friendly check-in question or prompt to test their comprehension and invite the next step (e.g., "Would you like me to walk through a practice problem, or dive deeper into [Concept] next?").
+3. Whole-Document Comprehension:
+   - Ground your explanations in the provided document concepts, terminology, and themes. You understand the document as a cohesive whole.
+   - If the student asks about something outside the document, use your broad academic knowledge while gently connecting it back to their study material.
+4. Clean Formatting:
+   - Use beautiful GitHub-flavored Markdown: bold headers, clean lists, and code/math blocks. Never output raw unstructured walls of text.`;
+
+    let userPrompt = '';
+    if (formattedHistory) {
+      userPrompt += `Previous Conversation Turns:\n${formattedHistory}\n\n`;
+    }
+    userPrompt += `Current Student Request: ${message}`;
 
     // Check if client explicitly asks for streaming
     const wantsStream = req.headers.get('accept')?.includes('text/event-stream') || body.stream === true;
@@ -57,7 +159,7 @@ ${contextText}`;
         async start(controller) {
           try {
             const generator = generateStreamWithFallback({
-              prompt: `Student question: ${message}`,
+              prompt: userPrompt,
               systemPrompt,
             });
 
@@ -66,27 +168,18 @@ ${contextText}`;
               controller.enqueue(encoder.encode(chunk));
             }
 
-            // Save interaction to session history in MongoDB
-            if (sessionId && fullAnswer) {
+            // Zero MongoDB storage waste: do NOT push messages into MongoDB!
+            // Messages are safely stored on the user's device (IndexedDB/localStorage).
+            // Only update session timestamp if sessionId is provided.
+            if (sessionId) {
               try {
-                const now = new Date();
                 const querySessionId = safeObjectId(sessionId);
                 await db.collection('rag_sessions').updateOne(
                   { $or: [{ _id: querySessionId }, { id: sessionId }] },
-                  {
-                    $push: {
-                      messages: {
-                        $each: [
-                          { role: 'user', content: message, created_at: now },
-                          { role: 'assistant', content: fullAnswer, created_at: now },
-                        ],
-                      },
-                    },
-                    $set: { updated_at: now },
-                  }
+                  { $set: { updated_at: new Date() } }
                 );
               } catch (err) {
-                console.error('Error saving chat to session:', err);
+                console.warn('Session timestamp touch notice:', err.message);
               }
             }
 
@@ -111,27 +204,7 @@ ${contextText}`;
     const normalizedQuestion = message.trim().toLowerCase();
     const chatCacheKey = `${documentId || 'general'}:${normalizedQuestion}`;
     const cachedEntry = chatResponseCache.get(chatCacheKey);
-    if (cachedEntry && Date.now() - cachedEntry.time < CHAT_CACHE_TTL) {
-      if (sessionId) {
-        try {
-          const now = new Date();
-          const querySessionId = safeObjectId(sessionId);
-          await db.collection('rag_sessions').updateOne(
-            { $or: [{ _id: querySessionId }, { id: sessionId }] },
-            {
-              $push: {
-                messages: {
-                  $each: [
-                    { role: 'user', content: message, created_at: now },
-                    { role: 'assistant', content: cachedEntry.answer, created_at: now },
-                  ],
-                },
-              },
-              $set: { updated_at: now },
-            }
-          );
-        } catch {}
-      }
+    if (cachedEntry && Date.now() - cachedEntry.time < CHAT_CACHE_TTL && rawHistory.length === 0) {
       return NextResponse.json({
         answer: cachedEntry.answer,
         success: true,
@@ -141,7 +214,7 @@ ${contextText}`;
 
     let fullAnswer = '';
     const generator = generateStreamWithFallback({
-      prompt: `Student question: ${message}`,
+      prompt: userPrompt,
       systemPrompt,
     });
 
@@ -157,30 +230,20 @@ ${contextText}`;
     }
 
     if (!fullAnswer.trim()) {
-      fullAnswer = 'I reviewed your study materials, but could not formulate a complete answer. Please rephrase your question.';
+      fullAnswer = 'I reviewed your study materials, but could not formulate a complete answer. Please rephrase your question or ask me to explain a specific topic.';
     }
 
-    // Save interaction to session history in MongoDB
+    // Zero MongoDB storage waste: do NOT push messages into MongoDB!
+    // Messages are safely stored on the user's device (IndexedDB/localStorage with 7-day cookie TTL).
     if (sessionId) {
       try {
-        const now = new Date();
         const querySessionId = safeObjectId(sessionId);
         await db.collection('rag_sessions').updateOne(
           { $or: [{ _id: querySessionId }, { id: sessionId }] },
-          {
-            $push: {
-              messages: {
-                $each: [
-                  { role: 'user', content: message, created_at: now },
-                  { role: 'assistant', content: fullAnswer, created_at: now },
-                ],
-              },
-            },
-            $set: { updated_at: now },
-          }
+          { $set: { updated_at: new Date() } }
         );
       } catch (err) {
-        console.error('Error saving chat to session:', err);
+        console.warn('Session timestamp touch notice:', err.message);
       }
     }
 
