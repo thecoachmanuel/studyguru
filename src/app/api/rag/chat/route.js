@@ -3,6 +3,7 @@ import { auth } from '@/auth';
 import { getDatabase, safeObjectId } from '@/lib/mongodb';
 import { retrieveRelevantChunks } from '@/lib/vectorSearch';
 import { generateStreamWithFallback } from '@/lib/llm';
+import { cleanEmDashes } from '@/lib/cleanText';
 
 // In-memory cache for common student questions on documents
 const chatResponseCache = new Map();
@@ -93,11 +94,24 @@ export async function POST(req) {
       } catch {}
     }
 
+    const clientDocTitle = body.documentTitle || body.filename || body.docTitle || '';
+    const clientDocText = body.documentText || body.docText || body.fileText || '';
+
     if (doc) {
-      docTitle = doc.original_filename || doc.title || 'Study Material';
+      docTitle = doc.original_filename || doc.title || clientDocTitle || 'Study Material';
       if (doc.extracted_text && typeof doc.extracted_text === 'string') {
         fullDocumentText = doc.extracted_text.trim();
       }
+    } else if (clientDocTitle || clientDocText) {
+      docTitle = clientDocTitle || 'Study Material';
+      fullDocumentText = clientDocText.trim();
+    }
+
+    if (!docTitle && clientDocTitle) {
+      docTitle = clientDocTitle;
+    }
+    if (!fullDocumentText && clientDocText) {
+      fullDocumentText = clientDocText.trim();
     }
 
     const isTeachingQuery = isTeachingOrBroadQuery(message);
@@ -105,14 +119,14 @@ export async function POST(req) {
 
     // 2. Retrieve relevant semantic chunks
     const chunkSearchQuery = isTeachingQuery
-      ? `${message} overview introduction core concepts summary`
-      : message;
+      ? `${message} ${docTitle} overview introduction core concepts summary`
+      : `${message} ${docTitle}`;
 
     const contextChunks = await retrieveRelevantChunks({
       query: chunkSearchQuery,
       documentId: doc?._id?.toString() || documentId,
       userId,
-      limit: isTeachingQuery ? 6 : 4,
+      limit: isTeachingQuery ? 7 : 5,
     });
 
     // 3. Assemble whole-document context
@@ -123,8 +137,8 @@ export async function POST(req) {
 
     if (fullDocumentText) {
       const textSlice = isTeachingQuery
-        ? fullDocumentText.slice(0, 10000)
-        : fullDocumentText.slice(0, 3500);
+        ? fullDocumentText.slice(0, 14000)
+        : fullDocumentText.slice(0, 10000);
       contextText += `Document Overview & Core Material:\n${textSlice}\n\n`;
     }
 
@@ -133,7 +147,7 @@ export async function POST(req) {
     }
 
     if (!contextText.trim()) {
-      contextText = 'No specific document file attached. Act as an expert academic personal tutor based on your deep knowledge.';
+      contextText = `Study Document: ${docTitle || 'Study Material'}. Teach strictly from this topic.`;
     }
 
     // 4. Incorporate multi-turn conversation history
@@ -146,6 +160,10 @@ export async function POST(req) {
     // 5. Personal Tutor System Prompt
     const systemPrompt = `You are StudyGuru AI, a brilliant, empathetic, and encouraging Personal Tutor.
 Your mission is to guide the student through their study material using an interactive, adaptive, conversational tutoring approach.
+
+ACTIVE STUDY DOCUMENT & TOPIC ANCHOR:
+• Subject Document: "${docTitle || 'Study Material'}"
+• CRITICAL MANDATORY DIRECTIVE: You must NEVER lose track of this topic or file uploaded ("${docTitle}"). Every single response, explanation, analogy, and question MUST remain firmly rooted in this specific study document and its subject matter. If the student asks short or conversational questions, always relate your answer directly back to "${docTitle}".
 
 Study Material Document Context:
 ${contextText}
@@ -176,7 +194,8 @@ ${isExplicitAllAtOnce ? `
    - Speak naturally like an encouraging, enthusiastic private mentor ("Notice how...", "Think of it like...", "Here's the fun part:").
    - Never sound like a stiff textbook or a robotic search engine. Never say "As an AI language model".
    - Keep each conversational turn focused (around 120-220 words) so it feels like a real human back-and-forth conversation.
-   - Use clean Markdown: bold terms, brief bullet points, and code/math blocks only when relevant.`;
+   - Use clean Markdown: bold terms, brief bullet points, and code/math blocks only when relevant.
+   - STRICT PUNCTUATION RULE: Do NOT use unnecessary hyphens or em-dashes ('—' or '--'). Express thoughts cleanly using commas, periods, colons, or parentheses instead.`;
 
     let userPrompt = '';
     if (formattedHistory) {
@@ -184,9 +203,9 @@ ${isExplicitAllAtOnce ? `
     }
     userPrompt += `Current Student Message: ${message}`;
     if (!isExplicitAllAtOnce) {
-      userPrompt += `\n\n(TUTOR INSTRUCTION: Teach conversationally. Explain ONLY the immediate next step or concept in 2-3 short, digestible paragraphs using a relatable real-world analogy. DO NOT dump the entire topic or document at once. Conclude with an engaging interactive check-in question to adapt to the student's pace.)`;
+      userPrompt += `\n\n(TUTOR INSTRUCTION: Teach conversationally. Explain ONLY the immediate next step or concept in 2-3 short, digestible paragraphs using a relatable real-world analogy. DO NOT dump the entire topic or document at once. Ground your response firmly in "${docTitle}". Conclude with an engaging interactive check-in question to adapt to the student's pace.)`;
     } else {
-      userPrompt += `\n\n(TUTOR INSTRUCTION: The student explicitly requested the whole concept/topic at once. Provide a comprehensive, full breakdown covering all key parts.)`;
+      userPrompt += `\n\n(TUTOR INSTRUCTION: The student explicitly requested the whole concept/topic at once. Ground everything in "${docTitle}" and provide a comprehensive, full breakdown.)`;
     }
 
     // Check if client explicitly asks for streaming
@@ -260,6 +279,8 @@ ${isExplicitAllAtOnce ? `
     for await (const chunk of generator) {
       fullAnswer += chunk;
     }
+
+    fullAnswer = cleanEmDashes(fullAnswer);
 
     if (fullAnswer.trim()) {
       chatResponseCache.set(chatCacheKey, {

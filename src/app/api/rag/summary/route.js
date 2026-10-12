@@ -137,6 +137,7 @@ export async function POST(req) {
 
     const prompt = `Based ONLY on the document text provided below, generate a structured academic study summary.
 Do NOT use generic placeholder text. Every point, concept, and summary sentence must accurately reflect the document.
+Punctuation rule: Never use em-dashes ('—') or double hyphens ('--') in any text field; use natural commas, periods, or colons instead.
 
 Return ONLY a valid JSON object with this exact structure:
 {

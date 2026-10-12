@@ -734,8 +734,8 @@ export default function DashboardPage() {
         onShareToChannel={handleShareAiToChannel}
       />
 
-      {/* ── 6. Cogni-style Mobile Bottom Navigation Bar (≤ 768px, hidden when any channel is opened) ── */}
-      {!isJoinedInVoiceRoom && !activeChannelId && (
+      {/* ── 6. Cogni-style Mobile Bottom Navigation Bar (≤ 768px, hidden when channel is opened or AI assistant is open) ── */}
+      {!isJoinedInVoiceRoom && !activeChannelId && !rightPanelOpen && (
         <nav className="cogni-mobile-nav" aria-label="StudyGuru Mobile Navigation" suppressHydrationWarning>
           <button
             type="button"

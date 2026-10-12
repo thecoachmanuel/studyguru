@@ -130,6 +130,7 @@ Return ONLY valid JSON matching this exact structure:
 IMPORTANT CRITICAL RULES:
 1. "options" must be an array of at least 2 (ideally 4) distinct choice strings.
 2. "correct_answer" MUST be a string that exactly matches one of the choices in "options".
+3. Never use em-dashes ('—') or double hyphens ('--') in questions, options, or explanations; write naturally with standard commas, colons, or periods.
 
 Document Text:
 ${contextText.slice(0, 12000)}`;

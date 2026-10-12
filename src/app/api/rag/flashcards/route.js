@@ -140,9 +140,9 @@ export async function POST(req) {
       );
     }
 
-    // Request valid JSON object matching OpenAI/OpenRouter response_format expectations
     const prompt = `Based ONLY on the study document text provided below, generate ${count} comprehensive educational flashcards covering the key concepts, terms, definitions, and facts in the text.
 Do NOT use generic filler text or placeholder questions. Every single card must be directly based on the document text.
+Punctuation rule: Never use em-dashes ('—') or double hyphens ('--') in any question or answer; write naturally using commas, periods, or colons instead.
 
 Return ONLY a valid JSON object matching this exact structure:
 {

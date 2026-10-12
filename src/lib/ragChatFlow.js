@@ -2,6 +2,7 @@ import {
   addMessage,
   getSessionMessages,
 } from './ragChatHistory.js';
+import { cleanEmDashes } from './cleanText.js';
 
 export const RAG_CHAT_HISTORY_LIMIT = 6;
 
@@ -83,11 +84,12 @@ export async function persistChatTurn({
   onUserMessage(userMessage);
 
   try {
-    const answer = await sendQuestion({
+    const rawAnswer = await sendQuestion({
       question,
       documentId,
       history,
     });
+    const answer = cleanEmDashes(rawAnswer);
     let assistantMessage;
     try {
       assistantMessage = await addMessageFn(userId, sessionId, {

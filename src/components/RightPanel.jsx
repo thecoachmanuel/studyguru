@@ -20,6 +20,7 @@ import { matchesChatSession, persistChatTurn } from '../lib/ragChatFlow';
 import { getSessionStudyOutputs } from '../lib/ragStudyOutputs';
 import { generateAndPersistStudyOutput } from '../lib/ragStudyOutputFlow';
 import { parseDocumentLocally } from '../lib/clientDocumentParser';
+import { cleanEmDashes } from '../lib/cleanText';
 
 const AI_FEATURES = [
   'Ask questions',
@@ -65,7 +66,7 @@ function toUiChatMessage(message) {
   return {
     id: message.id,
     sender: message.role === 'assistant' ? 'ai' : 'user',
-    content: message.content,
+    content: message.role === 'assistant' ? cleanEmDashes(message.content) : message.content,
     time: Number.isNaN(createdAt.getTime())
       ? ''
       : createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -76,7 +77,7 @@ function createWelcomeMessage(filename) {
   return {
     id: 'welcome',
     sender: 'ai',
-    content: `Hi! I'm your **Personal Tutor** for **${filename}** 🎓.\n\nI break down topics into simple, bite-sized conversational steps and adapt to how you learn.\n\nWhat would you like to explore first? Tap any quick action below or ask your own question!`,
+    content: cleanEmDashes(`Hi! I'm your **Personal Tutor** for **${filename}** 🎓.\n\nI break down topics into simple, bite-sized conversational steps and adapt to how you learn.\n\nWhat would you like to explore first? Tap any quick action below or ask your own question!`),
     time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
   };
 }
@@ -236,6 +237,7 @@ export default function RightPanel({
         sessionId: sessId,
         docId: docId,
         filename: data.filename,
+        text: localParsed?.fullText || '',
       });
       setDeviceSessionCookie({
         sessionId: sessId,
@@ -437,10 +439,13 @@ export default function RightPanel({
               documentId: documentId,
               session_id: targetSessionId,
               sessionId: targetSessionId,
+              documentTitle: uploadedDoc?.filename || '',
+              filename: uploadedDoc?.filename || '',
+              documentText: uploadedDoc?.text || '',
               history,
             }),
           });
-          return data.answer;
+          return cleanEmDashes(data.answer);
         },
         onUserMessage: (message) => {
           if (!isTargetActive()) return;
@@ -697,72 +702,98 @@ export default function RightPanel({
   const handleShareSummary = () => {
     if (!summaryData || !onShareToChannel) return;
     const filenameHeader = uploadedDoc?.filename ? `> 📄 **Document**: *${uploadedDoc.filename}*\n\n` : '';
-    const execSummary = summaryData.executive_summary ? `${summaryData.executive_summary}\n\n` : '';
+    const execSummary = summaryData.executive_summary ? `${cleanEmDashes(summaryData.executive_summary)}\n\n` : '';
     const concepts = summaryData.key_concepts?.length
-      ? `### 💡 Key Concepts\n${summaryData.key_concepts.map((c) => `• **${c.concept}**: ${c.description}`).join('\n')}\n\n`
+      ? `### 💡 Key Concepts\n${summaryData.key_concepts.map((c) => `• **${cleanEmDashes(c.concept)}**: ${cleanEmDashes(c.description)}`).join('\n')}\n\n`
       : '';
     const takeaways = summaryData.key_points?.length
-      ? `### 🎯 Key Takeaways\n${summaryData.key_points.map((p) => `• ${p}`).join('\n')}`
+      ? `### 🎯 Key Takeaways\n${summaryData.key_points.map((p) => `• ${cleanEmDashes(p)}`).join('\n')}`
       : '';
     const message = `## 📚 AI Study Summary\n${filenameHeader}${execSummary}${concepts}${takeaways}`.trim();
-    onShareToChannel(message);
+    onShareToChannel(cleanEmDashes(message));
   };
 
   const handleShareFlashcards = () => {
     if (!flashcards?.length || !onShareToChannel) return;
     const filenameHeader = uploadedDoc?.filename ? `> 📄 **Source**: *${uploadedDoc.filename}*\n\n` : '';
-    const cardsToShow = flashcards.slice(0, 5);
-    const deck = cardsToShow.map((f, i) => (
-      `**Card ${i + 1} of ${flashcards.length}**\n` +
-      `• ❓ **Question**: ${f.question}\n` +
-      `• 💡 **Answer**: ${f.answer}`
-    )).join('\n\n---\n\n');
-    const remaining = flashcards.length > 5 ? `\n\n*(+${flashcards.length - 5} more cards in this deck)*` : '';
-    const message = `## 🗂️ AI Flashcard Revision Deck (${flashcards.length} Cards)\n${filenameHeader}${deck}${remaining}`;
-    onShareToChannel(message);
+    const total = flashcards.length;
+    // Show top 3 cards in initial preview, rest in expandable section
+    const previewCount = total > 3 ? 3 : total;
+    const visibleCards = flashcards.slice(0, previewCount);
+    const hiddenCards = flashcards.slice(previewCount);
+
+    const formatCard = (f, i) => (
+      `**Card ${i + 1} of ${total}**\n` +
+      `• ❓ **Question**: ${cleanEmDashes(f.question)}\n` +
+      `• 💡 **Answer**: ${cleanEmDashes(f.answer)}`
+    );
+
+    const visibleDeck = visibleCards.map(formatCard).join('\n\n---\n\n');
+
+    let expandableSection = '';
+    if (hiddenCards.length > 0) {
+      const remainingDeck = hiddenCards.map((f, i) => formatCard(f, i + previewCount)).join('\n\n---\n\n');
+      expandableSection = `\n\n:::expand (+${hiddenCards.length} more card${hiddenCards.length === 1 ? '' : 's'} in this deck)\n---\n\n${remainingDeck}\n:::`;
+    }
+
+    const message = `## 🗂️ AI Flashcard Revision Deck (${total} Cards)\n${filenameHeader}${visibleDeck}${expandableSection}`;
+    onShareToChannel(cleanEmDashes(message));
   };
 
   const handleShareSingleFlashcard = (idx) => {
     const card = flashcards[idx];
     if (!card || !onShareToChannel) return;
     const docMeta = uploadedDoc?.filename ? `> 📄 *${uploadedDoc.filename}*\n\n` : '';
-    const message = `### 🗂️ Flashcard #${idx + 1}\n${docMeta}**Question:**\n> ${card.question}\n\n**Answer:**\n${card.answer}`;
-    onShareToChannel(message);
+    const message = `### 🗂️ Flashcard #${idx + 1}\n${docMeta}**Question:**\n> ${cleanEmDashes(card.question)}\n\n**Answer:**\n${cleanEmDashes(card.answer)}`;
+    onShareToChannel(cleanEmDashes(message));
   };
 
   const handleShareQuiz = () => {
     if (!mcqs?.length || !onShareToChannel) return;
     const filenameHeader = uploadedDoc?.filename ? `> 📄 **Source**: *${uploadedDoc.filename}*\n\n` : '';
-    const questionsToShow = mcqs.slice(0, 3);
-    const quizList = questionsToShow.map((q, i) => {
-      const opts = q.options.map((opt, oi) => `• **${String.fromCharCode(65 + oi)})** ${opt}`).join('\n');
-      const explanation = q.explanation ? `\n> 📖 *${q.explanation}*` : '';
+    const total = mcqs.length;
+    // Show top 2 questions in initial preview, rest in expandable section
+    const previewCount = total > 2 ? 2 : total;
+    const visibleQuestions = mcqs.slice(0, previewCount);
+    const hiddenQuestions = mcqs.slice(previewCount);
+
+    const formatQuestion = (q, i) => {
+      const opts = q.options.map((opt, oi) => `• **${String.fromCharCode(65 + oi)})** ${cleanEmDashes(opt)}`).join('\n');
+      const explanation = q.explanation ? `\n> 📖 *${cleanEmDashes(q.explanation)}*` : '';
       return (
-        `#### Question ${i + 1}: ${q.question}\n\n` +
+        `#### Question ${i + 1}: ${cleanEmDashes(q.question)}\n\n` +
         `${opts}\n\n` +
-        `> 🎯 **Correct Answer**: **${q.correct_answer}**${explanation}`
+        `> 🎯 **Correct Answer**: **${cleanEmDashes(q.correct_answer)}**${explanation}`
       );
-    }).join('\n\n---\n\n');
-    const remaining = mcqs.length > 3 ? `\n\n*(+${mcqs.length - 3} more questions in this quiz)*` : '';
-    const message = `## 📝 AI Study Quiz Challenge (${mcqs.length} Questions)\n${filenameHeader}${quizList}${remaining}`;
-    onShareToChannel(message);
+    };
+
+    const visibleList = visibleQuestions.map(formatQuestion).join('\n\n---\n\n');
+
+    let expandableSection = '';
+    if (hiddenQuestions.length > 0) {
+      const remainingList = hiddenQuestions.map((q, i) => formatQuestion(q, i + previewCount)).join('\n\n---\n\n');
+      expandableSection = `\n\n:::expand (+${hiddenQuestions.length} more question${hiddenQuestions.length === 1 ? '' : 's'} in this quiz)\n---\n\n${remainingList}\n:::`;
+    }
+
+    const message = `## 📝 AI Study Quiz Challenge (${total} Questions)\n${filenameHeader}${visibleList}${expandableSection}`;
+    onShareToChannel(cleanEmDashes(message));
   };
 
   const handleShareSingleMcq = (qIdx) => {
     const q = mcqs[qIdx];
     if (!q || !onShareToChannel) return;
     const docMeta = uploadedDoc?.filename ? `> 📄 *${uploadedDoc.filename}*\n\n` : '';
-    const opts = q.options.map((opt, oi) => `• **${String.fromCharCode(65 + oi)})** ${opt}`).join('\n');
-    const explanation = q.explanation ? `\n> 📖 *${q.explanation}*` : '';
-    const message = `### 📝 Study Quiz Challenge: Question ${qIdx + 1}\n${docMeta}**${q.question}**\n\n${opts}\n\n> 🎯 **Correct Answer**: **${q.correct_answer}**${explanation}`;
-    onShareToChannel(message);
+    const opts = q.options.map((opt, oi) => `• **${String.fromCharCode(65 + oi)})** ${cleanEmDashes(opt)}`).join('\n');
+    const explanation = q.explanation ? `\n> 📖 *${cleanEmDashes(q.explanation)}*` : '';
+    const message = `### 📝 Study Quiz Challenge: Question ${qIdx + 1}\n${docMeta}**${cleanEmDashes(q.question)}**\n\n${opts}\n\n> 🎯 **Correct Answer**: **${cleanEmDashes(q.correct_answer)}**${explanation}`;
+    onShareToChannel(cleanEmDashes(message));
   };
 
   const handleShareChatMessage = (content) => {
     if (!content || !onShareToChannel) return;
     const docMeta = uploadedDoc?.filename ? `> 📄 *Source: ${uploadedDoc.filename}*\n\n` : '';
-    const message = `### 💡 AI Study Guru Insight\n${docMeta}${content}`;
-    onShareToChannel(message);
+    const message = `### 💡 AI Study Guru Insight\n${docMeta}${cleanEmDashes(content)}`;
+    onShareToChannel(cleanEmDashes(message));
   };
 
   const selectTab = (tab) => {
@@ -843,13 +874,13 @@ export default function RightPanel({
           padding: 16px 0;
           gap: 16px;
         }
-        @media (max-width: 1099px) {
+        @media (max-width: 1099px) and (min-width: 769px) {
           .right-panel {
             position: fixed;
             top: 0;
             right: 0;
             bottom: 0;
-            width: min(380px, 92vw);
+            width: min(400px, 92vw);
             min-width: unset;
             z-index: 95;
             background-color: var(--bg-surface);
@@ -859,6 +890,35 @@ export default function RightPanel({
           }
           .dashboard-shell--right-open .right-panel {
             transform: translateX(0);
+          }
+        }
+        @media (max-width: 768px) {
+          .right-panel {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: 100vw !important;
+            min-width: 100vw !important;
+            max-width: 100vw !important;
+            height: 100vh !important;
+            height: 100dvh !important;
+            max-height: 100dvh !important;
+            border: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            z-index: 99999 !important;
+            background-color: var(--bg-surface) !important;
+            transform: translateX(100%);
+            transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            padding: 12px 0 calc(16px + env(safe-area-inset-bottom, 0px)) 0;
+          }
+          .dashboard-shell--right-open .right-panel {
+            transform: translateX(0) !important;
+          }
+          .right-panel-backdrop {
+            display: none !important;
           }
         }
         .right-panel__section {
@@ -879,6 +939,28 @@ export default function RightPanel({
           border-bottom: 1px solid var(--border);
           padding-bottom: 16px;
           margin-bottom: 8px;
+        }
+        .right-panel__close-btn {
+          min-width: 32px;
+          min-height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: var(--radius-xs);
+          transition: background-color var(--transition), color var(--transition);
+        }
+        .right-panel__close-btn:hover {
+          color: var(--text-primary) !important;
+          background-color: var(--bg-hover) !important;
+        }
+        @media (max-width: 768px) {
+          .right-panel__close-btn {
+            min-width: 38px;
+            min-height: 38px;
+            background-color: var(--bg-elevated) !important;
+            color: var(--text-primary) !important;
+            border-radius: 50% !important;
+          }
         }
         .ai-study-empty {
           display: flex;
@@ -1559,6 +1641,30 @@ export default function RightPanel({
           box-shadow: var(--card-shadow);
           animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
+        @media (max-width: 768px) {
+          .ai-workspace-modal {
+            padding: 0 !important;
+            margin: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            height: 100dvh !important;
+            z-index: 100000 !important;
+          }
+          .ai-workspace-card {
+            width: 100vw !important;
+            max-width: 100vw !important;
+            min-width: 100vw !important;
+            height: 100vh !important;
+            height: 100dvh !important;
+            max-height: 100dvh !important;
+            border-radius: 0 !important;
+            border: none !important;
+          }
+          .ai-workspace-header {
+            padding: 0 14px !important;
+            padding-top: env(safe-area-inset-top, 0px);
+          }
+        }
         @keyframes scaleIn {
           from { opacity: 0; transform: scale(0.97) translateY(12px); }
           to { opacity: 1; transform: scale(1) translateY(0); }
@@ -2062,7 +2168,7 @@ export default function RightPanel({
               onClick={() => setLocalPersistenceWarning('')}
               style={{ background: 'transparent', border: 'none', color: 'inherit', float: 'right', cursor: 'pointer' }}
             >
-              Ã—
+              ×
             </button>
           </div>
         )}

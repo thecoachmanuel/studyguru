@@ -1,4 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
+import { cleanEmDashes } from './cleanText';
 
 // ── 1. Robust Multi-Key Pool Support for Gemini & OpenRouter ──
 function parseKeyPool(...envNames) {
@@ -123,8 +124,21 @@ export function extractJson(text) {
   // Helper to remove trailing commas which cause JSON.parse syntax errors
   const sanitizeJson = (str) => str.replace(/,\s*([}\]])/g, '$1');
 
+  const cleanJsonStrings = (val) => {
+    if (typeof val === 'string') return cleanEmDashes(val);
+    if (Array.isArray(val)) return val.map(cleanJsonStrings);
+    if (val && typeof val === 'object') {
+      const res = {};
+      for (const key of Object.keys(val)) {
+        res[key] = cleanJsonStrings(val[key]);
+      }
+      return res;
+    }
+    return val;
+  };
+
   try {
-    return JSON.parse(sanitizeJson(cleaned));
+    return cleanJsonStrings(JSON.parse(sanitizeJson(cleaned)));
   } catch {}
 
   // 2. Try finding array slice [ ... ]
@@ -132,7 +146,7 @@ export function extractJson(text) {
   const lastBracket = cleaned.lastIndexOf(']');
   if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
     try {
-      return JSON.parse(sanitizeJson(cleaned.slice(firstBracket, lastBracket + 1)));
+      return cleanJsonStrings(JSON.parse(sanitizeJson(cleaned.slice(firstBracket, lastBracket + 1))));
     } catch {}
   }
 
@@ -141,7 +155,7 @@ export function extractJson(text) {
   const lastBrace = cleaned.lastIndexOf('}');
   if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
     try {
-      return JSON.parse(sanitizeJson(cleaned.slice(firstBrace, lastBrace + 1)));
+      return cleanJsonStrings(JSON.parse(sanitizeJson(cleaned.slice(firstBrace, lastBrace + 1))));
     } catch {}
   }
 
@@ -342,7 +356,8 @@ export async function generateContentWithFallback({ prompt, systemPrompt = '', j
         config,
       });
 
-      const text = res.text || '';
+      const rawText = res.text || '';
+      const text = json ? rawText : cleanEmDashes(rawText);
       if (text.trim()) {
         setCachedResult(cacheKey, text);
         return { text, provider: 'gemini' };
@@ -364,7 +379,8 @@ export async function generateContentWithFallback({ prompt, systemPrompt = '', j
   if (openrouterKeys.length > 0) {
     try {
       console.log(`[LLM Scale] Engaging OpenRouter high-availability pool...`);
-      const text = await callOpenRouter({ prompt, systemPrompt, json });
+      const rawText = await callOpenRouter({ prompt, systemPrompt, json });
+      const text = json ? rawText : cleanEmDashes(rawText);
       if (text) {
         setCachedResult(cacheKey, text);
         return { text, provider: 'openrouter' };
@@ -402,7 +418,7 @@ export async function* generateStreamWithFallback({ prompt, systemPrompt = '' })
       for await (const chunk of responseStream) {
         if (chunk.text) {
           hadChunks = true;
-          yield chunk.text;
+          yield cleanEmDashes(chunk.text);
         }
       }
       if (hadChunks) return;
@@ -421,7 +437,7 @@ export async function* generateStreamWithFallback({ prompt, systemPrompt = '' })
     try {
       console.log(`[LLM Stream Scale] Streaming via resilient OpenRouter pool...`);
       for await (const chunk of streamOpenRouter({ prompt, systemPrompt })) {
-        yield chunk;
+        yield cleanEmDashes(chunk);
       }
       return;
     } catch (openrouterError) {

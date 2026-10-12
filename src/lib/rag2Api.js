@@ -74,7 +74,7 @@ export async function handoffResourceToRag1(
 
 export function formatSemanticScore(value) {
   const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return '—';
+  if (!Number.isFinite(numeric)) return 'N/A';
   return numeric.toFixed(3).replace(/\.?0+$/, '');
 }
 

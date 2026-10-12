@@ -133,20 +133,27 @@ export async function retrieveRelevantChunks({
     return [];
   }
 
-  if (queryEmbedding.length > 0) {
+  const hasValidChunkEmbeddings = chunks.some(
+    (chunk) => Array.isArray(chunk.embedding) && chunk.embedding.length > 0
+  );
+
+  if (queryEmbedding.length > 0 && hasValidChunkEmbeddings) {
     const scored = chunks.map((chunk) => ({
       content: chunk.content,
       score: cosineSimilarity(queryEmbedding, chunk.embedding),
     }));
 
     scored.sort((a, b) => b.score - a.score);
-    return scored.slice(0, limit).map((s) => s.content);
+    const topScored = scored.filter((s) => s.score > 0.1);
+    if (topScored.length > 0) {
+      return topScored.slice(0, limit).map((s) => s.content);
+    }
   }
 
-  // Keyword match fallback if embeddings are unavailable
-  const queryWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+  // Keyword match fallback if embeddings are unavailable or not yet computed
+  const queryWords = query.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
   const keywordScored = chunks.map((chunk) => {
-    const text = chunk.content.toLowerCase();
+    const text = (chunk.content || '').toLowerCase();
     const score = queryWords.reduce((acc, word) => acc + (text.includes(word) ? 1 : 0), 0);
     return { content: chunk.content, score };
   });
