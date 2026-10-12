@@ -211,8 +211,9 @@ export default function RightPanel({
     formData.append('file', file);
 
     // Fast in-browser parse backup to guarantee text availability
+    let localParsed = null;
     try {
-      const localParsed = await parseDocumentLocally(file);
+      localParsed = await parseDocumentLocally(file);
       if (localParsed?.fullText && localParsed.fullText.trim().length > 10) {
         formData.append('extractedText', localParsed.fullText.trim());
       }
