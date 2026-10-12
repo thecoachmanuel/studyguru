@@ -57,7 +57,7 @@ export async function retrieveRelevantChunks({
   const filter = {};
   if (documentId) filter.document_id = documentId;
   if (serverId) filter.server_id = serverId;
-  if (userId && !serverId) filter.user_id = userId;
+  if (userId && !serverId && !documentId) filter.user_id = userId;
 
   // Try Atlas Vector Search aggregation first
   if (queryEmbedding.length > 0) {
@@ -94,17 +94,39 @@ export async function retrieveRelevantChunks({
     ];
   }
   if (serverId) mongoFilter.server_id = serverId;
-  if (userId && !serverId) mongoFilter.user_id = userId;
+  if (userId && !serverId && !documentId) mongoFilter.user_id = userId;
 
   const chunks = await db.collection('rag_chunks').find(mongoFilter).toArray();
   if (chunks.length === 0) {
     if (documentId) {
       try {
-        const doc = await db.collection('rag_documents').findOne({
+        let doc = await db.collection('rag_documents').findOne({
           $or: [{ _id: safeId }, { id: documentId }, { document_id: documentId }],
         });
+        if (!doc) {
+          // Check if documentId was passed as session_id
+          const session = await db.collection('rag_sessions').findOne({
+            $or: [{ _id: safeId }, { id: documentId }, { session_id: documentId }],
+          });
+          if (session?.document_id) {
+            const sessDocId = safeObjectId(session.document_id);
+            doc = await db.collection('rag_documents').findOne({
+              $or: [{ _id: sessDocId }, { id: session.document_id }, { document_id: session.document_id }],
+            });
+            const sessionChunks = await db.collection('rag_chunks').find({
+              $or: [
+                { document_id: session.document_id },
+                { doc_id: session.document_id },
+                ...(sessDocId ? [{ document_id: sessDocId }, { doc_id: sessDocId }] : []),
+              ],
+            }).toArray();
+            if (sessionChunks.length > 0) {
+              return sessionChunks.slice(0, limit).map((c) => c.content);
+            }
+          }
+        }
         if (doc?.extracted_text) {
-          return [doc.extracted_text.slice(0, 4000)];
+          return [doc.extracted_text.slice(0, 5000)];
         }
       } catch {}
     }

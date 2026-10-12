@@ -30,7 +30,14 @@ export async function POST(req) {
           output_type: 'summary',
         });
         if (cached?.content?.executive_summary) {
-          return NextResponse.json(cached.content);
+          const isDummy =
+            cached.content.executive_summary?.toLowerCase().includes('core academic material') ||
+            cached.content.key_points?.some((p) => p.toLowerCase().includes('active recall'));
+          if (!isDummy) {
+            return NextResponse.json(cached.content);
+          } else {
+            await db.collection('rag_study_outputs').deleteOne({ _id: cached._id });
+          }
         }
       } catch (cacheErr) {
         console.warn('Summary cache lookup notice:', cacheErr.message);
@@ -45,17 +52,47 @@ export async function POST(req) {
       limit: 8,
     });
 
-    const contextText = chunks.length > 0
-      ? chunks.join('\n\n---\n\n')
-      : 'Document study content for academic review.';
+    let contextText = chunks.length > 0 ? chunks.join('\n\n---\n\n') : '';
 
-    const prompt = `You are an AI study assistant. Generate a structured academic study summary based on the document text provided below.
-Return ONLY valid JSON with this exact structure (no markdown fences, just pure JSON):
+    // If chunks are empty, directly fetch document text from MongoDB
+    if (!contextText || contextText.trim().length < 20) {
+      const { safeObjectId } = await import('@/lib/mongodb');
+      const safeId = safeObjectId(documentId);
+      const doc = await db.collection('rag_documents').findOne({
+        $or: [{ _id: safeId }, { id: documentId }, { document_id: documentId }],
+      });
+      if (doc?.extracted_text) {
+        contextText = doc.extracted_text;
+      } else {
+        const sess = await db.collection('rag_sessions').findOne({
+          $or: [{ _id: safeId }, { id: documentId }, { session_id: documentId }],
+        });
+        if (sess?.document_id) {
+          const sessDoc = await db.collection('rag_documents').findOne({
+            $or: [{ _id: safeObjectId(sess.document_id) }, { id: sess.document_id }],
+          });
+          if (sessDoc?.extracted_text) {
+            contextText = sessDoc.extracted_text;
+          }
+        }
+      }
+    }
+
+    if (!contextText || contextText.trim().length < 10) {
+      return NextResponse.json(
+        { error: 'No readable study document text found. Please upload or select a document first.' },
+        { status: 400 }
+      );
+    }
+
+    const prompt = `Based ONLY on the document text provided below, generate a structured academic study summary.
+Do NOT use generic placeholder text. Every point, concept, and summary sentence must accurately reflect the document.
+
+Return ONLY a valid JSON object with this exact structure:
 {
   "executive_summary": "Comprehensive overview of the document (2-3 paragraphs)",
   "key_concepts": [
-    { "concept": "Concept 1", "description": "Clear explanation of concept 1" },
-    { "concept": "Concept 2", "description": "Clear explanation of concept 2" }
+    { "concept": "Concept Name", "description": "Accurate explanation from the text" }
   ],
   "key_points": [
     "Important takeaway 1",
@@ -65,13 +102,13 @@ Return ONLY valid JSON with this exact structure (no markdown fences, just pure 
 }
 
 Document Content:
-${contextText}`;
+${contextText.slice(0, 12000)}`;
 
     let summary = null;
     try {
       const { text } = await generateContentWithFallback({
         prompt,
-        systemPrompt: 'You are an academic study assistant that outputs strictly valid JSON matching the exact requested summary schema.',
+        systemPrompt: 'You are an academic study assistant that outputs strictly valid JSON matching the exact requested summary schema based on the document.',
         json: true,
       });
 
@@ -80,23 +117,18 @@ ${contextText}`;
         summary = parsed;
       }
     } catch (err) {
-      console.warn('Summary generation notice:', err.message);
+      console.error('Summary generation error:', err.message);
+      return NextResponse.json(
+        { error: 'Failed to generate summary: ' + err.message },
+        { status: 502 }
+      );
     }
 
-    // Fallback safety guarantee to satisfy validateStudyOutputContent
-    if (!summary || typeof summary !== 'object') {
-      summary = {
-        executive_summary: 'This document provides core academic material covering foundational concepts, key terms, and revision objectives.',
-        key_concepts: [
-          { concept: 'Core Principles', description: 'Fundamental theoretical frameworks and definitions presented in the study document.' },
-          { concept: 'Practical Applications', description: 'Methodologies and practical exercises for subject mastery.' },
-        ],
-        key_points: [
-          'Master core terminology and definitions.',
-          'Review summary notes before attempting self-assessment quizzes.',
-          'Reinforce understanding through regular active recall sessions.',
-        ],
-      };
+    if (!summary || typeof summary !== 'object' || !summary.executive_summary) {
+      return NextResponse.json(
+        { error: 'AI could not generate a summary from this document. Please try again or click Regenerate.' },
+        { status: 502 }
+      );
     }
 
     if (!summary.executive_summary || typeof summary.executive_summary !== 'string') {

@@ -15,20 +15,19 @@ function parseKeyPool(...envNames) {
 
 const geminiKeys = parseKeyPool('GEMINI_API_KEYS', 'GEMINI_API_KEY', 'GOOGLE_API_KEY');
 const openrouterKeys = parseKeyPool('OPENROUTER_API_KEYS', 'OPENROUTER_API_KEY');
-const configuredModel = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct:free';
+const configuredModel = process.env.OPENROUTER_MODEL || 'openrouter/free';
 
-// Expanded high-performance free models pool on OpenRouter
+// Verified active high-performance free models pool on OpenRouter
 const OPENROUTER_MODELS = Array.from(
   new Set([
     configuredModel,
-    'meta-llama/llama-3.3-70b-instruct:free',
+    'openrouter/free',
     'nvidia/nemotron-3.5-lightning:free',
-    'mistralai/mistral-small-24b-instruct-2501:free',
-    'qwen/qwen-2.5-coder-32b-instruct:free',
-    'google/gemma-2-9b-it:free',
-    'meta-llama/llama-3.1-8b-instruct:free',
+    'inclusionai/ling-3.1-flash',
     'liquid/lfm-2.5-2.6b:free',
-    'google/gemma-4-26b-a4b-it:free',
+    'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+    'nvidia/nemotron-3-super-120b-a12b:free',
+    'meta-llama/llama-3.3-70b-instruct',
   ])
 );
 
@@ -329,7 +328,7 @@ export async function generateContentWithFallback({ prompt, systemPrompt = '', j
       const config = json ? { responseMimeType: 'application/json' } : undefined;
 
       const res = await aiClient.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.8-flash',
         contents,
         config,
       });
@@ -342,8 +341,12 @@ export async function generateContentWithFallback({ prompt, systemPrompt = '', j
     } catch (geminiError) {
       console.warn('[LLM Scale] Gemini notice:', geminiError.message);
       rotateGeminiKey();
+      // If credits are depleted or model not found, don't waste time retrying Gemini keys, fall to OpenRouter immediately
+      if (geminiError.message?.includes('depleted') || geminiError.message?.includes('402') || geminiError.message?.includes('404')) {
+        break;
+      }
       if (geminiError.message?.includes('429') || geminiError.message?.includes('quota')) {
-        await sleep(400);
+        await sleep(200);
       }
     }
   }
@@ -382,7 +385,7 @@ export async function* generateStreamWithFallback({ prompt, systemPrompt = '' })
     try {
       const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
       const responseStream = await aiClient.models.generateContentStream({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.8-flash',
         contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
       });
 
@@ -398,6 +401,9 @@ export async function* generateStreamWithFallback({ prompt, systemPrompt = '' })
       console.warn('[LLM Stream Scale] Gemini stream notice:', geminiError.message);
       rotateGeminiKey();
       geminiFailed = true;
+      if (geminiError.message?.includes('depleted') || geminiError.message?.includes('402') || geminiError.message?.includes('404')) {
+        break;
+      }
     }
   }
 

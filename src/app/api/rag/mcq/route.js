@@ -31,7 +31,15 @@ export async function POST(req) {
           output_type: 'mcq',
         });
         if (Array.isArray(cached?.content) && cached.content.length > 0) {
-          return NextResponse.json({ mcqs: cached.content, mcq: cached.content });
+          const isDummy = cached.content.some((q) =>
+            q.question?.toLowerCase().includes('primary benefit of testing') ||
+            q.correct_answer?.toLowerCase().includes('active recall')
+          );
+          if (!isDummy) {
+            return NextResponse.json({ mcqs: cached.content, mcq: cached.content });
+          } else {
+            await db.collection('rag_study_outputs').deleteOne({ _id: cached._id });
+          }
         }
       } catch (cacheErr) {
         console.warn('MCQ cache lookup notice:', cacheErr.message);
@@ -39,24 +47,55 @@ export async function POST(req) {
     }
 
     const chunks = await retrieveRelevantChunks({
-      query: 'quiz test questions concepts details comprehension exam practice',
+      query: 'quiz test questions concepts details comprehension exam practice key terms',
       documentId,
       userId,
-      limit: 6,
+      limit: 8,
     });
 
-    const contextText = chunks.length > 0
-      ? chunks.join('\n\n---\n\n')
-      : 'Core study material for multiple choice quiz revision.';
+    let contextText = chunks.length > 0 ? chunks.join('\n\n---\n\n') : '';
 
-    const prompt = `You are an AI study assistant. Generate ${count} multiple choice revision quiz questions based on the document text provided below.
+    // If chunks are empty, directly fetch document text from MongoDB
+    if (!contextText || contextText.trim().length < 20) {
+      const { safeObjectId } = await import('@/lib/mongodb');
+      const safeId = safeObjectId(documentId);
+      const doc = await db.collection('rag_documents').findOne({
+        $or: [{ _id: safeId }, { id: documentId }, { document_id: documentId }],
+      });
+      if (doc?.extracted_text) {
+        contextText = doc.extracted_text;
+      } else {
+        const sess = await db.collection('rag_sessions').findOne({
+          $or: [{ _id: safeId }, { id: documentId }, { session_id: documentId }],
+        });
+        if (sess?.document_id) {
+          const sessDoc = await db.collection('rag_documents').findOne({
+            $or: [{ _id: safeObjectId(sess.document_id) }, { id: sess.document_id }],
+          });
+          if (sessDoc?.extracted_text) {
+            contextText = sessDoc.extracted_text;
+          }
+        }
+      }
+    }
+
+    if (!contextText || contextText.trim().length < 10) {
+      return NextResponse.json(
+        { error: 'No readable study document text found. Please upload or select a document first.' },
+        { status: 400 }
+      );
+    }
+
+    const prompt = `Based ONLY on the document text provided below, generate ${count} multiple choice revision quiz questions.
+Do NOT use generic filler questions. Every question, choice, and answer must be strictly derived from the document content.
+
 Return ONLY valid JSON matching this exact structure:
 [
   {
-    "question": "Question text",
-    "options": ["Option A text", "Option B text", "Option C text", "Option D text"],
-    "correct_answer": "Option A text",
-    "explanation": "Brief explanation of why the correct option is right"
+    "question": "Specific question text directly derived from the document",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correct_answer": "Option A",
+    "explanation": "Brief explanation from the text of why this option is correct"
   }
 ]
 
@@ -65,13 +104,13 @@ IMPORTANT CRITICAL RULES:
 2. "correct_answer" MUST be a string that exactly matches one of the choices in "options".
 
 Document Text:
-${contextText}`;
+${contextText.slice(0, 12000)}`;
 
     let questions = [];
     try {
       const { text } = await generateContentWithFallback({
         prompt,
-        systemPrompt: 'You are an AI study assistant that outputs strictly valid JSON of multiple-choice quiz questions with "question", "options", and "correct_answer".',
+        systemPrompt: 'You are an AI study assistant that outputs strictly valid JSON of multiple-choice quiz questions with "question", "options", and "correct_answer" derived from the document.',
         json: true,
       });
 
@@ -130,24 +169,18 @@ ${contextText}`;
         ));
       }
     } catch (llmErr) {
-      console.warn('MCQ generation notice:', llmErr.message);
+      console.error('MCQ generation error:', llmErr.message);
+      return NextResponse.json(
+        { error: 'Failed to generate MCQs: ' + llmErr.message },
+        { status: 502 }
+      );
     }
 
-    // Fallback safety guarantee to satisfy validateStudyOutputContent
     if (!Array.isArray(questions) || questions.length === 0) {
-      questions = [
-        {
-          question: 'What is the primary benefit of testing yourself with practice questions?',
-          options: [
-            'Active recall and identifying knowledge gaps',
-            'Passive rereading of materials',
-            'Skipping difficult topics',
-            'Replacing classroom lectures entirely',
-          ],
-          correct_answer: 'Active recall and identifying knowledge gaps',
-          explanation: 'Self-testing strengthens memory pathways and identifies concepts that require further review.',
-        },
-      ];
+      return NextResponse.json(
+        { error: 'AI could not extract multiple-choice questions from this document. Please try again or click Regenerate.' },
+        { status: 502 }
+      );
     }
 
     // Cache generated quiz questions in database for high-concurrency reuse

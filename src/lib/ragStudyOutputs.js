@@ -169,6 +169,27 @@ export async function getSessionStudyOutputs(
     ) continue;
     try {
       validateStudyOutputContent(record.output_type, record.content);
+      // Discard stale dummy active recall records
+      if (record.output_type === 'flashcards' && Array.isArray(record.content)) {
+        const isDummy = record.content.some((c) =>
+          c.question?.toLowerCase().includes('active recall') ||
+          c.question?.toLowerCase().includes('exam preparation')
+        );
+        if (isDummy) continue;
+      }
+      if (record.output_type === 'summary' && record.content?.executive_summary) {
+        const isDummy =
+          record.content.executive_summary?.toLowerCase().includes('core academic material') ||
+          record.content.key_points?.some((p) => p.toLowerCase().includes('active recall'));
+        if (isDummy) continue;
+      }
+      if (record.output_type === 'mcq' && Array.isArray(record.content)) {
+        const isDummy = record.content.some((q) =>
+          q.question?.toLowerCase().includes('primary benefit of testing') ||
+          q.correct_answer?.toLowerCase().includes('active recall')
+        );
+        if (isDummy) continue;
+      }
       outputs[record.output_type] = record.content;
     } catch {
       // Corrupt local records behave like missing browser-local output.

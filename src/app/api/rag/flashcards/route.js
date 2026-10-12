@@ -31,7 +31,16 @@ export async function POST(req) {
           output_type: 'flashcards',
         });
         if (Array.isArray(cached?.content) && cached.content.length > 0) {
-          return NextResponse.json({ flashcards: cached.content });
+          const isDummy = cached.content.some((c) =>
+            c.question?.toLowerCase().includes('active recall') ||
+            c.question?.toLowerCase().includes('exam preparation')
+          );
+          if (!isDummy) {
+            return NextResponse.json({ flashcards: cached.content });
+          } else {
+            // Delete corrupt dummy cache entry
+            await db.collection('rag_study_outputs').deleteOne({ _id: cached._id });
+          }
         }
       } catch (cacheErr) {
         console.warn('Flashcard cache lookup notice:', cacheErr.message);
@@ -39,33 +48,64 @@ export async function POST(req) {
     }
 
     const chunks = await retrieveRelevantChunks({
-      query: 'key concepts definitions principles formulas facts study flashcards',
+      query: 'key concepts definitions principles formulas facts study flashcards vocabulary important terms',
       documentId,
       userId,
-      limit: 6,
+      limit: 8,
     });
 
-    const contextText = chunks.length > 0
-      ? chunks.join('\n\n---\n\n')
-      : 'Core study material for flashcard generation.';
+    let contextText = chunks.length > 0 ? chunks.join('\n\n---\n\n') : '';
 
-    const prompt = `You are an AI study assistant. Generate ${count} study flashcards based on the document text provided below.
-Return ONLY valid JSON matching this exact structure:
+    // If chunks are empty, directly fetch document text from MongoDB
+    if (!contextText || contextText.trim().length < 20) {
+      const { safeObjectId } = await import('@/lib/mongodb');
+      const safeId = safeObjectId(documentId);
+      const doc = await db.collection('rag_documents').findOne({
+        $or: [{ _id: safeId }, { id: documentId }, { document_id: documentId }],
+      });
+      if (doc?.extracted_text) {
+        contextText = doc.extracted_text;
+      } else {
+        const sess = await db.collection('rag_sessions').findOne({
+          $or: [{ _id: safeId }, { id: documentId }, { session_id: documentId }],
+        });
+        if (sess?.document_id) {
+          const sessDoc = await db.collection('rag_documents').findOne({
+            $or: [{ _id: safeObjectId(sess.document_id) }, { id: sess.document_id }],
+          });
+          if (sessDoc?.extracted_text) {
+            contextText = sessDoc.extracted_text;
+          }
+        }
+      }
+    }
+
+    if (!contextText || contextText.trim().length < 10) {
+      return NextResponse.json(
+        { error: 'No readable study document text found. Please upload or select a document first.' },
+        { status: 400 }
+      );
+    }
+
+    const prompt = `Based ONLY on the study document text provided below, generate ${count} comprehensive educational flashcards covering the key concepts, terms, definitions, and facts in the text.
+Do NOT use generic filler text or placeholder questions. Every single card must be directly based on the document text.
+
+Return ONLY a valid JSON array matching this exact structure:
 [
   {
-    "question": "Concept or Question",
-    "answer": "Clear, concise definition or answer"
+    "question": "Specific question or key concept from the text",
+    "answer": "Accurate, concise explanation or definition from the text"
   }
 ]
 
 Document Text:
-${contextText}`;
+${contextText.slice(0, 12000)}`;
 
     let flashcards = [];
     try {
       const { text } = await generateContentWithFallback({
         prompt,
-        systemPrompt: 'You are an academic study assistant that outputs strictly valid JSON arrays of flashcards with "question" and "answer" properties.',
+        systemPrompt: 'You are an academic study assistant that outputs strictly valid JSON arrays of flashcards with "question" and "answer" properties directly based on the user document.',
         json: true,
       });
 
@@ -76,30 +116,27 @@ ${contextText}`;
 
       if (Array.isArray(rawCards) && rawCards.length > 0) {
         flashcards = rawCards.map((card) => {
-          const q = card.question || card.front || card.concept || card.title || card.term || 'Key Concept';
-          const a = card.answer || card.back || card.definition || card.description || card.explanation || 'Academic definition and explanation.';
+          const q = card.question || card.front || card.concept || card.title || card.term;
+          const a = card.answer || card.back || card.definition || card.description || card.explanation;
           return {
-            question: String(q).trim(),
-            answer: String(a).trim(),
+            question: String(q || '').trim(),
+            answer: String(a || '').trim(),
           };
         }).filter((card) => card.question && card.answer);
       }
     } catch (llmErr) {
-      console.warn('Flashcard generation notice:', llmErr.message);
+      console.error('Flashcard generation error:', llmErr.message);
+      return NextResponse.json(
+        { error: 'Failed to generate flashcards: ' + llmErr.message },
+        { status: 502 }
+      );
     }
 
-    // Fallback safety guarantee to satisfy validateStudyOutputContent
     if (!Array.isArray(flashcards) || flashcards.length === 0) {
-      flashcards = [
-        {
-          question: 'What is active recall in study revision?',
-          answer: 'Actively stimulating memory retrieval during the learning process rather than passive reading.',
-        },
-        {
-          question: 'How do flashcards assist exam preparation?',
-          answer: 'They break complex course syllabi into digestible atomic Q&A prompts for spaced repetition.',
-        },
-      ];
+      return NextResponse.json(
+        { error: 'AI could not extract flashcards from this document. Please try again or click Regenerate.' },
+        { status: 502 }
+      );
     }
 
     // Cache generated flashcards in database for high-concurrency reuse
