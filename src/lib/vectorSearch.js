@@ -1,4 +1,4 @@
-import { getDatabase } from '@/lib/mongodb';
+import { getDatabase, safeObjectId } from '@/lib/mongodb';
 import { GoogleGenAI } from '@google/genai';
 
 const geminiApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
