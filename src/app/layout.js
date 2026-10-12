@@ -4,6 +4,8 @@ import Providers from '@/components/Providers';
 export const viewport = {
   width: 'device-width',
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: 'cover',
   interactiveWidget: 'resizes-content',
 };

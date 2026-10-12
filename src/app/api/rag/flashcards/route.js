@@ -128,10 +128,20 @@ export async function POST(req) {
 
     let contextText = '';
     const clientText = String(body.documentText || body.docText || body.text || '').trim();
-    if (doc?.extracted_text) {
+    const isDocPlaceholder = !doc?.extracted_text || doc.extracted_text.length < 60 || doc.extracted_text.startsWith('Academic study material:');
+
+    if (!isDocPlaceholder && doc?.extracted_text) {
       contextText = doc.extracted_text;
-    } else if (clientText) {
+    } else if (clientText && clientText.length > 20) {
       contextText = clientText;
+      if (doc?._id) {
+        db.collection('rag_documents').updateOne(
+          { _id: doc._id },
+          { $set: { extracted_text: clientText, updated_at: new Date() } }
+        ).catch(() => {});
+      }
+    } else if (doc?.extracted_text) {
+      contextText = doc.extracted_text;
     } else if (chunks.length > 0) {
       contextText = chunks.join('\n\n---\n\n');
     }

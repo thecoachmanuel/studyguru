@@ -110,8 +110,16 @@ export async function POST(req) {
     if (!docTitle && clientDocTitle) {
       docTitle = clientDocTitle;
     }
-    if (!fullDocumentText && clientDocText) {
+
+    const isDocPlaceholder = !fullDocumentText || fullDocumentText.length < 60 || fullDocumentText.startsWith('Academic study material:');
+    if ((isDocPlaceholder || !fullDocumentText) && clientDocText && clientDocText.length > 20) {
       fullDocumentText = clientDocText.trim();
+      if (doc?._id) {
+        db.collection('rag_documents').updateOne(
+          { _id: doc._id },
+          { $set: { extracted_text: fullDocumentText, updated_at: new Date() } }
+        ).catch(() => {});
+      }
     }
 
     const isTeachingQuery = isTeachingOrBroadQuery(message);

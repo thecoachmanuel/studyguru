@@ -3748,10 +3748,17 @@ body {
     border-radius: var(--radius-md) !important;
   }
 
+  /* CRITICAL: Enforce 16px font-size on all inputs to prevent iOS Safari auto-zoom */
+  input,
+  textarea,
+  select,
   .form-input,
-  .group-modal-input {
-    font-size: 16px !important; /* CRITICAL: prevents iOS Safari auto-zoom on keypad */
-    min-height: 46px !important;
+  .group-modal-input,
+  .ai-chat-input,
+  .ai-study-input,
+  .compose-textarea,
+  .channel-compose-input {
+    font-size: 16px !important;
   }
 }
 

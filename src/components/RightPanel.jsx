@@ -250,6 +250,11 @@ export default function RightPanel({
         filename: data.filename || file.name,
         text: finalDocText,
       });
+      if (finalDocText && typeof window !== 'undefined') {
+        try {
+          window.sessionStorage.setItem(`studyguru_doc_text_${docId}`, finalDocText);
+        } catch {}
+      }
       setDeviceSessionCookie({
         sessionId: sessId,
         documentId: docId,
@@ -600,11 +605,17 @@ export default function RightPanel({
         sessionId: session.id,
         documentId: session.document_id,
       };
+      let restoredDocText = session.extracted_text || session.document?.extracted_text || session.text || '';
+      if (!restoredDocText && typeof window !== 'undefined') {
+        try {
+          restoredDocText = window.sessionStorage.getItem(`studyguru_doc_text_${session.document_id}`) || '';
+        } catch {}
+      }
       setUploadedDoc({
         sessionId: session.id,
         docId: session.document_id,
         filename: session.original_filename,
-        text: session.extracted_text || session.document?.extracted_text || session.text || '',
+        text: restoredDocText,
       });
       setDeviceSessionCookie({
         sessionId: session.id,
@@ -1697,24 +1708,80 @@ export default function RightPanel({
             display: flex !important;
             flex-direction: column !important;
             overflow: hidden !important;
+            background-color: var(--bg-dark) !important;
           }
           .ai-workspace-header {
-            height: 52px !important;
+            height: auto !important;
             min-height: 52px !important;
-            padding: 0 12px !important;
-            padding-top: env(safe-area-inset-top, 0px) !important;
+            padding: max(8px, env(safe-area-inset-top, 0px)) 12px 8px !important;
             flex-shrink: 0 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            gap: 8px !important;
+            border-bottom: 1px solid var(--border) !important;
+            background-color: var(--bg-surface) !important;
+          }
+          .ai-workspace-header__left {
+            display: flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            min-width: 0 !important;
+            flex: 1 !important;
           }
           .ai-workspace-title {
-            font-size: 13.5px !important;
+            margin: 0 !important;
+            font-size: 14px !important;
+            font-weight: 700 !important;
+            white-space: nowrap !important;
+            letter-spacing: -0.01em !important;
+          }
+          .ai-workspace-title--full {
+            display: none !important;
+          }
+          .ai-workspace-title--short {
+            display: inline !important;
           }
           .ai-workspace-docname {
-            max-width: 140px !important;
+            max-width: 95px !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
             white-space: nowrap !important;
             font-size: 11px !important;
-            padding: 2px 8px !important;
+            padding: 2px 6px !important;
+            border-radius: var(--radius-xs) !important;
+            background-color: var(--bg-elevated) !important;
+            border: 1px solid var(--border) !important;
+            color: var(--text-secondary) !important;
+          }
+          .ai-workspace-header__right {
+            display: flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            flex-shrink: 0 !important;
+          }
+          .ai-workspace-action-btn {
+            padding: 5px 9px !important;
+            font-size: 11.5px !important;
+            font-weight: 500 !important;
+            height: 28px !important;
+            border-radius: var(--radius-sm) !important;
+            margin: 0 !important;
+          }
+          .ai-workspace-close {
+            width: 30px !important;
+            height: 30px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 20px !important;
+            border-radius: 50% !important;
+            background: var(--bg-elevated) !important;
+            border: 1px solid var(--border) !important;
+            color: var(--text-primary) !important;
+            padding: 0 !important;
+            margin-left: 2px !important;
+            cursor: pointer !important;
           }
           .ai-workspace-body {
             flex: 1 !important;
@@ -1736,12 +1803,13 @@ export default function RightPanel({
             width: 100% !important;
             min-width: 100% !important;
             max-width: 100% !important;
-            height: auto !important;
+            height: 48px !important;
             display: flex !important;
             flex-direction: row !important;
+            align-items: center !important;
             border-right: none !important;
             border-bottom: 1px solid var(--border) !important;
-            padding: 8px 10px !important;
+            padding: 0 10px !important;
             overflow-x: auto !important;
             -webkit-overflow-scrolling: touch !important;
             gap: 6px !important;
@@ -1755,10 +1823,23 @@ export default function RightPanel({
           .ai-workspace-tab-btn {
             width: auto !important;
             white-space: nowrap !important;
-            padding: 6px 14px !important;
+            padding: 6px 12px !important;
             font-size: 12.5px !important;
+            font-weight: 500 !important;
             border-radius: 20px !important;
             flex-shrink: 0 !important;
+            border: 1px solid var(--border) !important;
+            background-color: var(--bg-elevated) !important;
+            color: var(--text-secondary) !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 5px !important;
+          }
+          .ai-workspace-tab-btn--active {
+            background-color: var(--primary) !important;
+            color: var(--primary-foreground) !important;
+            border-color: var(--primary) !important;
+            font-weight: 600 !important;
           }
           .ai-workspace-content {
             flex: 1 !important;
@@ -1767,7 +1848,44 @@ export default function RightPanel({
             max-width: 100% !important;
             overflow-y: auto !important;
             -webkit-overflow-scrolling: touch !important;
-            padding: 12px 10px calc(24px + env(safe-area-inset-bottom, 0px)) !important;
+            padding: 12px 10px calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+          }
+          .ai-workspace-empty-wrap {
+            flex: 1 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 16px !important;
+            background-color: var(--bg-dark) !important;
+          }
+          .ai-workspace-empty-card {
+            width: 100% !important;
+            max-width: 440px !important;
+            padding: 24px 18px !important;
+            border-radius: var(--radius-lg) !important;
+            border: 1px dashed var(--border) !important;
+            background-color: var(--bg-surface) !important;
+            text-align: center !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+          }
+          .ai-workspace-empty-title {
+            font-size: 16px !important;
+            font-weight: 600 !important;
+            color: var(--text-primary) !important;
+            margin: 0 0 6px !important;
+          }
+          .ai-workspace-empty-desc {
+            font-size: 13px !important;
+            color: var(--text-secondary) !important;
+            margin: 0 0 18px !important;
+            line-height: 1.5 !important;
+          }
+          .ai-workspace-empty-btn {
+            width: 100% !important;
+            padding: 11px 16px !important;
+            font-size: 14px !important;
           }
           .ai-workspace-mcq-options {
             grid-template-columns: 1fr !important;
@@ -1796,16 +1914,39 @@ export default function RightPanel({
             padding: 8px 16px !important;
             font-size: 13px !important;
           }
+          .ai-workspace-chat {
+            height: 100% !important;
+            display: flex !important;
+            flex-direction: column !important;
+            min-height: 0 !important;
+            background-color: var(--bg-dark) !important;
+          }
           .ai-chat-messages {
-            padding-right: 4px !important;
-            margin-bottom: 12px !important;
+            flex: 1 !important;
+            min-height: 0 !important;
+            overflow-y: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+            padding: 10px !important;
+            margin-bottom: 0 !important;
             gap: 12px !important;
           }
           .ai-message {
             max-width: 92% !important;
           }
           .ai-chat-compose {
-            padding-bottom: calc(4px + env(safe-area-inset-bottom, 0px)) !important;
+            position: sticky !important;
+            bottom: 0 !important;
+            background-color: var(--bg-surface) !important;
+            padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+            border-top: 1px solid var(--border) !important;
+            border-radius: 0 !important;
+            border-left: none !important;
+            border-right: none !important;
+            border-bottom: none !important;
+            z-index: 10 !important;
+          }
+          .ai-chat-input {
+            font-size: 16px !important;
           }
         }
         @keyframes scaleIn {
@@ -1833,6 +1974,22 @@ export default function RightPanel({
           letter-spacing: 0.05em;
           color: var(--text-primary);
           margin: 0;
+        }
+        .ai-workspace-title--full {
+          display: inline;
+        }
+        .ai-workspace-title--short {
+          display: none;
+        }
+        .ai-workspace-header__right {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .ai-workspace-action-btn {
+          width: auto;
+          padding: 6px 14px;
+          font-size: 13px;
         }
         .ai-workspace-docname {
           font-size: 12.5px;
@@ -3015,21 +3172,24 @@ export default function RightPanel({
             <header className="ai-workspace-header">
               <div className="ai-workspace-header__left">
                 <ChatbotIcon size={16} style={{ color: 'var(--text-muted)' }} />
-                <h2 className="ai-workspace-title">AI Study Assistant Workspace</h2>
-                {uploadedDoc && <span className="ai-workspace-docname">{uploadedDoc.filename}</span>}
+                <h2 className="ai-workspace-title">
+                  <span className="ai-workspace-title--full">AI Study Assistant Workspace</span>
+                  <span className="ai-workspace-title--short">AI Study</span>
+                </h2>
+                {uploadedDoc && <span className="ai-workspace-docname" title={uploadedDoc.filename}>{uploadedDoc.filename}</span>}
               </div>
-              <div className="ai-workspace-header__right" style={{ display: 'flex', alignItems: 'center' }}>
+              <div className="ai-workspace-header__right">
                 {uploadedDoc && (
                   <>
-                    <button className="btn btn-secondary" style={{ width: 'auto', padding: '6px 14px', marginRight: '8px', fontSize: '13px' }} onClick={openHistory}>
+                    <button className="btn btn-secondary ai-workspace-action-btn" onClick={openHistory} title="Study Sessions History">
                       History
                     </button>
-                    <button className="btn btn-secondary" style={{ width: 'auto', padding: '6px 14px', marginRight: '16px', fontSize: '13px' }} onClick={startNewStudy}>
-                      New Study
+                    <button className="btn btn-secondary ai-workspace-action-btn" onClick={startNewStudy} title="Study New Document">
+                      New
                     </button>
                   </>
                 )}
-                <button className="ai-workspace-close" onClick={() => setIsExpanded(false)}>×</button>
+                <button className="ai-workspace-close" onClick={() => setIsExpanded(false)} aria-label="Close workspace">×</button>
               </div>
             </header>
             <div className="ai-workspace-body">
@@ -3038,34 +3198,20 @@ export default function RightPanel({
                   {renderHistory(true)}
                 </div>
               ) : !uploadedDoc ? (
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', background: 'var(--bg-dark)' }}>
-                  <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '48px',
-                    borderRadius: 'var(--radius-lg)',
-                    border: '1px dashed var(--border)',
-                    backgroundColor: 'var(--bg-surface)',
-                    maxWidth: '480px',
-                    width: '100%',
-                    textAlign: 'center',
-                    boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-                  }}>
-                    <svg className="ai-sidebar-upload__icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ color: 'var(--text-muted)', marginBottom: '16px' }}>
+                <div className="ai-workspace-empty-wrap">
+                  <div className="ai-workspace-empty-card">
+                    <svg className="ai-sidebar-upload__icon" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ color: 'var(--text-muted)', marginBottom: '14px' }}>
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                       <polyline points="17 8 12 3 7 8" />
                       <line x1="12" y1="3" x2="12" y2="15" />
                     </svg>
-                    <h3 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '8px' }}>Start your learning session</h3>
-                    <p style={{ fontSize: '14.5px', color: 'var(--text-secondary)', marginBottom: '24px', lineHeight: 1.55 }}>
-                      Upload your study document to automatically generate summarized notes, Q&A chat assistants, interactive flashcards, or revision quizzes.
+                    <h3 className="ai-workspace-empty-title">Start your learning session</h3>
+                    <p className="ai-workspace-empty-desc">
+                      Upload your study document to automatically generate summaries, interactive tutor chat, flashcards, or practice quizzes.
                     </p>
                     <button 
-                      className="btn btn-primary"
+                      className="btn btn-primary ai-workspace-empty-btn"
                       onClick={() => fileInputRef.current?.click()}
-                      style={{ padding: '11px 26px', fontSize: '14.5px', display: 'flex', alignItems: 'center', gap: '8px' }}
                       disabled={uploading}
                     >
                       {uploading ? (
@@ -3076,53 +3222,58 @@ export default function RightPanel({
                           Uploading document...
                         </>
                       ) : (
-                        'Select PDF, TXT or DOCX'
+                        'Upload Document (.pdf, .docx, .txt)'
                       )}
                     </button>
-                    <span style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '16px' }}>
-                      Supported formats: .pdf, .txt, .docx
-                    </span>
                     <button
                       type="button"
                       className="btn btn-secondary"
                       onClick={openHistory}
-                      style={{ width: 'auto', marginTop: '12px', padding: '8px 20px', fontSize: '13.5px' }}
+                      style={{ width: 'auto', marginTop: '14px', padding: '8px 22px', fontSize: '13px' }}
                     >
-                      History
+                      Past Sessions History
                     </button>
                   </div>
                 </div>
               ) : (
                 <div className="ai-workspace-split">
-                  {/* Left Column: Navigation Tabs */}
-                  <div className="ai-workspace-tabs">
+                  {/* Navigation Tabs */}
+                  <div className="ai-workspace-tabs" role="tablist">
                     <button 
+                      role="tab"
+                      aria-selected={activeTab === 'summary'}
                       className={`ai-workspace-tab-btn ${activeTab === 'summary' ? 'ai-workspace-tab-btn--active' : ''}`}
                       onClick={() => selectTab('summary')}
                     >
-                      Document Summary
+                      <span>📄</span> Summary
                     </button>
                     <button 
+                      role="tab"
+                      aria-selected={activeTab === 'chat'}
                       className={`ai-workspace-tab-btn ${activeTab === 'chat' ? 'ai-workspace-tab-btn--active' : ''}`}
                       onClick={() => selectTab('chat')}
                     >
-                      Chat Q&A
+                      <span>💬</span> Chat Q&A
                     </button>
                     <button 
+                      role="tab"
+                      aria-selected={activeTab === 'flashcards'}
                       className={`ai-workspace-tab-btn ${activeTab === 'flashcards' ? 'ai-workspace-tab-btn--active' : ''}`}
                       onClick={() => selectTab('flashcards')}
                     >
-                      Interactive Flashcards
+                      <span>🗂️</span> Flashcards
                     </button>
                     <button 
+                      role="tab"
+                      aria-selected={activeTab === 'mcq'}
                       className={`ai-workspace-tab-btn ${activeTab === 'mcq' ? 'ai-workspace-tab-btn--active' : ''}`}
                       onClick={() => selectTab('mcq')}
                     >
-                      Revision MCQs Quiz
+                      <span>📝</span> Quiz
                     </button>
                   </div>
                   
-                  {/* Right Column: Content */}
+                  {/* Content Area */}
                   <div className="ai-workspace-content">
                     {activeTab === 'summary' && (
                       <div className="ai-workspace-summary" style={{ overflowY: 'auto', paddingRight: '10px' }}>
@@ -3340,7 +3491,7 @@ export default function RightPanel({
                           <input 
                             type="text" 
                             className="ai-chat-input"
-                            style={{ padding: '12px 16px', fontSize: '15px' }}
+                            style={{ padding: '12px 16px', fontSize: '16px' }}
                             placeholder="Ask anything about the document..."
                             value={chatInput}
                             onChange={e => setChatInput(e.target.value)}
