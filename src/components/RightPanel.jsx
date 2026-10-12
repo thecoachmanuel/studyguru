@@ -76,7 +76,7 @@ function createWelcomeMessage(filename) {
   return {
     id: 'welcome',
     sender: 'ai',
-    content: `Loaded **${filename}**. You can ask questions or generate study materials.`,
+    content: `Hi! I'm your **1-on-1 Personal Tutor** for **${filename}** 🎓.\n\nI break down topics into simple, bite-sized conversational steps and adapt to how you learn—just like a real human private tutor.\n\nWhat would you like to explore first? Tap any quick action below or ask your own question!`,
     time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
   };
 }
@@ -2291,6 +2291,17 @@ export default function RightPanel({
                   </div>
 
                   <div className="ai-sidebar-chat-list">
+                    {chatMessages.length === 0 && (
+                      <div style={{ textAlign: 'center', padding: '24px 12px', color: 'var(--text-muted)' }}>
+                        <div style={{ fontSize: '24px', marginBottom: '8px' }}>🎓</div>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
+                          1-on-1 Personal Tutor
+                        </div>
+                        <p style={{ fontSize: '12px', margin: 0, lineHeight: 1.4 }}>
+                          Upload or select a study document above to start interactive step-by-step tutoring.
+                        </p>
+                      </div>
+                    )}
                     {chatMessages.map(msg => (
                       <div 
                         key={msg.id} 
@@ -2324,6 +2335,64 @@ export default function RightPanel({
                     )}
                     <div ref={chatEndRef} />
                   </div>
+
+                  {chatMessages.length > 0 && (
+                    chatMessages.length <= 2 ? (
+                      <div className="ai-sidebar-tutor-chips">
+                        <button
+                          type="button"
+                          className="ai-sidebar-chip"
+                          onClick={() => handleSendChat(null, 'Teach me step-by-step from scratch')}
+                          disabled={sendingChat}
+                        >
+                          🎓 Step-by-step
+                        </button>
+                        <button
+                          type="button"
+                          className="ai-sidebar-chip"
+                          onClick={() => handleSendChat(null, 'Explain with a simple everyday analogy')}
+                          disabled={sendingChat}
+                        >
+                          💡 Analogy
+                        </button>
+                        <button
+                          type="button"
+                          className="ai-sidebar-chip"
+                          onClick={() => handleSendChat(null, 'Quiz my understanding with a practice question')}
+                          disabled={sendingChat}
+                        >
+                          ❓ Quick quiz
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="ai-sidebar-tutor-chips">
+                        <button
+                          type="button"
+                          className="ai-sidebar-chip ai-sidebar-chip--primary"
+                          onClick={() => handleSendChat(null, 'Got it! Next step')}
+                          disabled={sendingChat}
+                        >
+                          👍 Next step
+                        </button>
+                        <button
+                          type="button"
+                          className="ai-sidebar-chip"
+                          onClick={() => handleSendChat(null, 'Give me another simpler example')}
+                          disabled={sendingChat}
+                        >
+                          🤔 Simpler example
+                        </button>
+                        <button
+                          type="button"
+                          className="ai-sidebar-chip"
+                          onClick={() => handleSendChat(null, 'Give me a quick question to test me')}
+                          disabled={sendingChat}
+                        >
+                          🎯 Test me
+                        </button>
+                      </div>
+                    )
+                  )}
 
                   <form className="ai-sidebar-chat-form" onSubmit={handleSendChat}>
                     <input 
@@ -2870,6 +2939,17 @@ export default function RightPanel({
                     {activeTab === 'chat' && (
                       <div className="ai-workspace-chat" style={{ height: '100%', justifyContent: 'space-between' }}>
                         <div className="ai-chat-messages" style={{ flex: 1, overflowY: 'auto', paddingRight: '10px', marginBottom: '16px' }}>
+                          {chatMessages.length === 0 && (
+                            <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text-muted)' }}>
+                              <div style={{ fontSize: '36px', marginBottom: '12px' }}>🎓</div>
+                              <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
+                                Human-Like 1-on-1 AI Tutor Workspace
+                              </h3>
+                              <p style={{ fontSize: '14px', maxWidth: '440px', margin: '0 auto', lineHeight: 1.5 }}>
+                                Your personal tutor breaks subjects down into simple conversational steps, adapts to your flow, and tests your understanding as you go. Upload a document to start learning!
+                              </p>
+                            </div>
+                          )}
                           {chatMessages.map(msg => (
                             <div key={msg.id} className={`ai-message ai-message--${msg.sender}`} style={{ maxWidth: '80%' }}>
                               <div className="ai-message__avatar">
@@ -2911,40 +2991,100 @@ export default function RightPanel({
                           <div ref={chatEndRef} />
                         </div>
 
-                        {chatMessages.length <= 2 && (
-                          <div className="ai-tutor-prompts-bar">
-                            <span className="ai-tutor-prompts-label">✨ Personal Tutor Quick Actions:</span>
-                            <div className="ai-tutor-prompts-chips">
-                              <button
-                                type="button"
-                                className="ai-tutor-chip"
-                                onClick={() => handleSendChat(null, 'Teach me the topic of this document from scratch')}
-                              >
-                                🎓 Teach me the topic
-                              </button>
-                              <button
-                                type="button"
-                                className="ai-tutor-chip"
-                                onClick={() => handleSendChat(null, 'Explain the core principles using a simple analogy')}
-                              >
-                                💡 Explain with an analogy
-                              </button>
-                              <button
-                                type="button"
-                                className="ai-tutor-chip"
-                                onClick={() => handleSendChat(null, 'Give me a step-by-step breakdown of the main concepts')}
-                              >
-                                📋 Step-by-step breakdown
-                              </button>
-                              <button
-                                type="button"
-                                className="ai-tutor-chip"
-                                onClick={() => handleSendChat(null, 'Quiz my understanding with 3 test questions')}
-                              >
-                                ❓ Test my knowledge
-                              </button>
+                        {chatMessages.length > 0 && (
+                          chatMessages.length <= 2 ? (
+                            <div className="ai-tutor-prompts-bar">
+                              <span className="ai-tutor-prompts-label">✨ Start Learning with Personal Tutor:</span>
+                              <div className="ai-tutor-prompts-chips">
+                                <button
+                                  type="button"
+                                  className="ai-tutor-chip"
+                                  onClick={() => handleSendChat(null, 'Teach me the topic step-by-step from scratch')}
+                                  disabled={sendingChat}
+                                >
+                                  🎓 Teach me step-by-step
+                                </button>
+                                <button
+                                  type="button"
+                                  className="ai-tutor-chip"
+                                  onClick={() => handleSendChat(null, 'Explain the core idea using a simple everyday analogy')}
+                                  disabled={sendingChat}
+                                >
+                                  💡 Explain with an analogy
+                                </button>
+                                <button
+                                  type="button"
+                                  className="ai-tutor-chip"
+                                  onClick={() => handleSendChat(null, 'Break down Step 1: the first core concept')}
+                                  disabled={sendingChat}
+                                >
+                                  📋 Step 1: First concept
+                                </button>
+                                <button
+                                  type="button"
+                                  className="ai-tutor-chip"
+                                  onClick={() => handleSendChat(null, 'Quiz my understanding with a quick practice question')}
+                                  disabled={sendingChat}
+                                >
+                                  ❓ Quick practice quiz
+                                </button>
+                                <button
+                                  type="button"
+                                  className="ai-tutor-chip ai-tutor-chip--alt"
+                                  onClick={() => handleSendChat(null, 'Explain the whole topic at once with full comprehensive details')}
+                                  disabled={sendingChat}
+                                >
+                                  📚 Teach whole topic at once
+                                </button>
+                              </div>
                             </div>
-                          </div>
+                          ) : (
+                            <div className="ai-tutor-prompts-bar ai-tutor-prompts-bar--compact">
+                              <span className="ai-tutor-prompts-label">💬 Continue Tutoring Flow:</span>
+                              <div className="ai-tutor-prompts-chips">
+                                <button
+                                  type="button"
+                                  className="ai-tutor-chip ai-tutor-chip--primary"
+                                  onClick={() => handleSendChat(null, 'Got it! What is the next step?')}
+                                  disabled={sendingChat}
+                                >
+                                  👍 Got it! Next step
+                                </button>
+                                <button
+                                  type="button"
+                                  className="ai-tutor-chip"
+                                  onClick={() => handleSendChat(null, 'Can you give me another simpler example to make sure I understand?')}
+                                  disabled={sendingChat}
+                                >
+                                  🤔 Simpler example
+                                </button>
+                                <button
+                                  type="button"
+                                  className="ai-tutor-chip"
+                                  onClick={() => handleSendChat(null, 'Give me a quick question to test if I really get this concept')}
+                                  disabled={sendingChat}
+                                >
+                                  🎯 Test my understanding
+                                </button>
+                                <button
+                                  type="button"
+                                  className="ai-tutor-chip ai-tutor-chip--alt"
+                                  onClick={() => handleSendChat(null, 'Teach me the whole topic at once now')}
+                                  disabled={sendingChat}
+                                >
+                                  📚 Teach whole topic at once
+                                </button>
+                                <button
+                                  type="button"
+                                  className="ai-tutor-chip"
+                                  onClick={() => handleSendChat(null, 'Can we review from the beginning or start a new topic?')}
+                                  disabled={sendingChat}
+                                >
+                                  🔄 New topic
+                                </button>
+                              </div>
+                            </div>
+                          )
                         )}
                         
                         <form className="ai-chat-compose" onSubmit={handleSendChat}>

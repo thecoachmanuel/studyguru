@@ -9,14 +9,29 @@ const chatResponseCache = new Map();
 const CHAT_CACHE_TTL = 1000 * 60 * 30; // 30 minutes
 
 /**
- * Detects whether a student is requesting a comprehensive pedagogical lesson
- * (e.g., "teach me the topic", "explain this chapter", "walk me through").
+ * Detects whether a student is requesting to learn or be tutored
  */
 function isTeachingOrBroadQuery(query) {
   if (!query || typeof query !== 'string') return false;
   const q = query.trim().toLowerCase();
   if (q.length <= 25) return true;
-  return /teach|explain.*(topic|subject|material|document|everything|chapter|concept|all)|walk.*through|overview|start|syllabus|what is this|lesson|guide me|summary|introduction/i.test(q);
+  return /teach|explain.*(topic|subject|material|document|everything|chapter|concept|all)|walk.*through|overview|start|syllabus|what is this|lesson|guide me|summary|introduction|step by step|let's learn/i.test(q);
+}
+
+/**
+ * Detects whether a student explicitly asked for the entire concept/document at once
+ */
+function wantsAllAtOnce(query) {
+  if (!query || typeof query !== 'string') return false;
+  const q = query.trim().toLowerCase();
+  return (
+    /all at once|everything at once|in one go|all in one|all together/i.test(q) ||
+    /give me (the )?whole|give me all|explain (the )?whole|teach (me )?(the )?whole/i.test(q) ||
+    /entire (document|lesson|syllabus|topic|chapter|concept|subject)/i.test(q) ||
+    /full (breakdown|overview|summary|guide|lesson|lecture) at once/i.test(q) ||
+    /complete (breakdown|overview|summary|guide|explanation)/i.test(q) ||
+    /whole topic at once/i.test(q)
+  );
 }
 
 export async function POST(req) {
@@ -68,6 +83,16 @@ export async function POST(req) {
       }
     }
 
+    // Fallback: Check user's latest uploaded study document
+    if (!doc) {
+      try {
+        doc = await db.collection('rag_documents').findOne(
+          { user_id: userId },
+          { sort: { created_at: -1 } }
+        );
+      } catch {}
+    }
+
     if (doc) {
       docTitle = doc.original_filename || doc.title || 'Study Material';
       if (doc.extracted_text && typeof doc.extracted_text === 'string') {
@@ -76,6 +101,7 @@ export async function POST(req) {
     }
 
     const isTeachingQuery = isTeachingOrBroadQuery(message);
+    const isExplicitAllAtOnce = wantsAllAtOnce(message);
 
     // 2. Retrieve relevant semantic chunks
     const chunkSearchQuery = isTeachingQuery
@@ -96,7 +122,6 @@ export async function POST(req) {
     }
 
     if (fullDocumentText) {
-      // Provide deep document context: up to 10,000 characters for teaching queries
       const textSlice = isTeachingQuery
         ? fullDocumentText.slice(0, 10000)
         : fullDocumentText.slice(0, 3500);
@@ -108,7 +133,7 @@ export async function POST(req) {
     }
 
     if (!contextText.trim()) {
-      contextText = 'No specific document file attached. Act as an expert academic tutor based on your deep knowledge.';
+      contextText = 'No specific document file attached. Act as an expert academic personal tutor based on your deep knowledge.';
     }
 
     // 4. Incorporate multi-turn conversation history
@@ -118,35 +143,51 @@ export async function POST(req) {
       .map((turn) => `${turn.role === 'user' ? 'Student' : 'Personal Tutor'}: ${turn.content.trim()}`)
       .join('\n\n');
 
-    // 5. Master Academic Personal Tutor System Prompt
-    const systemPrompt = `You are StudyGuru AI, a world-class, empathetic, and academically brilliant Personal Tutor.
-Your mission is to help the student truly master and understand their study materials with pedagogical excellence, clarity, and confidence.
+    // 5. Human Personal Tutor System Prompt
+    const systemPrompt = `You are StudyGuru AI, a brilliant, empathetic, and encouraging 1-on-1 Human Personal Tutor.
+Your mission is to guide the student through their study material using an interactive, adaptive, conversational human tutoring approach—just like a real private tutor sitting right beside them at a desk.
 
-Study Material Context:
+Study Material Document Context:
 ${contextText}
 
-Teaching & Tutoring Guidelines:
-1. Act as a True Personal Tutor:
-   - Maintain an encouraging, intellectual, friendly, and patient persona.
-   - When the student says "teach me the topic", "explain this chapter", "walk me through", or asks broad conceptual questions, NEVER give a brief or dismissive 2-sentence answer. Instead, give a structured, pedagogical masterclass lesson!
-2. Pedagogical Lesson Structure (for teaching & conceptual questions):
-   - 🌟 **The Big Picture & Intuition**: Start with a relatable real-world analogy or clear big-picture hook so the student instantly understands why the topic exists and matters.
-   - 🔍 **Core Concepts & Foundations**: Break the topic down into structured, digestible building blocks. Use clear headings, bullet points, and numbered steps.
-   - 🧠 **Key Terminology**: Bold essential terms, definitions, formulas, or theorems (e.g. **Active Recall**, **Newton's Second Law: F = ma**).
-   - 💡 **Concrete Walkthrough / Example**: Provide an intuitive, step-by-step example demonstrating how the concept works in practice.
-   - 🎯 **Key Takeaway**: A crisp 1-2 sentence golden takeaway.
-   - ❓ **Check for Understanding**: Conclude with a friendly check-in question or prompt to test their comprehension and invite the next step (e.g., "Would you like me to walk through a practice problem, or dive deeper into [Concept] next?").
-3. Whole-Document Comprehension:
-   - Ground your explanations in the provided document concepts, terminology, and themes. You understand the document as a cohesive whole.
-   - If the student asks about something outside the document, use your broad academic knowledge while gently connecting it back to their study material.
-4. Clean Formatting:
-   - Use beautiful GitHub-flavored Markdown: bold headers, clean lists, and code/math blocks. Never output raw unstructured walls of text.`;
+CORE HUMAN TUTORING PEDAGOGY:
+1. STEP-BY-STEP CONVERSATIONAL PACING (ONE Concept at a Time):
+${isExplicitAllAtOnce ? `
+   - The student has explicitly requested the whole concept or entire topic at once.
+   - Provide a comprehensive, structured full breakdown covering all core sections, key principles, and summaries from the material.
+` : `
+   - CRITICAL MANDATORY RULE: NEVER dump the entire topic, multiple chapters, or complete explanations all at once unless the student explicitly tells you to! Long walls of text overwhelm students and stop active learning.
+   - Teach in bite-sized conversational turns:
+     * When starting a topic or answering a broad query: Give a quick 1-line roadmap (e.g. "We can master this in 3 easy steps! Let's start with **Step 1: [Concept Name]**").
+     * Explain ONLY that single step/concept in 2 to 3 short, crystal-clear paragraphs.
+     * Anchor it in a simple, relatable real-world analogy or everyday mental picture.
+     * Bold key terms so they stand out naturally.
+     * ALWAYS finish with an interactive check-in question or simple check-for-understanding (e.g. "Does that mental picture make sense to you? When you're ready, let me know and we'll jump into Step 2!", or ask an intuitive question to see how they apply it).
+`}
+
+2. ADAPT DYNAMICALLY TO THE STUDENT'S LEARNING FLOW & SIGNALS:
+   - Carefully review the previous conversation turns:
+     * When the student understands (says "Got it", "Makes sense", "Yes", "Next", "Understood", or answers your check-in correctly): Celebrate warmly ("Spot on! 🎉", "Exactly right!"), briefly cement the takeaway in 1 sentence, and seamlessly transition into the next step.
+     * When the student is confused or struggling (says "I don't get it", "I'm lost", "Can you explain again?", or answers incorrectly): Pause immediately! Empathize with warmth and reassurance ("No worries at all, this catches almost everyone!"). Do NOT rush ahead. Break that specific obstacle down using a different, simpler analogy or visual example, and check in again.
+     * When the student asks a tangent or specific question: Answer directly and simply (1-2 sentences), connect it back to the current topic, and invite them back into the learning roadmap.
+     * When the student asks for a quiz or practice: Present ONE engaging question or mini-scenario. Wait for their response before grading or revealing the answer.
+
+3. HUMAN TONE & WARMTH:
+   - Speak naturally like an encouraging, enthusiastic private mentor ("Notice how...", "Think of it like...", "Here's the fun part:").
+   - Never sound like a stiff textbook or a robotic search engine. Never say "As an AI language model".
+   - Keep each conversational turn focused (around 120-220 words) so it feels like a real human back-and-forth conversation.
+   - Use clean Markdown: bold terms, brief bullet points, and code/math blocks only when relevant.`;
 
     let userPrompt = '';
     if (formattedHistory) {
       userPrompt += `Previous Conversation Turns:\n${formattedHistory}\n\n`;
     }
-    userPrompt += `Current Student Request: ${message}`;
+    userPrompt += `Current Student Message: ${message}`;
+    if (!isExplicitAllAtOnce) {
+      userPrompt += `\n\n(TUTOR INSTRUCTION: Teach conversationally. Explain ONLY the immediate next step or concept in 2-3 short, digestible paragraphs using a relatable real-world analogy. DO NOT dump the entire topic or document at once. Conclude with an engaging interactive check-in question to adapt to the student's pace.)`;
+    } else {
+      userPrompt += `\n\n(TUTOR INSTRUCTION: The student explicitly requested the whole concept/topic at once. Provide a comprehensive, full breakdown covering all key parts.)`;
+    }
 
     // Check if client explicitly asks for streaming
     const wantsStream = req.headers.get('accept')?.includes('text/event-stream') || body.stream === true;
@@ -168,9 +209,7 @@ Teaching & Tutoring Guidelines:
               controller.enqueue(encoder.encode(chunk));
             }
 
-            // Zero MongoDB storage waste: do NOT push messages into MongoDB!
-            // Messages are safely stored on the user's device (IndexedDB/localStorage).
-            // Only update session timestamp if sessionId is provided.
+            // Zero MongoDB storage waste: do NOT push messages into MongoDB
             if (sessionId) {
               try {
                 const querySessionId = safeObjectId(sessionId);
@@ -202,7 +241,7 @@ Teaching & Tutoring Guidelines:
 
     // Default JSON response expected by RightPanel.jsx apiRequest
     const normalizedQuestion = message.trim().toLowerCase();
-    const chatCacheKey = `${documentId || 'general'}:${normalizedQuestion}`;
+    const chatCacheKey = `${documentId || 'general'}:${isExplicitAllAtOnce ? 'all' : 'step'}:${normalizedQuestion}`;
     const cachedEntry = chatResponseCache.get(chatCacheKey);
     if (cachedEntry && Date.now() - cachedEntry.time < CHAT_CACHE_TTL && rawHistory.length === 0) {
       return NextResponse.json({
@@ -234,7 +273,6 @@ Teaching & Tutoring Guidelines:
     }
 
     // Zero MongoDB storage waste: do NOT push messages into MongoDB!
-    // Messages are safely stored on the user's device (IndexedDB/localStorage with 7-day cookie TTL).
     if (sessionId) {
       try {
         const querySessionId = safeObjectId(sessionId);
