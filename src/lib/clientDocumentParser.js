@@ -1,0 +1,134 @@
+/**
+ * Zero-Timeout In-Browser Document Parser
+ * Parses PDF, DOCX, and TXT directly on the student's browser.
+ * Bypasses Vercel 4.5MB payload limits and eliminates server processing timeouts.
+ */
+import mammoth from 'mammoth';
+
+const CHUNK_SIZE = 1000;
+const CHUNK_OVERLAP = 200;
+
+/**
+ * Split text into semantic chunks with overlap
+ * @param {string} text Raw text
+ * @param {number} chunkSize Max chars per chunk
+ * @param {number} chunkOverlap Overlap between chunks
+ * @returns {string[]}
+ */
+export function chunkText(text, chunkSize = CHUNK_SIZE, chunkOverlap = CHUNK_OVERLAP) {
+  if (!text) return [];
+  const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const chunks = [];
+  let startIndex = 0;
+
+  while (startIndex < normalized.length) {
+    let endIndex = startIndex + chunkSize;
+
+    if (endIndex < normalized.length) {
+      // Find a natural break point (paragraph or sentence)
+      const paragraphBreak = normalized.lastIndexOf('\n\n', endIndex);
+      const sentenceBreak = normalized.lastIndexOf('. ', endIndex);
+      const lineBreak = normalized.lastIndexOf('\n', endIndex);
+
+      if (paragraphBreak > startIndex + chunkSize / 2) {
+        endIndex = paragraphBreak + 2;
+      } else if (sentenceBreak > startIndex + chunkSize / 2) {
+        endIndex = sentenceBreak + 2;
+      } else if (lineBreak > startIndex + chunkSize / 2) {
+        endIndex = lineBreak + 1;
+      }
+    }
+
+    const chunk = normalized.slice(startIndex, endIndex).trim();
+    if (chunk.length > 20) {
+      chunks.push(chunk);
+    }
+
+    startIndex = Math.max(startIndex + 1, endIndex - chunkOverlap);
+  }
+
+  return chunks;
+}
+
+/**
+ * Parse PDF document in the browser using pdfjs-dist
+ * @param {ArrayBuffer} arrayBuffer
+ * @returns {Promise<string>}
+ */
+export async function parsePdfInBrowser(arrayBuffer) {
+  // Dynamically import pdfjs-dist to optimize bundle splitting
+  const pdfjsLib = await import('pdfjs-dist/build/pdf.min.mjs');
+  
+  if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version || '4.10.38'}/pdf.worker.min.mjs`;
+  }
+
+  const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+  const pdfDoc = await loadingTask.promise;
+  let fullText = '';
+
+  for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+    const page = await pdfDoc.getPage(pageNum);
+    const content = await page.getTextContent();
+    const pageText = content.items.map((item) => item.str).join(' ');
+    fullText += `\n--- Page ${pageNum} ---\n${pageText}\n`;
+  }
+
+  return fullText;
+}
+
+/**
+ * Parse DOCX document in the browser using mammoth
+ * @param {ArrayBuffer} arrayBuffer
+ * @returns {Promise<string>}
+ */
+export async function parseDocxInBrowser(arrayBuffer) {
+  const result = await mammoth.extractRawText({ arrayBuffer });
+  return result.value || '';
+}
+
+/**
+ * Parse TXT document in the browser
+ * @param {ArrayBuffer} arrayBuffer
+ * @returns {string}
+ */
+export function parseTxtInBrowser(arrayBuffer) {
+  const decoder = new TextDecoder('utf-8');
+  return decoder.decode(arrayBuffer);
+}
+
+/**
+ * Master parser: detects type and extracts chunks
+ * @param {File} file The selected file object
+ * @returns {Promise<{ filename: string, type: string, fullText: string, chunks: string[], sizeBytes: number }>}
+ */
+export async function parseDocumentLocally(file) {
+  const filename = file.name;
+  const ext = filename.split('.').pop()?.toLowerCase();
+  const arrayBuffer = await file.arrayBuffer();
+  let fullText = '';
+
+  if (ext === 'pdf') {
+    fullText = await parsePdfInBrowser(arrayBuffer);
+  } else if (ext === 'docx') {
+    fullText = await parseDocxInBrowser(arrayBuffer);
+  } else if (ext === 'txt') {
+    fullText = parseTxtInBrowser(arrayBuffer);
+  } else {
+    throw new Error(`Unsupported document extension: .${ext}. Only PDF, DOCX, and TXT are supported.`);
+  }
+
+  if (!fullText.trim()) {
+    throw new Error('No readable text could be extracted from this document.');
+  }
+
+  const chunks = chunkText(fullText);
+
+  return {
+    filename,
+    type: ext,
+    fullText,
+    chunks,
+    sizeBytes: file.size,
+  };
+}
