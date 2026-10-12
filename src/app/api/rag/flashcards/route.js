@@ -127,8 +127,11 @@ export async function POST(req) {
     });
 
     let contextText = '';
+    const clientText = String(body.documentText || body.docText || body.text || '').trim();
     if (doc?.extracted_text) {
       contextText = doc.extracted_text;
+    } else if (clientText) {
+      contextText = clientText;
     } else if (chunks.length > 0) {
       contextText = chunks.join('\n\n---\n\n');
     }

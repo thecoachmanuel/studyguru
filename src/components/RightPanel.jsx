@@ -200,7 +200,12 @@ export default function RightPanel({
 
   const processFile = async (file) => {
     setUploadError('');
-    const ext = file.name.split('.').pop().toLowerCase();
+    let ext = file.name ? file.name.split('.').pop()?.toLowerCase() : '';
+    if (!ext || !['pdf', 'txt', 'docx'].includes(ext)) {
+      if (file.type === 'application/pdf') ext = 'pdf';
+      else if (file.type?.includes('word') || file.type?.includes('officedocument')) ext = 'docx';
+      else if (file.type?.includes('text')) ext = 'txt';
+    }
     if (!['pdf', 'txt', 'docx'].includes(ext)) {
       setUploadError('Unsupported file type. Use PDF, TXT, or DOCX.');
       return;
@@ -234,16 +239,21 @@ export default function RightPanel({
         sessionId: sessId,
         documentId: docId,
       };
+
+      const finalDocText = (localParsed?.fullText && localParsed.fullText.trim().length > 15)
+        ? localParsed.fullText
+        : (data.extracted_text || data.extractedText || data.text || '');
+
       setUploadedDoc({
         sessionId: sessId,
         docId: docId,
-        filename: data.filename,
-        text: localParsed?.fullText || '',
+        filename: data.filename || file.name,
+        text: finalDocText,
       });
       setDeviceSessionCookie({
         sessionId: sessId,
         documentId: docId,
-        filename: data.filename,
+        filename: data.filename || file.name,
         userId,
       });
       setAssistantMode('session');
@@ -253,7 +263,7 @@ export default function RightPanel({
       setFlashcards([]);
       setMcqs([]);
       setLocalPersistenceWarning('');
-      setChatMessages([createWelcomeMessage(data.filename)]);
+      setChatMessages([createWelcomeMessage(data.filename || file.name)]);
       setActiveTab('summary');
       // Summary will only generate when user clicks "Generate Summary"
     } catch (err) {
@@ -292,7 +302,14 @@ export default function RightPanel({
         outputType: 'summary',
         requestOutput: () => apiRequest('/api/rag/summary', {
           method: 'POST',
-          body: JSON.stringify({ doc_id: targetIdentity.documentId, regenerate }),
+          body: JSON.stringify({
+            doc_id: targetIdentity.documentId,
+            documentId: targetIdentity.documentId,
+            regenerate,
+            documentText: uploadedDoc?.text || '',
+            documentTitle: uploadedDoc?.filename || '',
+            filename: uploadedDoc?.filename || '',
+          }),
         }),
         isActive: isTargetActive,
         onDisplay: setSummaryData,
@@ -329,7 +346,14 @@ export default function RightPanel({
         requestOutput: async () => {
           const data = await apiRequest('/api/rag/flashcards', {
             method: 'POST',
-            body: JSON.stringify({ doc_id: targetIdentity.documentId, regenerate }),
+            body: JSON.stringify({
+              doc_id: targetIdentity.documentId,
+              documentId: targetIdentity.documentId,
+              regenerate,
+              documentText: uploadedDoc?.text || '',
+              documentTitle: uploadedDoc?.filename || '',
+              filename: uploadedDoc?.filename || '',
+            }),
           });
           return data.flashcards;
         },
@@ -372,7 +396,14 @@ export default function RightPanel({
         requestOutput: async () => {
           const data = await apiRequest('/api/rag/mcq', {
             method: 'POST',
-            body: JSON.stringify({ doc_id: targetIdentity.documentId, regenerate }),
+            body: JSON.stringify({
+              doc_id: targetIdentity.documentId,
+              documentId: targetIdentity.documentId,
+              regenerate,
+              documentText: uploadedDoc?.text || '',
+              documentTitle: uploadedDoc?.filename || '',
+              filename: uploadedDoc?.filename || '',
+            }),
           });
           return data.mcqs || data.mcq;
         },
@@ -573,6 +604,7 @@ export default function RightPanel({
         sessionId: session.id,
         docId: session.document_id,
         filename: session.original_filename,
+        text: session.extracted_text || session.document?.extracted_text || session.text || '',
       });
       setDeviceSessionCookie({
         sessionId: session.id,
@@ -1650,6 +1682,8 @@ export default function RightPanel({
             height: 100vh !important;
             height: 100dvh !important;
             z-index: 100000 !important;
+            position: fixed !important;
+            inset: 0 !important;
           }
           .ai-workspace-card {
             width: 100vw !important;
@@ -1660,10 +1694,118 @@ export default function RightPanel({
             max-height: 100dvh !important;
             border-radius: 0 !important;
             border: none !important;
+            display: flex !important;
+            flex-direction: column !important;
+            overflow: hidden !important;
           }
           .ai-workspace-header {
-            padding: 0 14px !important;
-            padding-top: env(safe-area-inset-top, 0px);
+            height: 52px !important;
+            min-height: 52px !important;
+            padding: 0 12px !important;
+            padding-top: env(safe-area-inset-top, 0px) !important;
+            flex-shrink: 0 !important;
+          }
+          .ai-workspace-title {
+            font-size: 13.5px !important;
+          }
+          .ai-workspace-docname {
+            max-width: 140px !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+            font-size: 11px !important;
+            padding: 2px 8px !important;
+          }
+          .ai-workspace-body {
+            flex: 1 !important;
+            min-height: 0 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            overflow: hidden !important;
+          }
+          .ai-workspace-split {
+            display: flex !important;
+            flex-direction: column !important;
+            width: 100% !important;
+            height: 100% !important;
+            flex: 1 !important;
+            min-height: 0 !important;
+            overflow: hidden !important;
+          }
+          .ai-workspace-tabs {
+            width: 100% !important;
+            min-width: 100% !important;
+            max-width: 100% !important;
+            height: auto !important;
+            display: flex !important;
+            flex-direction: row !important;
+            border-right: none !important;
+            border-bottom: 1px solid var(--border) !important;
+            padding: 8px 10px !important;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+            gap: 6px !important;
+            flex-shrink: 0 !important;
+            scrollbar-width: none !important;
+            background-color: var(--bg-surface) !important;
+          }
+          .ai-workspace-tabs::-webkit-scrollbar {
+            display: none !important;
+          }
+          .ai-workspace-tab-btn {
+            width: auto !important;
+            white-space: nowrap !important;
+            padding: 6px 14px !important;
+            font-size: 12.5px !important;
+            border-radius: 20px !important;
+            flex-shrink: 0 !important;
+          }
+          .ai-workspace-content {
+            flex: 1 !important;
+            min-height: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            overflow-y: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+            padding: 12px 10px calc(24px + env(safe-area-inset-bottom, 0px)) !important;
+          }
+          .ai-workspace-mcq-options {
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
+          }
+          .ai-workspace-mcq-option-btn {
+            padding: 12px 14px !important;
+            font-size: 13.5px !important;
+          }
+          .ai-flashcard-container {
+            width: min(540px, 94vw) !important;
+            max-width: 100% !important;
+            height: min(300px, 42vh) !important;
+          }
+          .ai-flashcard__side {
+            padding: 22px 18px !important;
+          }
+          .ai-flashcard__content {
+            font-size: 16px !important;
+          }
+          .ai-flashcard-controls {
+            margin-top: 14px !important;
+            gap: 8px !important;
+          }
+          .ai-flashcard-controls button {
+            padding: 8px 16px !important;
+            font-size: 13px !important;
+          }
+          .ai-chat-messages {
+            padding-right: 4px !important;
+            margin-bottom: 12px !important;
+            gap: 12px !important;
+          }
+          .ai-message {
+            max-width: 92% !important;
+          }
+          .ai-chat-compose {
+            padding-bottom: calc(4px + env(safe-area-inset-bottom, 0px)) !important;
           }
         }
         @keyframes scaleIn {
@@ -2184,7 +2326,7 @@ export default function RightPanel({
               ref={fileInputRef}
               style={{ display: 'none' }}
               onChange={handleFileChange}
-              accept=".pdf,.txt,.docx"
+              accept=".pdf,.txt,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,text/plain"
             />
             <button
               type="button"
@@ -3222,7 +3364,7 @@ export default function RightPanel({
                     {activeTab === 'flashcards' && (
                       <div className="ai-workspace-flashcards" style={{ justifyContent: 'center', height: '100%' }}>
                         {loadingFlashcards ? (
-                          <div style={{ width: '400px' }}>
+                          <div style={{ width: 'min(400px, 92vw)' }}>
                             <SkeletonLoader lines={5} label="Generating interactive study cards..." />
                           </div>
                         ) : flashcards.length > 0 ? (
@@ -3248,7 +3390,7 @@ export default function RightPanel({
                                 </button>
                               )}
                             </div>
-                            <div className="ai-flashcard-container" style={{ height: '320px', width: '540px' }}>
+                            <div className="ai-flashcard-container" style={{ height: 'min(320px, 44vh)', width: 'min(540px, 94vw)', maxWidth: '100%' }}>
                               <div 
                                 className={`ai-flashcard ${flashcardFlipped ? 'ai-flashcard--flipped' : ''}`}
                                 onClick={() => setFlashcardFlipped(!flashcardFlipped)}

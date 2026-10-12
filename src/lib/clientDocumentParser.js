@@ -56,25 +56,36 @@ export function chunkText(text, chunkSize = CHUNK_SIZE, chunkOverlap = CHUNK_OVE
  * @returns {Promise<string>}
  */
 export async function parsePdfInBrowser(arrayBuffer) {
-  // Dynamically import pdfjs-dist to optimize bundle splitting
-  const pdfjsLib = await import('pdfjs-dist/build/pdf.min.mjs');
-  
-  if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version || '4.10.38'}/pdf.worker.min.mjs`;
+  try {
+    // Dynamically import pdfjs-dist to optimize bundle splitting
+    const pdfjsLib = await import('pdfjs-dist/build/pdf.min.mjs');
+    
+    // In mobile Safari / Chrome, workers often fail due to CSP or cross-origin restrictions
+    if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version || '4.10.38'}/pdf.worker.min.mjs`;
+    }
+
+    const loadingTask = pdfjsLib.getDocument({
+      data: arrayBuffer,
+      isEvalSupported: false,
+      useSystemFonts: true,
+      disableFontFace: true,
+    });
+    const pdfDoc = await loadingTask.promise;
+    let fullText = '';
+
+    for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+      const page = await pdfDoc.getPage(pageNum);
+      const content = await page.getTextContent();
+      const pageText = content.items.map((item) => item.str).join(' ');
+      fullText += `\n--- Page ${pageNum} ---\n${pageText}\n`;
+    }
+
+    return fullText;
+  } catch (err) {
+    console.warn('Browser PDF parser notice (server extraction will handle this file):', err.message);
+    return '';
   }
-
-  const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
-  const pdfDoc = await loadingTask.promise;
-  let fullText = '';
-
-  for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
-    const page = await pdfDoc.getPage(pageNum);
-    const content = await page.getTextContent();
-    const pageText = content.items.map((item) => item.str).join(' ');
-    fullText += `\n--- Page ${pageNum} ---\n${pageText}\n`;
-  }
-
-  return fullText;
 }
 
 /**
@@ -83,8 +94,13 @@ export async function parsePdfInBrowser(arrayBuffer) {
  * @returns {Promise<string>}
  */
 export async function parseDocxInBrowser(arrayBuffer) {
-  const result = await mammoth.extractRawText({ arrayBuffer });
-  return result.value || '';
+  try {
+    const result = await mammoth.extractRawText({ arrayBuffer });
+    return result.value || '';
+  } catch (err) {
+    console.warn('Browser DOCX parser notice:', err.message);
+    return '';
+  }
 }
 
 /**
@@ -93,8 +109,12 @@ export async function parseDocxInBrowser(arrayBuffer) {
  * @returns {string}
  */
 export function parseTxtInBrowser(arrayBuffer) {
-  const decoder = new TextDecoder('utf-8');
-  return decoder.decode(arrayBuffer);
+  try {
+    const decoder = new TextDecoder('utf-8');
+    return decoder.decode(arrayBuffer);
+  } catch {
+    return '';
+  }
 }
 
 /**
@@ -103,32 +123,36 @@ export function parseTxtInBrowser(arrayBuffer) {
  * @returns {Promise<{ filename: string, type: string, fullText: string, chunks: string[], sizeBytes: number }>}
  */
 export async function parseDocumentLocally(file) {
-  const filename = file.name;
-  const ext = filename.split('.').pop()?.toLowerCase();
-  const arrayBuffer = await file.arrayBuffer();
+  const filename = file.name || 'study-document.pdf';
+  let ext = filename.split('.').pop()?.toLowerCase();
+  if (!ext || !['pdf', 'docx', 'txt'].includes(ext)) {
+    if (file.type === 'application/pdf') ext = 'pdf';
+    else if (file.type?.includes('word') || file.type?.includes('officedocument')) ext = 'docx';
+    else if (file.type?.includes('text')) ext = 'txt';
+    else ext = 'pdf';
+  }
+
   let fullText = '';
-
-  if (ext === 'pdf') {
-    fullText = await parsePdfInBrowser(arrayBuffer);
-  } else if (ext === 'docx') {
-    fullText = await parseDocxInBrowser(arrayBuffer);
-  } else if (ext === 'txt') {
-    fullText = parseTxtInBrowser(arrayBuffer);
-  } else {
-    throw new Error(`Unsupported document extension: .${ext}. Only PDF, DOCX, and TXT are supported.`);
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    if (ext === 'pdf') {
+      fullText = await parsePdfInBrowser(arrayBuffer);
+    } else if (ext === 'docx') {
+      fullText = await parseDocxInBrowser(arrayBuffer);
+    } else if (ext === 'txt') {
+      fullText = parseTxtInBrowser(arrayBuffer);
+    }
+  } catch (parseErr) {
+    console.warn('Local parser warning:', parseErr.message);
   }
 
-  if (!fullText.trim()) {
-    throw new Error('No readable text could be extracted from this document.');
-  }
-
-  const chunks = chunkText(fullText);
+  const chunks = fullText && fullText.trim().length > 20 ? chunkText(fullText) : [];
 
   return {
     filename,
     type: ext,
-    fullText,
+    fullText: fullText || '',
     chunks,
-    sizeBytes: file.size,
+    sizeBytes: file.size || 0,
   };
 }

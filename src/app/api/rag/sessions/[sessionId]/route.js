@@ -44,6 +44,8 @@ export async function GET(req, { params }) {
       original_filename: document?.original_filename || studySession.title,
       filename: document?.original_filename || studySession.title,
       title: studySession.title,
+      extracted_text: document?.extracted_text || '',
+      text: document?.extracted_text || '',
       messages: studySession.messages || [],
       created_at: studySession.created_at,
       updated_at: studySession.updated_at,
@@ -52,6 +54,8 @@ export async function GET(req, { params }) {
         filename: document.original_filename,
         detected_type: document.detected_type,
         status: document.status,
+        extracted_text: document.extracted_text || '',
+        text: document.extracted_text || '',
       } : null,
     });
   } catch (error) {

@@ -122,13 +122,16 @@ export async function POST(req) {
     });
 
     let contextText = '';
+    const clientText = String(body.documentText || body.docText || body.text || '').trim();
     if (doc?.extracted_text) {
       contextText = doc.extracted_text;
+    } else if (clientText) {
+      contextText = clientText;
     } else if (chunks.length > 0) {
       contextText = chunks.join('\n\n---\n\n');
     }
 
-    const docFilename = doc?.original_filename || doc?.title || 'Study Material';
+    const docFilename = doc?.original_filename || doc?.title || body.filename || body.documentTitle || 'Study Material';
 
     // Fallback: If context is empty, construct a valid study prompt from document filename
     if (!contextText || contextText.trim().length < 10) {

@@ -484,6 +484,7 @@ body {
 .dashboard-shell {
   display: flex;
   height: 100vh;
+  height: 100dvh;
   width: 100vw;
   overflow: hidden;
   background-color: var(--bg-dark);
@@ -3455,9 +3456,90 @@ body {
     transform: scale(0.92);
   }
 
-  /* Adjust composer bottom padding so it is above mobile bottom nav */
+  /* Mobile Chat Composer: pinned to viewport bottom without being hidden */
   .main-panel__compose {
-    padding-bottom: 74px !important;
+    padding: 6px 12px calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+    background-color: var(--bg-surface) !important;
+    border-top: 1px solid var(--border-subtle);
+    flex-shrink: 0;
+    width: 100%;
+    z-index: 20;
+  }
+
+  /* Rounded pill compose bar matching modern mobile chat layout */
+  .compose-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 26px;
+    min-height: 44px;
+    padding: 4px 10px 4px 6px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  }
+
+  .compose-bar__add {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: var(--bg-darkest);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all var(--transition);
+  }
+
+  .compose-bar__add:hover {
+    background-color: var(--bg-hover);
+    color: var(--primary);
+  }
+
+  .compose-bar__input {
+    font-size: 16px !important; /* CRITICAL: prevents iOS Safari automatic viewport zoom */
+    padding: 8px 6px;
+    color: var(--text-primary);
+    line-height: 1.4;
+  }
+
+  .compose-bar__send {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* Floating centered date separator pill */
+  .message-date-sep {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 12px 0 8px;
+    padding: 0;
+  }
+
+  .message-date-sep__line {
+    display: none;
+  }
+
+  .message-date-sep__label {
+    background-color: var(--bg-elevated);
+    color: var(--text-muted);
+    border: 1px solid var(--border-subtle);
+    font-size: 11.5px;
+    font-weight: 500;
+    padding: 4px 14px;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    letter-spacing: 0.02em;
   }
 
   .server-sidebar {
@@ -3503,6 +3585,12 @@ body {
     right: 0;
     top: 0;
     bottom: 0;
+    height: 100vh !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     z-index: 50;
     transform: translateX(100%);
     transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -3510,6 +3598,23 @@ body {
 
   .dashboard-shell--chat-active .main-panel {
     transform: translateX(0);
+  }
+
+  .main-panel__body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .main-panel__messages {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 8px 10px 10px;
+    gap: 3px;
   }
 
   .main-panel__mobile-back {
@@ -3532,6 +3637,7 @@ body {
     padding: 0 12px;
     gap: 6px;
     height: 52px;
+    flex-shrink: 0;
   }
 
   .main-panel__server-badge {
@@ -3551,8 +3657,57 @@ body {
   }
 
   .message-row {
-    padding: 8px 12px;
-    gap: 10px;
+    padding: 2px 4px;
+    gap: 6px;
+    margin-bottom: 2px;
+  }
+
+  .message-bubble-wrapper {
+    max-width: 86% !important;
+  }
+
+  .message-bubble {
+    padding: 8px 12px 6px;
+    font-size: 14.5px;
+    line-height: 1.48;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+
+  /* Own messages: right-aligned with standard app primary colors */
+  .message-bubble--own {
+    border-radius: 18px 18px 4px 18px;
+    background: linear-gradient(135deg, var(--primary) 0%, #1d4ed8 100%);
+    color: #ffffff;
+  }
+
+  /* Other messages: left-aligned with app surface token */
+  .message-bubble--other {
+    border-radius: 18px 18px 18px 4px;
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+  }
+
+  .message-bubble-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    margin-top: 3px;
+    float: right;
+    margin-left: 8px;
+  }
+
+  .message-bubble-footer .message-time {
+    font-size: 10.5px;
+  }
+
+  .message-bubble--own .message-bubble-footer .message-time {
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .message-bubble--other .message-bubble-footer .message-time {
+    color: var(--text-muted);
   }
 
   .right-panel {
