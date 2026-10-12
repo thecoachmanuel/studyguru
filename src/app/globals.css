@@ -6000,6 +6000,26 @@ body {
   color: var(--text-primary);
 }
 
+/* Unread channel message badge (peculiar to user) */
+.channel-item__unread-badge {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  background-color: var(--primary, #6366f1);
+  color: #ffffff;
+  padding: 3px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+  box-shadow: 0 1px 4px rgba(99, 102, 241, 0.4);
+  flex-shrink: 0;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+.channel-item--active .channel-item__unread-badge {
+  display: none;
+}
+
 /* Voice panel Mobile responsiveness */
 .voice-panel__mobile-back {
   display: none;
@@ -7461,12 +7481,11 @@ body {
 }
 
 .voice-meet-dock__btn--camera-off {
-  background-color: rgba(239, 68, 68, 0.16) !important;
-  border-color: rgba(239, 68, 68, 0.38) !important;
-  color: #ef4444 !important;
+  background-color: #dc2626 !important;
+  border-color: #dc2626 !important;
+  color: #ffffff !important;
 }
 .voice-meet-dock__btn--camera-off:hover {
-  background-color: rgba(239, 68, 68, 0.28) !important;
   filter: brightness(1.1);
 }
 
@@ -7807,19 +7826,45 @@ body {
   .voice-meet-grid {
     padding: 10px 10px 96px;
     gap: 10px;
+    place-content: center;
   }
 
-  .voice-meet-grid--1,
-  .voice-meet-grid--2 {
+  .voice-meet-grid--1 {
     grid-template-columns: 1fr;
-    max-width: 100%;
+    max-width: 720px;
+  }
+  .voice-meet-grid--1 .voice-meet-tile {
+    aspect-ratio: 16 / 9;
+    max-height: calc(100vh - 200px);
   }
 
-  .voice-meet-grid--3-4,
+  .voice-meet-grid--2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-width: 100%;
+    gap: 10px;
+  }
+  .voice-meet-grid--2 .voice-meet-tile {
+    aspect-ratio: 16 / 10;
+    max-height: calc(100vh - 220px);
+  }
+
+  .voice-meet-grid--3-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .voice-meet-grid--3-4 .voice-meet-tile {
+    aspect-ratio: 16 / 10;
+    max-height: calc((100vh - 240px) / 2);
+  }
+
   .voice-meet-grid--5-6,
   .voice-meet-grid--many {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
+  }
+  .voice-meet-grid--5-6 .voice-meet-tile,
+  .voice-meet-grid--many .voice-meet-tile {
+    aspect-ratio: 16 / 10;
   }
 
   .voice-meet-tile {
@@ -7891,35 +7936,34 @@ body {
   }
 
   .voice-meet-dock {
-    width: calc(100% - 12px);
-    max-width: 430px;
-    gap: 4px;
-    padding: 5px 6px;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+    width: auto;
+    max-width: calc(100% - 16px);
+    gap: 6px;
+    padding: 6px 12px;
+    overflow-x: visible;
     justify-content: center;
+    border-radius: 28px;
   }
   .voice-meet-dock::-webkit-scrollbar {
     display: none;
   }
 
   .voice-meet-dock__btn {
-    width: 36px;
-    height: 36px;
-    min-width: 36px;
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
     flex-shrink: 0;
   }
 
   .voice-meet-dock__btn svg {
-    width: 16px;
-    height: 16px;
+    width: 17px;
+    height: 17px;
   }
 
   .voice-meet-dock__leave-btn {
-    width: 36px;
-    height: 36px;
-    min-width: 36px;
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
     flex-shrink: 0;
     padding: 0;
     border-radius: 50%;
@@ -7930,10 +7974,88 @@ body {
     display: none;
   }
 
-  .voice-meet-grid--3-4,
+  .voice-meet-grid {
+    padding: 8px 8px 90px;
+    gap: 8px;
+    place-content: center;
+  }
+
+  .voice-meet-grid--1 {
+    grid-template-columns: 1fr;
+    max-width: 100%;
+  }
+  .voice-meet-grid--1 .voice-meet-tile {
+    aspect-ratio: 4 / 3;
+    max-height: calc(100dvh - 190px);
+  }
+
+  .voice-meet-grid--2 {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    align-content: center;
+  }
+  .voice-meet-grid--2 .voice-meet-tile {
+    width: 100%;
+    height: calc((100dvh - 210px) / 2);
+    min-height: 140px;
+    max-height: 260px;
+    aspect-ratio: auto;
+  }
+
+  .voice-meet-grid--3-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    align-content: center;
+  }
+  .voice-meet-grid--3-4 .voice-meet-tile {
+    width: 100%;
+    height: calc((100dvh - 210px) / 2);
+    min-height: 120px;
+    max-height: 240px;
+    aspect-ratio: auto;
+  }
+
   .voice-meet-grid--5-6,
   .voice-meet-grid--many {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .voice-meet-grid--5-6 .voice-meet-tile,
+  .voice-meet-grid--many .voice-meet-tile {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    min-height: 110px;
+  }
+
+  .voice-meet-avatar,
+  .voice-meet-avatar--fallback {
+    width: 52px;
+    height: 52px;
+    font-size: 20px;
+  }
+
+  .voice-meet-avatar-name {
+    font-size: 12px;
+    max-width: 90%;
+  }
+
+  .voice-meet-tile__bottom-bar {
+    left: 6px;
+    bottom: 6px;
+    padding: 3px 8px;
+    font-size: 11px;
+    gap: 5px;
+    max-width: calc(100% - 12px);
+  }
+
+  .voice-meet-mic-badge {
+    width: 15px;
+    height: 15px;
+  }
+
+  .voice-meet-mic-badge svg {
+    width: 9px;
+    height: 9px;
   }
 
   .voice-meet-lobby-card {

@@ -18,6 +18,8 @@ import { leaveServer } from '@/lib/lifecycleApi';
 import { dismissAllMenus } from '@/hooks/useDismissableMenu';
 import StudyGuruLogo from '@/components/StudyGuruLogo';
 import ChatbotIcon from '@/components/ChatbotIcon';
+import { getPusherClient } from '@/lib/pusherClient';
+import { clearStoredUnread, setStoredUnreadCount } from '@/lib/unreadMessages';
 
 function moveChannelLocally(channels, channelId, beforeChannelId, afterChannelId) {
   const movedChannel = channels.find((channel) => channel.id === channelId);
@@ -109,6 +111,7 @@ export default function DashboardPage() {
   const [serverActionModal, setServerActionModal] = useState(null); // 'create' | 'join' | null
   const [channelCreateFormOpen, setChannelCreateFormOpen] = useState(false);
   const [toast, setToast] = useState('');
+  const [unreadCounts, setUnreadCounts] = useState({});
 
   // Ensure mobile screens land on welcome panel
   useEffect(() => {
@@ -285,6 +288,9 @@ export default function DashboardPage() {
       setActiveChannelId(textChannel.id);
       setActiveChannelName(textChannel.name);
       setActiveChannelType(textChannel.type || 'text');
+      if (textChannel.type !== 'voice') {
+        handleMarkChannelRead(textChannel.id);
+      }
     } else {
       setActiveChannelId(null);
       setActiveChannelName(null);
@@ -341,7 +347,115 @@ export default function DashboardPage() {
   };
 
   // ──────────────────────────────────────────────
-  // 5. Channel Actions
+  // 5. Unread Message Management (Per-User & Auto-Mark As Read)
+  // ──────────────────────────────────────────────
+  const handleMarkChannelRead = useCallback(async (channelId) => {
+    if (!channelId || !user?.id) return;
+
+    // Immediately zero out locally for instant zero-latency UI response
+    setUnreadCounts((prev) => {
+      if (!prev[channelId]) return prev;
+      const next = { ...prev };
+      delete next[channelId];
+      return next;
+    });
+    clearStoredUnread(user.id, channelId);
+
+    // Persist to backend per-user channel_reads
+    try {
+      await apiRequest(`/api/channels/${encodeURIComponent(channelId)}/read`, {
+        method: 'POST',
+      });
+    } catch (e) {
+      console.debug('Failed to sync channel read status:', e);
+    }
+  }, [user?.id]);
+
+  // Load unread counts when server or active channel changes
+  useEffect(() => {
+    if (!activeServerId || !user?.id) {
+      setUnreadCounts({});
+      return;
+    }
+    let isMounted = true;
+
+    const loadUnreadCounts = async () => {
+      try {
+        const data = await apiRequest(`/api/channels/unread-counts?serverId=${encodeURIComponent(activeServerId)}`);
+        if (!isMounted) return;
+        const counts = data?.unreadCounts || {};
+        if (activeChannelId) {
+          counts[activeChannelId] = 0;
+          clearStoredUnread(user.id, activeChannelId);
+        }
+        setUnreadCounts(counts);
+      } catch (err) {
+        console.debug('Failed to load unread counts:', err);
+      }
+    };
+
+    loadUnreadCounts();
+    return () => {
+      isMounted = false;
+    };
+  }, [activeServerId, activeChannelId, user?.id]);
+
+  // Pusher Realtime subscription to server-wide messages for instant unread badge updates
+  useEffect(() => {
+    if (!activeServerId || !user?.id) return;
+
+    const pusher = getPusherClient();
+    if (!pusher) return;
+
+    const serverChannelName = `server-${activeServerId}`;
+    let chan = null;
+    try {
+      chan = pusher.subscribe(serverChannelName);
+    } catch {
+      return;
+    }
+
+    const handleServerNewMessage = (payload) => {
+      const { channelId, userId: senderId } = payload || {};
+      if (!channelId) return;
+
+      // Never count current user's own sent messages as unread
+      if (senderId === user.id) return;
+
+      // If user is currently looking at this channel, auto-mark as read immediately
+      if (
+        channelId === activeChannelId &&
+        workspace === 'channel' &&
+        typeof document !== 'undefined' &&
+        !document.hidden
+      ) {
+        handleMarkChannelRead(channelId);
+        return;
+      }
+
+      // Otherwise increment unread count for this channel
+      setUnreadCounts((prev) => {
+        const nextCount = (prev[channelId] || 0) + 1;
+        setStoredUnreadCount(user.id, channelId, nextCount);
+        return {
+          ...prev,
+          [channelId]: nextCount,
+        };
+      });
+    };
+
+    chan.bind('server-new-message', handleServerNewMessage);
+
+    return () => {
+      try {
+        chan.unbind('server-new-message', handleServerNewMessage);
+        pusher.unsubscribe(serverChannelName);
+      } catch {}
+    };
+  }, [activeServerId, activeChannelId, workspace, user?.id, handleMarkChannelRead]);
+
+  // ──────────────────────────────────────────────
+  // 6. Channel Actions
   // ──────────────────────────────────────────────
   const handleSelectChannel = (channelId, channelName, channelType) => {
     setChannelCreateFormOpen(false);
@@ -352,6 +466,9 @@ export default function DashboardPage() {
     setResourceOrigin(null);
     setChannelResource(null);
     setMobilePanelView('chat');
+    if (channelType !== 'voice') {
+      handleMarkChannelRead(channelId);
+    }
     // On mobile screens, keep right panel closed when entering chat
     if (window.innerWidth < 768) {
       setRightPanelOpen(false);
@@ -601,6 +718,7 @@ export default function DashboardPage() {
         onOpenAdvancedSearch={handleOpenAdvancedSearch}
         createFormOpen={channelCreateFormOpen}
         onCreateFormOpenChange={setChannelCreateFormOpen}
+        unreadCounts={unreadCounts}
       />
 
       {/* ── 3. Central Workspace Panel ── */}
@@ -702,6 +820,7 @@ export default function DashboardPage() {
               rightPanelOpen={rightPanelOpen}
               onRag1Activated={handleRag1Activated}
               onOpenAiTab={handleOpenAiTab}
+              onMarkAsRead={handleMarkChannelRead}
             />
           </div>
         </>

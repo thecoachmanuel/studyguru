@@ -15,7 +15,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { apiRequest } from '../lib/api';
 import { getPusherClient } from '../lib/pusherClient';
-import ChatbotIcon from './ChatbotIcon';
 
 function VideoStream({
   stream,
@@ -561,56 +560,22 @@ export default function VoicePanel({
           )}
         </div>
 
-        {/* Right Action Tools: Layout, People Drawer, Fullscreen */}
+        {/* Right Action Tools: People Drawer, Fullscreen */}
         <div className="voice-meet-header__right">
           {isJoinedHere && (
-            <>
-              <button
-                type="button"
-                className={`voice-meet-header-btn ${layoutMode === 'spotlight' ? 'voice-meet-header-btn--active' : ''}`}
-                onClick={() => {
-                  setLayoutMode((mode) => (mode === 'grid' ? 'spotlight' : 'grid'));
-                  if (layoutMode === 'spotlight') setSpotlightUserId(null);
-                }}
-                title={layoutMode === 'grid' ? 'Switch to Spotlight view' : 'Switch to Grid view'}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="7" height="7" />
-                  <rect x="14" y="3" width="7" height="7" />
-                  <rect x="14" y="14" width="7" height="7" />
-                  <rect x="3" y="14" width="7" height="7" />
-                </svg>
-                <span className="voice-meet-header-btn__label">{layoutMode === 'grid' ? 'Gallery' : 'Spotlight'}</span>
-              </button>
-
-              <button
-                type="button"
-                className={`voice-meet-header-btn ${peopleDrawerOpen ? 'voice-meet-header-btn--active' : ''}`}
-                onClick={() => setPeopleDrawerOpen((open) => !open)}
-                title="Toggle participants panel"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
-                <span className="voice-meet-header-btn__label">People ({activeParticipants.length})</span>
-              </button>
-            </>
-          )}
-
-          {/* AI Study Guru (Interactive Study & Knowledge Sharing) */}
-          {onToggleRightPanel && (
             <button
               type="button"
-              className={`voice-meet-header-btn ${rightPanelOpen ? 'voice-meet-header-btn--active' : ''}`}
-              onClick={onToggleRightPanel}
-              title="AI Study Guru (Ask questions, Summarize, Flashcards, Quizzes)"
-              aria-label="Toggle AI Study Guru"
+              className={`voice-meet-header-btn ${peopleDrawerOpen ? 'voice-meet-header-btn--active' : ''}`}
+              onClick={() => setPeopleDrawerOpen((open) => !open)}
+              title="Toggle participants panel"
             >
-              <ChatbotIcon size={15} />
-              <span className="voice-meet-header-btn__label">AI Guru</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+              <span className="voice-meet-header-btn__label">People ({activeParticipants.length})</span>
             </button>
           )}
 
@@ -841,7 +806,7 @@ export default function VoicePanel({
               {/* Camera Toggle */}
               <button
                 type="button"
-                className={`voice-meet-dock__btn ${cameraEnabled ? 'voice-meet-dock__btn--active-blue' : 'voice-meet-dock__btn--camera-off'}`}
+                className={`voice-meet-dock__btn ${cameraEnabled ? 'voice-meet-dock__btn--active-blue' : 'voice-meet-dock__btn--muted-red'}`}
                 onClick={cameraEnabled ? () => voiceSession.handleTurnCameraOff() : voiceSession.handleTurnCameraOn}
                 disabled={voiceSession.cameraBusy || voiceSession.screenShareBusy}
                 title={cameraEnabled ? 'Turn camera off' : 'Turn camera on'}
@@ -854,9 +819,8 @@ export default function VoicePanel({
                   </svg>
                 ) : (
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h1" />
-                    <polygon points="23 7 16 12 23 17 23 7" />
-                    <line x1="2" y1="2" x2="22" y2="22" />
+                    <line x1="1" y1="1" x2="23" y2="23" />
+                    <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10" />
                   </svg>
                 )}
               </button>
@@ -874,38 +838,6 @@ export default function VoicePanel({
                   <rect x="2" y="3" width="20" height="14" rx="2" />
                   <line x1="8" y1="21" x2="16" y2="21" />
                   <line x1="12" y1="17" x2="12" y2="21" />
-                </svg>
-              </button>
-
-              {/* AI Study Guru (Interactive Study & Knowledge Sharing) */}
-              {onToggleRightPanel && (
-                <button
-                  type="button"
-                  className={`voice-meet-dock__btn ${rightPanelOpen ? 'voice-meet-dock__btn--active-blue' : ''}`}
-                  onClick={onToggleRightPanel}
-                  title="AI Study Guru (Ask questions, Summarize, Flashcards, Quizzes)"
-                  aria-label="Toggle AI Study Guru"
-                >
-                  <ChatbotIcon size={20} />
-                </button>
-              )}
-
-              {/* Layout Switcher */}
-              <button
-                type="button"
-                className="voice-meet-dock__btn"
-                onClick={() => {
-                  setLayoutMode((mode) => (mode === 'grid' ? 'spotlight' : 'grid'));
-                  if (layoutMode === 'spotlight') setSpotlightUserId(null);
-                }}
-                title={layoutMode === 'grid' ? 'Switch to Spotlight' : 'Switch to Gallery'}
-                aria-label="Switch layout"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="7" height="7" />
-                  <rect x="14" y="3" width="7" height="7" />
-                  <rect x="14" y="14" width="7" height="7" />
-                  <rect x="3" y="14" width="7" height="7" />
                 </svg>
               </button>
 

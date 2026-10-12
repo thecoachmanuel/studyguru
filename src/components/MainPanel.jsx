@@ -210,6 +210,7 @@ export default function MainPanel({
   rightPanelOpen,
   onRag1Activated,
   onOpenAiTab,
+  onMarkAsRead,
 }) {
   const router = useRouter();
   const hasChannel = channelName && serverName;
@@ -440,11 +441,12 @@ export default function MainPanel({
 
     loadMessages();
     refreshPinnedMessages(true);
+    onMarkAsRead?.(channelId);
 
     return () => {
       isMounted = false;
     };
-  }, [channelId, refreshPinnedMessages]);
+  }, [channelId, refreshPinnedMessages, onMarkAsRead]);
 
   // ---------- Pusher Realtime subscription ----------
   useEffect(() => {
@@ -475,6 +477,10 @@ export default function MainPanel({
         );
         return updated;
       });
+
+      if (typeof document !== 'undefined' && !document.hidden) {
+        onMarkAsRead?.(channelId);
+      }
     };
 
     const handleDeletedMessage = (payload) => {
@@ -510,7 +516,26 @@ export default function MainPanel({
         pusher.unsubscribe(pusherChannelName);
       } catch {}
     };
-  }, [channelId, refreshPinnedMessages]);
+  }, [channelId, refreshPinnedMessages, onMarkAsRead]);
+
+  // Auto-mark active channel as read when window or tab gains focus
+  useEffect(() => {
+    if (!channelId || !onMarkAsRead) return;
+
+    const handleFocusOrVisible = () => {
+      if (typeof document !== 'undefined' && !document.hidden) {
+        onMarkAsRead(channelId);
+      }
+    };
+
+    window.addEventListener('focus', handleFocusOrVisible);
+    document.addEventListener('visibilitychange', handleFocusOrVisible);
+
+    return () => {
+      window.removeEventListener('focus', handleFocusOrVisible);
+      document.removeEventListener('visibilitychange', handleFocusOrVisible);
+    };
+  }, [channelId, onMarkAsRead]);
 
   // ---------- scroll to bottom when messages change ----------
   useEffect(() => {

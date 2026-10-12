@@ -186,10 +186,49 @@ export async function POST(req, { params }) {
       },
     };
 
+    // Sender automatically marks their own channel as read up to this moment
+    try {
+      await db.collection('channel_reads').updateOne(
+        { user_id: userId, channel_id: channelId },
+        {
+          $set: {
+            user_id: userId,
+            channel_id: channelId,
+            last_read_at: now,
+            updated_at: now,
+          },
+        },
+        { upsert: true }
+      );
+    } catch {}
+
     // Broadcast in real-time over Pusher
     try {
       const pusher = getPusherServer();
       await pusher.trigger(`channel-${channelId}`, 'new-message', messagePayload);
+
+      // Also broadcast to the server channel so all members get instant unread updates
+      let serverId = null;
+      try {
+        const chDoc = await db.collection('channels').findOne({
+          $or: [
+            { _id: safeObjectId(channelId) },
+            { id: channelId },
+          ],
+        });
+        if (chDoc?.server_id) {
+          serverId = String(chDoc.server_id);
+        }
+      } catch {}
+
+      if (serverId) {
+        await pusher.trigger(`server-${serverId}`, 'server-new-message', {
+          channelId,
+          messageId,
+          userId,
+          createdAt: now.toISOString(),
+        });
+      }
     } catch (e) {
       console.warn('Pusher broadcast error:', e.message);
     }

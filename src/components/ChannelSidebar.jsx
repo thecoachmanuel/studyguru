@@ -36,7 +36,7 @@ function VoiceIcon() {
   );
 }
 
-function ChannelItemContents({ channel, voiceCount = 0 }) {
+function ChannelItemContents({ channel, voiceCount = 0, unreadCount = 0 }) {
   return (
     <>
       {channel.type === 'voice' ? <VoiceIcon /> : <HashIcon />}
@@ -46,17 +46,22 @@ function ChannelItemContents({ channel, voiceCount = 0 }) {
           {voiceCount}
         </span>
       )}
+      {channel.type !== 'voice' && unreadCount > 0 && (
+        <span className="channel-item__unread-badge" title={`${unreadCount} new messages`}>
+          {unreadCount > 99 ? '99+' : unreadCount}
+        </span>
+      )}
     </>
   );
 }
 
-function StaticChannelItem({ channel, activeChannelId, onSelectChannel, voiceCount }) {
+function StaticChannelItem({ channel, activeChannelId, onSelectChannel, voiceCount, unreadCount = 0 }) {
   return (
     <button
       className={`channel-item ${channel.type === 'voice' ? 'channel-item--voice' : ''} ${activeChannelId === channel.id ? 'channel-item--active' : ''}`}
       onClick={() => onSelectChannel(channel.id, channel.name, channel.type)}
     >
-      <ChannelItemContents channel={channel} voiceCount={voiceCount} />
+      <ChannelItemContents channel={channel} voiceCount={voiceCount} unreadCount={unreadCount} />
     </button>
   );
 }
@@ -66,6 +71,7 @@ function SortableChannelItem({
   activeChannelId,
   onSelectChannel,
   voiceCount,
+  unreadCount = 0,
   disabled,
 }) {
   const {
@@ -94,7 +100,7 @@ function SortableChannelItem({
         className="channel-item__select"
         onClick={() => onSelectChannel(channel.id, channel.name, channel.type)}
       >
-        <ChannelItemContents channel={channel} voiceCount={voiceCount} />
+        <ChannelItemContents channel={channel} voiceCount={voiceCount} unreadCount={unreadCount} />
       </button>
       <button
         type="button"
@@ -123,6 +129,7 @@ function SortableChannelList({
   activeChannelId,
   onSelectChannel,
   voiceCounts,
+  unreadCounts = {},
   onReorderChannel,
   reorderBusy,
 }) {
@@ -163,6 +170,7 @@ function SortableChannelList({
             activeChannelId={activeChannelId}
             onSelectChannel={onSelectChannel}
             voiceCount={voiceCounts[channel.id] || 0}
+            unreadCount={unreadCounts[channel.id] || 0}
             disabled={reorderBusy}
           />
         ))}
@@ -182,6 +190,7 @@ export default function ChannelSidebar({
   onOpenAdvancedSearch,
   createFormOpen,
   onCreateFormOpenChange,
+  unreadCounts = {},
 }) {
   const [localCreateFormOpen, setLocalCreateFormOpen] = useState(false);
   const [name, setName] = useState('');
@@ -413,6 +422,7 @@ export default function ChannelSidebar({
                 activeChannelId={activeChannelId}
                 onSelectChannel={onSelectChannel}
                 voiceCounts={voiceCounts}
+                unreadCounts={unreadCounts}
                 onReorderChannel={handleReorder}
                 reorderBusy={reorderBusy}
               />
@@ -424,6 +434,7 @@ export default function ChannelSidebar({
                   activeChannelId={activeChannelId}
                   onSelectChannel={onSelectChannel}
                   voiceCount={0}
+                  unreadCount={unreadCounts[channel.id] || 0}
                 />
               ))
             )}
