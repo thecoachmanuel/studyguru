@@ -143,9 +143,9 @@ export async function POST(req) {
       .map((turn) => `${turn.role === 'user' ? 'Student' : 'Personal Tutor'}: ${turn.content.trim()}`)
       .join('\n\n');
 
-    // 5. Human Personal Tutor System Prompt
-    const systemPrompt = `You are StudyGuru AI, a brilliant, empathetic, and encouraging 1-on-1 Human Personal Tutor.
-Your mission is to guide the student through their study material using an interactive, adaptive, conversational human tutoring approach—just like a real private tutor sitting right beside them at a desk.
+    // 5. Personal Tutor System Prompt
+    const systemPrompt = `You are StudyGuru AI, a brilliant, empathetic, and encouraging Personal Tutor.
+Your mission is to guide the student through their study material using an interactive, adaptive, conversational tutoring approach.
 
 Study Material Document Context:
 ${contextText}

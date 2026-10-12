@@ -76,7 +76,7 @@ function createWelcomeMessage(filename) {
   return {
     id: 'welcome',
     sender: 'ai',
-    content: `Hi! I'm your **1-on-1 Personal Tutor** for **${filename}** 🎓.\n\nI break down topics into simple, bite-sized conversational steps and adapt to how you learn—just like a real human private tutor.\n\nWhat would you like to explore first? Tap any quick action below or ask your own question!`,
+    content: `Hi! I'm your **Personal Tutor** for **${filename}** 🎓.\n\nI break down topics into simple, bite-sized conversational steps and adapt to how you learn.\n\nWhat would you like to explore first? Tap any quick action below or ask your own question!`,
     time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
   };
 }
@@ -2279,7 +2279,7 @@ export default function RightPanel({
                       </button>
                     </div>
                     <p className="ai-sidebar-tutor-propel-desc">
-                      One-click propel to expanded view for comprehensive 1-on-1 tutoring, lessons & code.
+                      One-click propel to expanded view for comprehensive tutoring, lessons & code.
                     </p>
                     <button
                       type="button"
@@ -2295,7 +2295,7 @@ export default function RightPanel({
                       <div style={{ textAlign: 'center', padding: '24px 12px', color: 'var(--text-muted)' }}>
                         <div style={{ fontSize: '24px', marginBottom: '8px' }}>🎓</div>
                         <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
-                          1-on-1 Personal Tutor
+                          Personal Tutor
                         </div>
                         <p style={{ fontSize: '12px', margin: 0, lineHeight: 1.4 }}>
                           Upload or select a study document above to start interactive step-by-step tutoring.
@@ -2943,7 +2943,7 @@ export default function RightPanel({
                             <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text-muted)' }}>
                               <div style={{ fontSize: '36px', marginBottom: '12px' }}>🎓</div>
                               <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
-                                Human-Like 1-on-1 AI Tutor Workspace
+                                AI Tutor Workspace
                               </h3>
                               <p style={{ fontSize: '14px', maxWidth: '440px', margin: '0 auto', lineHeight: 1.5 }}>
                                 Your personal tutor breaks subjects down into simple conversational steps, adapts to your flow, and tests your understanding as you go. Upload a document to start learning!
