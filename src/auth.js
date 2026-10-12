@@ -8,6 +8,7 @@ import bcrypt from 'bcryptjs';
 const hasMongo = !!process.env.MONGODB_URI;
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  trustHost: true,
   ...(hasMongo ? {
     adapter: MongoDBAdapter(clientPromise, {
       databaseName: process.env.MONGODB_DB || 'studycord',
@@ -15,6 +16,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   } : {}),
   session: {
     strategy: 'jwt',
+    maxAge: 60 * 24 * 60 * 60, // 60 days persistent session on device
+    updateAge: 24 * 60 * 60,   // Sliding expiration: refresh token age every 24 hours of activity
+  },
+  jwt: {
+    maxAge: 60 * 24 * 60 * 60, // 60 days
   },
   pages: {
     signIn: '/login',
@@ -95,7 +101,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async jwt({ token, user, trigger, session }) {
       if (user) {
-        token.id = user.id;
+        token.id = user.id || token.sub;
+        token.sub = user.id || token.sub;
         token.name = user.name;
         token.email = user.email;
         token.image = user.image;
@@ -107,14 +114,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return token;
     },
     async session({ session, token }) {
-      if (token && session.user) {
-        session.user.id = token.id;
-        session.user.name = token.name;
-        session.user.email = token.email;
-        session.user.image = token.image;
+      if (token) {
+        session.user = session.user || {};
+        session.user.id = token.id || token.sub;
+        session.user.name = token.name || session.user.name;
+        session.user.email = token.email || session.user.email;
+        session.user.image = token.image || session.user.image;
       }
       return session;
     },
   },
-  secret: process.env.AUTH_SECRET || 'studycord-secret-key-at-least-32-chars-long',
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'studycord-secret-key-at-least-32-chars-long',
 });

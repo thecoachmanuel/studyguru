@@ -5,7 +5,7 @@ import { ThemeProvider } from '@/context/ThemeContext';
 
 export default function Providers({ children }) {
   return (
-    <SessionProvider>
+    <SessionProvider refetchInterval={0} refetchOnWindowFocus={false}>
       <ThemeProvider>
         {children}
       </ThemeProvider>
