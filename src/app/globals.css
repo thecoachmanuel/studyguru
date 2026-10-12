@@ -1694,6 +1694,13 @@ body {
   max-width: 100%;
 }
 
+.message-text {
+  position: relative;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
 /* Own Message Bubble (Sleek Gradient Blue Pill) */
 .message-bubble--own {
   background: linear-gradient(135deg, var(--primary) 0%, #1d4ed8 100%);

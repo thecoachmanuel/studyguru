@@ -401,15 +401,19 @@ export default function RightPanel({
       await persistChatTurn({
         userId: targetUserId,
         sessionId: targetSessionId,
-        documentId: targetDocumentId,
+        documentId: targetDocId,
         question: targetQuestion,
         sendQuestion: async ({ question, documentId, history }) => {
           const data = await apiRequest('/api/rag/chat', {
             method: 'POST',
             body: JSON.stringify({
               question,
+              message: question,
               mode: 'chat',
               document_id: documentId,
+              documentId: documentId,
+              session_id: targetSessionId,
+              sessionId: targetSessionId,
               history,
             }),
           });
@@ -553,18 +557,35 @@ export default function RightPanel({
       ) return;
 
       if (messagesResult.status === 'fulfilled') {
-        const messages = messagesResult.value;
-        setChatMessages(
-          messages.length > 0
-            ? messages.map(toUiChatMessage)
-            : [createWelcomeMessage(session.original_filename)],
-        );
+        const storedMessages = messagesResult.value;
+        let messages = [];
+        if (storedMessages && storedMessages.length > 0) {
+          messages = storedMessages.map(toUiChatMessage);
+        } else if (session.messages && session.messages.length > 0) {
+          messages = session.messages.map((m, idx) => toUiChatMessage({
+            id: m.id || `session-msg-${idx}`,
+            role: m.role || 'assistant',
+            content: m.content || '',
+            created_at: m.created_at || new Date().toISOString(),
+          }));
+        } else {
+          messages = [createWelcomeMessage(session.original_filename)];
+        }
+        setChatMessages(messages);
       } else {
         console.warn(
           'RAG chat history could not be loaded.',
           messagesResult.reason,
         );
-        setChatMessages([createWelcomeMessage(session.original_filename)]);
+        const fallbackMessages = session.messages?.length > 0
+          ? session.messages.map((m, idx) => toUiChatMessage({
+              id: m.id || `session-msg-${idx}`,
+              role: m.role || 'assistant',
+              content: m.content || '',
+              created_at: m.created_at || new Date().toISOString(),
+            }))
+          : [createWelcomeMessage(session.original_filename)];
+        setChatMessages(fallbackMessages);
         setLocalPersistenceWarning(
           'This session opened, but some browser-local study data is unavailable.',
         );
@@ -622,53 +643,73 @@ export default function RightPanel({
   // Channel & Study Room Real-Time Knowledge Sharing Helpers
   const handleShareSummary = () => {
     if (!summaryData || !onShareToChannel) return;
-    const filename = uploadedDoc?.filename ? `📄 **${uploadedDoc.filename}**\n` : '';
-    const execSummary = summaryData.executive_summary || '';
-    const points = summaryData.key_points?.length
-      ? `\n\n**Key Takeaways**:\n${summaryData.key_points.map((p) => `• ${p}`).join('\n')}`
+    const filenameHeader = uploadedDoc?.filename ? `> 📄 **Document**: *${uploadedDoc.filename}*\n\n` : '';
+    const execSummary = summaryData.executive_summary ? `${summaryData.executive_summary}\n\n` : '';
+    const concepts = summaryData.key_concepts?.length
+      ? `### 💡 Key Concepts\n${summaryData.key_concepts.map((c) => `• **${c.concept}**: ${c.description}`).join('\n')}\n\n`
       : '';
-    const message = `✨ **AI Study Summary**\n${filename}${execSummary}${points}`;
+    const takeaways = summaryData.key_points?.length
+      ? `### 🎯 Key Takeaways\n${summaryData.key_points.map((p) => `• ${p}`).join('\n')}`
+      : '';
+    const message = `## 📚 AI Study Summary\n${filenameHeader}${execSummary}${concepts}${takeaways}`.trim();
     onShareToChannel(message);
   };
 
   const handleShareFlashcards = () => {
     if (!flashcards?.length || !onShareToChannel) return;
-    const filename = uploadedDoc?.filename ? `📄 **${uploadedDoc.filename}**\n` : '';
-    const deck = flashcards.slice(0, 5).map((f, i) => `**Card ${i + 1}**: Q: ${f.question} → A: ${f.answer}`).join('\n\n');
-    const remaining = flashcards.length > 5 ? `\n\n*(+${flashcards.length - 5} more cards in deck)*` : '';
-    const message = `🗂️ **AI Flashcard Deck (${flashcards.length} cards)**\n${filename}${deck}${remaining}`;
+    const filenameHeader = uploadedDoc?.filename ? `> 📄 **Source**: *${uploadedDoc.filename}*\n\n` : '';
+    const cardsToShow = flashcards.slice(0, 5);
+    const deck = cardsToShow.map((f, i) => (
+      `**Card ${i + 1} of ${flashcards.length}**\n` +
+      `• ❓ **Question**: ${f.question}\n` +
+      `• 💡 **Answer**: ${f.answer}`
+    )).join('\n\n---\n\n');
+    const remaining = flashcards.length > 5 ? `\n\n*(+${flashcards.length - 5} more cards in this deck)*` : '';
+    const message = `## 🗂️ AI Flashcard Revision Deck (${flashcards.length} Cards)\n${filenameHeader}${deck}${remaining}`;
     onShareToChannel(message);
   };
 
   const handleShareSingleFlashcard = (idx) => {
     const card = flashcards[idx];
     if (!card || !onShareToChannel) return;
-    onShareToChannel(`🗂️ **Flashcard #${idx + 1}**\n**Q**: ${card.question}\n**A**: ${card.answer}`);
+    const docMeta = uploadedDoc?.filename ? `> 📄 *${uploadedDoc.filename}*\n\n` : '';
+    const message = `### 🗂️ Flashcard #${idx + 1}\n${docMeta}**Question:**\n> ${card.question}\n\n**Answer:**\n${card.answer}`;
+    onShareToChannel(message);
   };
 
   const handleShareQuiz = () => {
     if (!mcqs?.length || !onShareToChannel) return;
-    const filename = uploadedDoc?.filename ? `📄 **${uploadedDoc.filename}**\n` : '';
-    const quizList = mcqs.slice(0, 3).map((q, i) => {
-      const opts = q.options.map((opt, oi) => `  ${String.fromCharCode(65 + oi)}. ${opt}`).join('\n');
-      return `**Q${i + 1}**: ${q.question}\n${opts}\n*(Correct: ${q.correct_answer})*`;
-    }).join('\n\n');
-    const remaining = mcqs.length > 3 ? `\n\n*(+${mcqs.length - 3} more questions)*` : '';
-    const message = `📝 **AI Study Quiz (${mcqs.length} Questions)**\n${filename}${quizList}${remaining}`;
+    const filenameHeader = uploadedDoc?.filename ? `> 📄 **Source**: *${uploadedDoc.filename}*\n\n` : '';
+    const questionsToShow = mcqs.slice(0, 3);
+    const quizList = questionsToShow.map((q, i) => {
+      const opts = q.options.map((opt, oi) => `• **${String.fromCharCode(65 + oi)})** ${opt}`).join('\n');
+      const explanation = q.explanation ? `\n> 📖 *${q.explanation}*` : '';
+      return (
+        `#### Question ${i + 1}: ${q.question}\n\n` +
+        `${opts}\n\n` +
+        `> 🎯 **Correct Answer**: **${q.correct_answer}**${explanation}`
+      );
+    }).join('\n\n---\n\n');
+    const remaining = mcqs.length > 3 ? `\n\n*(+${mcqs.length - 3} more questions in this quiz)*` : '';
+    const message = `## 📝 AI Study Quiz Challenge (${mcqs.length} Questions)\n${filenameHeader}${quizList}${remaining}`;
     onShareToChannel(message);
   };
 
   const handleShareSingleMcq = (qIdx) => {
     const q = mcqs[qIdx];
     if (!q || !onShareToChannel) return;
-    const opts = q.options.map((opt, oi) => `  ${String.fromCharCode(65 + oi)}. ${opt}`).join('\n');
-    const message = `📝 **Study Quiz Challenge (Q${qIdx + 1})**\n${q.question}\n${opts}\n\n*(Correct Answer: ${q.correct_answer})*`;
+    const docMeta = uploadedDoc?.filename ? `> 📄 *${uploadedDoc.filename}*\n\n` : '';
+    const opts = q.options.map((opt, oi) => `• **${String.fromCharCode(65 + oi)})** ${opt}`).join('\n');
+    const explanation = q.explanation ? `\n> 📖 *${q.explanation}*` : '';
+    const message = `### 📝 Study Quiz Challenge: Question ${qIdx + 1}\n${docMeta}**${q.question}**\n\n${opts}\n\n> 🎯 **Correct Answer**: **${q.correct_answer}**${explanation}`;
     onShareToChannel(message);
   };
 
   const handleShareChatMessage = (content) => {
     if (!content || !onShareToChannel) return;
-    onShareToChannel(`💡 **AI Study Guru Insight**:\n${content}`);
+    const docMeta = uploadedDoc?.filename ? `> 📄 *Source: ${uploadedDoc.filename}*\n\n` : '';
+    const message = `### 💡 AI Study Guru Insight\n${docMeta}${content}`;
+    onShareToChannel(message);
   };
 
   const selectTab = (tab) => {

@@ -1,6 +1,7 @@
 'use client';
 
 import MessageAttachment from './MessageAttachment';
+import ChatMarkdownMessage from './ChatMarkdownMessage';
 
 
 export function PinIcon({ size = 15 }) {
@@ -103,7 +104,9 @@ export default function PinnedMessagesPanel({
                 </div>
 
                 {pin.content && (
-                  <p className="pinned-entry__content">{pin.content}</p>
+                  <div className="pinned-entry__content">
+                    <ChatMarkdownMessage content={pin.content} />
+                  </div>
                 )}
                 {pin.attachment && (
                   <MessageAttachment

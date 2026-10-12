@@ -29,6 +29,7 @@ import NeutralHomeState from './NeutralHomeState';
 import SelectedServerHomeState from './SelectedServerHomeState';
 import DismissableMenu from './DismissableMenu';
 import ChatbotIcon from './ChatbotIcon';
+import ChatMarkdownMessage from './ChatMarkdownMessage';
 
 // ---------- icons & helpers ----------
 function CopyIcon({ size = 13 }) {
@@ -939,7 +940,11 @@ export default function MainPanel({
                   ? trimmedContent.replace(/^📎\s*/, '')
                   : trimmedContent;
                 if (!cleanContent) return null;
-                return <div className="message-text">{cleanContent}</div>;
+                return (
+                  <div className="message-text">
+                    <ChatMarkdownMessage content={cleanContent} />
+                  </div>
+                );
               })()}
 
               <div className="message-bubble-footer">
