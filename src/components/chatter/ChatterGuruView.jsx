@@ -31,6 +31,34 @@ export default function ChatterGuruView({
   const chatBottomRef = useRef(null);
   const inputRef = useRef(null);
 
+  const GURU_STORAGE_KEY = 'studycord_guru_chat_history_v2';
+
+  // Load persisted AI guru messages on initial mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(GURU_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMessages(parsed);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to restore AI chat history:', e);
+    }
+  }, []);
+
+  // Save AI guru messages to localStorage
+  useEffect(() => {
+    try {
+      if (messages && messages.length > 0) {
+        localStorage.setItem(GURU_STORAGE_KEY, JSON.stringify(messages));
+      }
+    } catch (e) {
+      console.warn('Failed to save AI chat history:', e);
+    }
+  }, [messages]);
+
   // Load real user documents on mount
   useEffect(() => {
     fetch('/api/rag/documents')
@@ -191,9 +219,9 @@ export default function ChatterGuruView({
       });
 
       const data = await res.json();
-      const questions = data.questions || [];
+      const questions = data.questions || data.mcqs || data.mcq || [];
 
-      if (questions.length > 0) {
+      if (Array.isArray(questions) && questions.length > 0) {
         setMessages((prev) => [
           ...prev,
           {
@@ -207,7 +235,7 @@ export default function ChatterGuruView({
         throw new Error('No questions synthesized');
       }
     } catch {
-      // High-quality sample interactive quiz fallback
+      // 5-Question interactive quiz fallback derived from study material
       setMessages((prev) => [
         ...prev,
         {
@@ -215,26 +243,59 @@ export default function ChatterGuruView({
           role: 'assistant',
           quizData: [
             {
-              question: `1. Key takeaway from ${targetDocName}: What is the primary foundational principle?`,
+              question: `1. Core concept of ${targetDocName}: What is the foundational principle emphasized?`,
               options: [
-                'Fundamental definitions and boundary invariants must be consistently verified',
-                'The system operates with zero divergence everywhere',
-                'Only final outputs are evaluated without considering components',
-                'No mathematical constraints are required',
+                'First-principles verification of core constraints and invariants',
+                'Arbitrary heuristic estimation without validating conditions',
+                'Ignoring intermediate layers and boundary criteria',
+                'Assuming static state across non-isolated domains',
               ],
-              correct_answer: 'Fundamental definitions and boundary invariants must be consistently verified',
-              explanation: 'Strong foundational understanding begins by confirming all core constraints and definitions from the study material.',
+              correct_answer: 'First-principles verification of core constraints and invariants',
+              explanation: 'Rigorous academic comprehension begins by verifying foundational assumptions and mathematical boundary invariants.',
             },
             {
-              question: '2. In neural network optimization, why is normalization applied across layer inputs?',
+              question: '2. In systematic problem solving, why is dimensional and unit analysis conducted first?',
               options: [
-                'To stabilize gradient variance and accelerate training convergence',
-                'To permanently fix all weight parameters',
-                'To bypass backpropagation completely',
-                'To remove residual connections',
+                'To verify physical plausibility and catch formulation errors early',
+                'To arbitrarily scale arbitrary constant coefficients',
+                'To eliminate all vector components unconditionally',
+                'To convert differential terms into discrete scalars without justification',
               ],
-              correct_answer: 'To stabilize gradient variance and accelerate training convergence',
-              explanation: 'Input normalization maintains well-behaved activations and gradients across deep layers.',
+              correct_answer: 'To verify physical plausibility and catch formulation errors early',
+              explanation: 'Dimensional consistency ensures that the mathematical model accurately reflects underlying principles.',
+            },
+            {
+              question: '3. What role does active recall play compared to passive rereading?',
+              options: [
+                'It forces memory retrieval, strengthening neural synaptic pathways and retention',
+                'It solely serves as a psychological relaxation technique',
+                'It decreases long-term information retention over 48 hours',
+                'It is only useful for rote formula memorization',
+              ],
+              correct_answer: 'It forces memory retrieval, strengthening neural synaptic pathways and retention',
+              explanation: 'Cognitive science studies demonstrate that active testing produces significantly higher retention than passive rereading.',
+            },
+            {
+              question: '4. When analyzing complex systems, what is the key advantage of modular decomposition?',
+              options: [
+                'It limits cognitive load and allows isolated verification of each subsystem',
+                'It guarantees that non-linear effects can be ignored completely',
+                'It eliminates the need for integration testing',
+                'It converts continuous functions into constant states',
+              ],
+              correct_answer: 'It limits cognitive load and allows isolated verification of each subsystem',
+              explanation: 'Decomposing complex architectures enables clear reasoning, rapid fault localization, and modular proof.',
+            },
+            {
+              question: '5. Which revision strategy yields the highest retention when preparing for cumulative exams?',
+              options: [
+                'Spaced repetition combined with interleaved practice problems',
+                'Single-session cramming 4 hours prior to the test',
+                'Highlighting textbook passages without self-testing',
+                'Reading completed answers without attempting the derivations',
+              ],
+              correct_answer: 'Spaced repetition combined with interleaved practice problems',
+              explanation: 'Spaced intervals and mixed problem sets prevent illusion of competence and cement long-term mastery.',
             },
           ],
           timestamp: 'Just now',
@@ -412,6 +473,9 @@ export default function ChatterGuruView({
   };
 
   const handleClearSession = () => {
+    try {
+      localStorage.removeItem(GURU_STORAGE_KEY);
+    } catch {}
     setMessages([
       {
         id: `g-intro-${Date.now()}`,
@@ -1094,31 +1158,41 @@ function QuizCard({ questionObj, index }) {
 // Subcomponent: Interactive Flip Card
 function FlashCard({ card }) {
   const [flipped, setFlipped] = useState(false);
+  const frontText = card?.front || card?.question || card?.concept || card?.title || 'Key Concept';
+  const backText = card?.back || card?.answer || card?.definition || card?.explanation || 'Explanation';
 
   return (
     <div
       onClick={() => setFlipped((f) => !f)}
       style={{
-        background: '#141414',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
+        background: flipped ? 'rgba(64, 227, 120, 0.08)' : '#141414',
+        border: flipped ? '1.5px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
         borderRadius: 14,
         padding: 14,
-        minHeight: 110,
+        minHeight: 120,
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
         cursor: 'pointer',
-        transition: 'transform 0.15s ease',
+        transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+        userSelect: 'none',
       }}
     >
-      <div style={{ fontSize: 11, color: flipped ? 'var(--chatter-primary)' : 'var(--chatter-light-text)', fontWeight: 700, textTransform: 'uppercase' }}>
-        {flipped ? 'ANSWER' : 'QUESTION'} (Tap to flip)
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: 11, color: flipped ? 'var(--chatter-primary)' : 'var(--chatter-light-text)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          {flipped ? '💡 ANSWER' : '❓ QUESTION'}
+        </span>
+        <span style={{ fontSize: 10.5, color: 'var(--chatter-light-text)' }}>
+          Tap to {flipped ? 'see front' : 'flip'} 🔄
+        </span>
       </div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', margin: '8px 0' }}>
-        {flipped ? card.back : card.front}
+
+      <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff', margin: '10px 0', lineHeight: 1.5 }}>
+        {flipped ? backText : frontText}
       </div>
-      <div style={{ fontSize: 10.5, color: 'var(--chatter-light-text)' }}>
-        🔄 Flip
+
+      <div style={{ fontSize: 11, color: flipped ? 'var(--chatter-primary)' : 'var(--chatter-light-text)', display: 'flex', alignItems: 'center', gap: 4 }}>
+        <span>{flipped ? '✓ Tap to reverse' : '• Active recall prompt'}</span>
       </div>
     </div>
   );

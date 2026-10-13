@@ -28,60 +28,14 @@ export default function ChatterRoomsView({
     return 'Computer Science';
   };
 
-  // Simulated live audio study spaces matching Chatter
-  const [audioSpaces] = useState([
-    {
-      id: 'space-1',
-      title: 'Late Night Algorithms & LeetCode Sprint 🚀',
-      category: 'Computer Science',
-      tags: ['#DynamicProgramming', '#Graphs', '#BigO'],
-      listenersCount: 8,
-      speakers: [
-        { name: 'David', avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80' },
-        { name: 'Elena', avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&auto=format&fit=crop&q=80' },
-        { name: 'Kenji', avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&auto=format&fit=crop&q=80' },
-      ],
-    },
-    {
-      id: 'space-2',
-      title: 'MCAT Biology & Organic Chemistry Drill 🧬',
-      category: 'Medicine',
-      tags: ['#MCAT', '#Biochemistry', '#AminoAcids'],
-      listenersCount: 14,
-      speakers: [
-        { name: 'Sarah', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80' },
-        { name: 'Michael', avatar: 'https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=100&auto=format&fit=crop&q=80' },
-      ],
-    },
-    {
-      id: 'space-3',
-      title: 'Calculus III & Differential Equations Workshop 📐',
-      category: 'Mathematics',
-      tags: ['#Calculus', '#Integration', '#LinearAlgebra'],
-      listenersCount: 19,
-      speakers: [
-        { name: 'Alex', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80' },
-        { name: 'Kenji', avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&auto=format&fit=crop&q=80' },
-      ],
-    },
-    {
-      id: 'space-4',
-      title: 'Silent Pomodoro Study Room (50/10) ⏳ Concentration',
-      category: 'All',
-      tags: ['#Pomodoro', '#DeepWork', '#Focus'],
-      listenersCount: 22,
-      speakers: [
-        { name: 'Mia', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80' },
-      ],
-    },
-  ]);
+  // Dynamic live audio study spaces from user creations and server voice channels
+  const [customSpaces, setCustomSpaces] = useState([]);
 
   const [copiedServerId, setCopiedServerId] = useState(null);
   const [copiedLinkId, setCopiedLinkId] = useState(null);
   const [prereqModalOpen, setPrereqModalOpen] = useState(false);
   const [createSpaceModalOpen, setCreateSpaceModalOpen] = useState(false);
   const [userFollowers, setUserFollowers] = useState(0);
-  const [customSpaces, setCustomSpaces] = useState([]);
   const [newSpaceTitle, setNewSpaceTitle] = useState('');
   const [newSpaceCategory, setNewSpaceCategory] = useState('Computer Science');
 
@@ -153,7 +107,21 @@ export default function ChatterRoomsView({
     onJoinVoiceChannel?.(newSpace.id, newSpace.id, newSpace.title);
   };
 
-  const allAudioSpaces = [...customSpaces, ...audioSpaces];
+  // Dynamic audio spaces from custom creations and real server voice channels
+  const serverVoiceSpaces = servers.flatMap((srv) =>
+    (srv.channels || [])
+      .filter((ch) => ch.type === 'voice')
+      .map((ch) => ({
+        id: ch.id,
+        serverId: srv.id,
+        title: `${srv.name} – ${ch.name}`,
+        category: getServerCategory(srv),
+        tags: [`#${getServerCategory(srv).replace(/\s+/g, '')}`, '#StudyVoice'],
+        listenersCount: srv.member_count || 1,
+        speakers: [],
+      }))
+  );
+  const allAudioSpaces = [...customSpaces, ...serverVoiceSpaces];
 
   const filteredSpaces = selectedInterest === 'All'
     ? allAudioSpaces
@@ -338,23 +306,56 @@ export default function ChatterRoomsView({
                       </div>
                     )}
 
-                    <div style={{ minWidth: 0 }}>
-                      <h4 style={{ fontSize: 15, fontWeight: 700, color: '#fff', margin: '0 0 3px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <h4 style={{ fontSize: 15, fontWeight: 700, color: '#fff', margin: '0 0 4px 0', lineHeight: 1.35, wordBreak: 'break-word', whiteSpace: 'normal' }}>
                         {server.name}
                       </h4>
                       <div style={{ fontSize: 12, color: 'var(--chatter-light-text)', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         <span>{channelsCount} study channels · {server.member_count || 1} members</span>
                       </div>
+
+                      {/* Channels Pills within Study Room */}
+                      {server.channels && server.channels.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                          {server.channels.map((ch) => (
+                            <button
+                              key={ch.id}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onSelectServer(server.id, ch.id, ch.name);
+                              }}
+                              style={{
+                                padding: '3px 8px',
+                                borderRadius: 8,
+                                background: ch.type === 'voice' ? 'rgba(64, 227, 120, 0.12)' : 'rgba(255, 255, 255, 0.06)',
+                                border: '1px solid rgba(255, 255, 255, 0.06)',
+                                color: ch.type === 'voice' ? 'var(--chatter-primary)' : '#c0c0c0',
+                                fontSize: 11,
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 4,
+                              }}
+                            >
+                              <span>{ch.type === 'voice' ? '🔊' : '#'}</span>
+                              <span>{ch.name}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, marginLeft: 10 }}>
+                    {/* Proper SVG Copy Code Button */}
                     <button
                       type="button"
                       onClick={(e) => handleCopyCode(e, server)}
-                      title="Copy room code"
+                      title="Copy room invite code"
                       style={{
-                        padding: '6px 9px',
+                        padding: '6px 10px',
                         borderRadius: 12,
                         background: isCopied ? 'rgba(64, 227, 120, 0.2)' : 'rgba(255, 255, 255, 0.06)',
                         border: isCopied ? '1px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
@@ -364,19 +365,33 @@ export default function ChatterRoomsView({
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: 4,
+                        gap: 5,
                         transition: 'all 0.15s ease',
                       }}
                     >
-                      {isCopied ? '✓ Copied' : '📋 Code'}
+                      {isCopied ? (
+                        <>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                          <span>Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                          </svg>
+                          <span>Code</span>
+                        </>
+                      )}
                     </button>
 
+                    {/* Proper SVG Copy Link Button */}
                     <button
                       type="button"
                       onClick={(e) => handleCopyLink(e, server)}
                       title="Copy direct invite link to this room"
                       style={{
-                        padding: '6px 9px',
+                        padding: '6px 10px',
                         borderRadius: 12,
                         background: copiedLinkId === server.id ? 'rgba(64, 227, 120, 0.2)' : 'rgba(255, 255, 255, 0.06)',
                         border: copiedLinkId === server.id ? '1px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
@@ -386,11 +401,24 @@ export default function ChatterRoomsView({
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: 4,
+                        gap: 5,
                         transition: 'all 0.15s ease',
                       }}
                     >
-                      {copiedLinkId === server.id ? '✓ Link Copied' : '🔗 Link'}
+                      {copiedLinkId === server.id ? (
+                        <>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                          <span>Link Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                          </svg>
+                          <span>Link</span>
+                        </>
+                      )}
                     </button>
 
                     {isCurrent ? (
@@ -465,75 +493,108 @@ export default function ChatterRoomsView({
           </button>
         </div>
 
-        {filteredSpaces.map((space) => (
-          <div key={space.id} className="chatter-audiospace-card" style={{ marginTop: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-              <div>
-                <h3 style={{ fontSize: 15.5, fontWeight: 700, color: '#fff', margin: '0 0 6px 0' }}>
-                  {space.title}
-                </h3>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {space.tags.map((t) => (
-                    <span key={t} style={{ fontSize: 12, color: 'var(--chatter-hashtag)', fontWeight: 600 }}>
-                      {t}
-                    </span>
-                  ))}
+        {filteredSpaces.length === 0 ? (
+          <div
+            style={{
+              padding: '24px 16px',
+              textAlign: 'center',
+              background: 'var(--chatter-sheet)',
+              borderRadius: 16,
+              border: '1px solid rgba(255, 255, 255, 0.05)',
+              marginTop: 12,
+            }}
+          >
+            <div style={{ fontSize: 28, marginBottom: 8 }}>🎙️</div>
+            <div style={{ fontSize: 14.5, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
+              No active live audio spaces
+            </div>
+            <p style={{ fontSize: 12.5, color: 'var(--chatter-light-text)', margin: '0 0 14px 0' }}>
+              Host a live audio space to discuss assignments, review flashcards, or study together with peers.
+            </p>
+            <button
+              type="button"
+              onClick={handleOpenStartSpace}
+              style={{
+                padding: '7px 18px',
+                borderRadius: 16,
+                background: 'var(--chatter-primary)',
+                border: 'none',
+                color: '#0E0E0E',
+                fontSize: 12.5,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              + Start an Audio Space
+            </button>
+          </div>
+        ) : (
+          filteredSpaces.map((space) => (
+            <div key={space.id} className="chatter-audiospace-card" style={{ marginTop: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                <div>
+                  <h3 style={{ fontSize: 15.5, fontWeight: 700, color: '#fff', margin: '0 0 6px 0' }}>
+                    {space.title}
+                  </h3>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {space.tags?.map((t) => (
+                      <span key={t} style={{ fontSize: 12, color: 'var(--chatter-hashtag)', fontWeight: 600 }}>
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ fontSize: 12, color: 'var(--chatter-light-text)', whiteSpace: 'nowrap', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span>🎙️</span> {space.listenersCount || 1} listening
                 </div>
               </div>
 
-              <div style={{ fontSize: 12, color: 'var(--chatter-light-text)', whiteSpace: 'nowrap', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span>🎙️</span> {space.listenersCount} listening
+              {/* Overlapping Speaker Avatars */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
+                <div className="chatter-speaker-stack">
+                  {(space.speakers || []).map((sp, i) => (
+                    <img
+                      key={i}
+                      src={sp.avatar}
+                      alt={sp.name}
+                      className="chatter-speaker-avatar"
+                      title={sp.name}
+                    />
+                  ))}
+                  <span style={{ fontSize: 12, color: 'var(--chatter-light-text)', marginLeft: 10, fontWeight: 500 }}>
+                    {(space.speakers || []).length > 0 ? space.speakers.map((s) => s.name).join(', ') + ' speaking' : 'Drop-in voice room'}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const serverWithVoice = servers.find((s) => s.channels?.some((c) => c.type === 'voice'));
+                    const voiceChan = serverWithVoice?.channels?.find((c) => c.type === 'voice');
+                    onJoinVoiceChannel?.(
+                      space.serverId || serverWithVoice?.id || space.id,
+                      voiceChan?.id || space.id,
+                      voiceChan?.name || space.title
+                    );
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: 20,
+                    background: 'var(--chatter-primary)',
+                    border: 'none',
+                    color: '#0E0E0E',
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Join Space
+                </button>
               </div>
             </div>
-
-            {/* Overlapping Speaker Avatars */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
-              <div className="chatter-speaker-stack">
-                {space.speakers.map((sp, i) => (
-                  <img
-                    key={i}
-                    src={sp.avatar}
-                    alt={sp.name}
-                    className="chatter-speaker-avatar"
-                    title={sp.name}
-                  />
-                ))}
-                <span style={{ fontSize: 12, color: 'var(--chatter-light-text)', marginLeft: 10, fontWeight: 500 }}>
-                  {space.speakers.map((s) => s.name).join(', ')} speaking
-                </span>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  const serverWithVoice = servers.find((s) => s.channels?.some((c) => c.type === 'voice'));
-                  const voiceChan = serverWithVoice?.channels?.find((c) => c.type === 'voice');
-                  onJoinVoiceChannel?.(
-                    serverWithVoice?.id || space.id,
-                    voiceChan?.id || space.id,
-                    voiceChan?.name || space.title
-                  );
-                }}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: 20,
-                  background: 'var(--chatter-primary)',
-                  border: 'none',
-                  color: '#0E0E0E',
-                  fontWeight: 700,
-                  fontSize: 12.5,
-                  cursor: 'pointer',
-                  transition: 'transform 0.12s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
-              >
-                <span>🎙️</span> Join Space
-              </button>
-            </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
       {/* ── Prerequisite Modal (When followers < 5) ── */}

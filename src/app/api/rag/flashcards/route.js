@@ -20,7 +20,7 @@ function parseTextFlashcards(rawText) {
 
     if (qMatch) {
       if (currentQ && currentA) {
-        cards.push({ question: currentQ.trim(), answer: currentA.trim() });
+        cards.push({ question: currentQ.trim(), answer: currentA.trim(), front: currentQ.trim(), back: currentA.trim() });
         currentA = '';
       }
       currentQ = qMatch[1];
@@ -32,7 +32,7 @@ function parseTextFlashcards(rawText) {
   }
 
   if (currentQ && currentA) {
-    cards.push({ question: currentQ.trim(), answer: currentA.trim() });
+    cards.push({ question: currentQ.trim(), answer: currentA.trim(), front: currentQ.trim(), back: currentA.trim() });
   }
 
   return cards;
@@ -54,6 +54,8 @@ function synthesizeFlashcardsFromText(text, count = 6) {
       cards.push({
         question: `Key Concept: ${first.replace(/^[#*\s-]+/, '').slice(0, 90)}`,
         answer: rest.length > 15 ? rest : p,
+        front: `Key Concept: ${first.replace(/^[#*\s-]+/, '').slice(0, 90)}`,
+        back: rest.length > 15 ? rest : p,
       });
     }
   }
@@ -199,6 +201,8 @@ ${contextText.slice(0, 12000)}`;
           return {
             question: String(q).trim(),
             answer: String(a).trim(),
+            front: String(q).trim(),
+            back: String(a).trim(),
           };
         }).filter(Boolean);
       }

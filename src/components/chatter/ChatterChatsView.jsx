@@ -89,7 +89,7 @@ export default function ChatterChatsView({
             name: c.other_user?.name || c.other_user?.username || 'Study Partner',
             username: c.other_user?.username || 'partner',
             avatar_url: c.other_user?.avatar_url || null,
-            online: c.other_user?.status?.state === 'online',
+            online: c.other_user?.status?.state ? c.other_user.status.state === 'online' : true,
           },
           lastMessage: lastMsgText,
           timestamp: timeStr,
@@ -119,7 +119,7 @@ export default function ChatterChatsView({
             name: c.other_user?.name || c.other_user?.username || 'Study Partner',
             username: c.other_user?.username || 'partner',
             avatar_url: c.other_user?.avatar_url || null,
-            online: c.other_user?.status?.state === 'online',
+            online: c.other_user?.status?.state ? c.other_user.status.state === 'online' : true,
           },
           message: c.last_message?.content || 'Hi! Would you like to collaborate and study together?',
           timestamp: timeStr,
@@ -395,10 +395,11 @@ export default function ChatterChatsView({
                           position: 'absolute',
                           bottom: 1,
                           right: 1,
-                          width: 11,
-                          height: 11,
+                          width: 12,
+                          height: 12,
                           borderRadius: '50%',
-                          background: 'var(--chatter-primary)',
+                          background: '#22c55e',
+                          boxShadow: '0 0 7px rgba(34, 197, 94, 0.75)',
                           border: '2px solid var(--chatter-sheet)',
                         }}
                         title="Online"
@@ -412,7 +413,7 @@ export default function ChatterChatsView({
                           width: 10,
                           height: 10,
                           borderRadius: '50%',
-                          background: 'rgba(255, 255, 255, 0.25)',
+                          background: 'rgba(255, 255, 255, 0.3)',
                           border: '2px solid var(--chatter-sheet)',
                         }}
                         title="Offline"

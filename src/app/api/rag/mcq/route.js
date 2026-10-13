@@ -64,7 +64,7 @@ export async function POST(req) {
             q.question?.toLowerCase().includes('sample question')
           );
           if (!isDummy) {
-            return NextResponse.json({ mcq: cached.content, mcqs: cached.content });
+            return NextResponse.json({ questions: cached.content, mcq: cached.content, mcqs: cached.content });
           } else {
             await db.collection('rag_study_outputs').deleteOne({ _id: cached._id });
           }
@@ -246,7 +246,7 @@ ${contextText.slice(0, 12000)}`;
       console.warn('Failed to cache MCQs:', saveErr.message);
     }
 
-    return NextResponse.json({ mcq: questions, mcqs: questions });
+    return NextResponse.json({ questions, mcq: questions, mcqs: questions });
   } catch (error) {
     console.error('MCQ error:', error);
     return NextResponse.json(

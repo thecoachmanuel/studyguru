@@ -9459,9 +9459,9 @@ body {
   }
 }
 
-/* --- Chatter Mobile Compose Bar & Floating Spacing --- */
+/* --- Chatter Mobile Compose Bar & Flush Spacing --- */
 .chatter-guru-compose {
-  padding: 10px 18px 14px;
+  padding: 8px 16px;
   background: var(--chatter-black);
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   flex-shrink: 0;
@@ -9469,7 +9469,7 @@ body {
 
 @media (max-width: 768px) {
   .chatter-guru-compose {
-    padding: 10px 16px calc(76px + env(safe-area-inset-bottom)) !important;
+    padding: 6px 12px 6px !important;
   }
 }
 

@@ -156,6 +156,7 @@ export default function DashboardPage() {
   const [userCurrentStatus, setUserCurrentStatus] = useState(null);
   const [audioSpaceModalOpen, setAudioSpaceModalOpen] = useState(false);
   const [userProfileModalTarget, setUserProfileModalTarget] = useState(null);
+  const [targetPostId, setTargetPostId] = useState(null);
 
   // Shared following state synchronized across Feed, Profile Modal, and Profile View
   const [followingMap, setFollowingMap] = useState({});
@@ -868,6 +869,7 @@ export default function DashboardPage() {
             onStartDM={handleStartDM}
             followingMap={followingMap}
             onToggleFollow={handleToggleFollow}
+            targetPostId={targetPostId}
           />
         </div>
       )}
@@ -940,6 +942,10 @@ export default function DashboardPage() {
             }}
             onOpenGuru={() => setChatterTab('guru')}
             followingMap={followingMap}
+            onSelectPost={(pId) => {
+              setTargetPostId(pId);
+              setChatterTab('feed');
+            }}
           />
         </div>
       )}

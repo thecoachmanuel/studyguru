@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useMemo } from 'react';
-import SnapshotRail from '@/components/SnapshotRail';
+import ChatterNotesBar from './ChatterNotesBar';
 import ChatterUserProfileModal from './ChatterUserProfileModal';
 import ChatterCommentsSheet from './ChatterCommentsSheet';
 import { getPusherClient } from '@/lib/pusherClient';
@@ -29,6 +29,7 @@ export default function ChatterFeedView({
   onStartDM,
   followingMap = {},
   onToggleFollow,
+  targetPostId = null,
 }) {
   const [posts, setPosts] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
@@ -44,6 +45,30 @@ export default function ChatterFeedView({
   const [attachedImage, setAttachedImage] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef(null);
+
+  // Edit / Delete post states
+  const [activeMenuPostId, setActiveMenuPostId] = useState(null);
+  const [editingPost, setEditingPost] = useState(null);
+  const [editText, setEditText] = useState('');
+  const [editTag, setEditTag] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingPostId, setDeletingPostId] = useState(null);
+
+  // Auto-scroll to target post when navigated from profile
+  useEffect(() => {
+    if (targetPostId && posts.length > 0) {
+      setTimeout(() => {
+        const el = document.getElementById(`post-${targetPostId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.style.borderColor = 'var(--chatter-primary)';
+          setTimeout(() => {
+            if (el) el.style.borderColor = 'rgba(255, 255, 255, 0.06)';
+          }, 2400);
+        }
+      }, 200);
+    }
+  }, [targetPostId, posts]);
 
   // 1. Fetch persistent posts from MongoDB
   useEffect(() => {
@@ -239,6 +264,53 @@ export default function ChatterFeedView({
     }
   };
 
+  const handleStartEdit = (post) => {
+    setEditingPost(post);
+    setEditText(post.text);
+    setEditTag(post.tag || '#GeneralStudy');
+    setActiveMenuPostId(null);
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (!editingPost || !editText.trim()) return;
+    setSavingEdit(true);
+    const postId = editingPost.id;
+    try {
+      const res = await fetch(`/api/posts/${postId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: editText.trim(), tag: editTag }),
+      });
+      if (res.ok) {
+        setPosts((prev) =>
+          prev.map((p) => (p.id === postId ? { ...p, text: editText.trim(), tag: editTag } : p))
+        );
+        setEditingPost(null);
+      }
+    } catch (err) {
+      console.warn('Failed to edit post:', err);
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleDeletePost = async (postId) => {
+    if (!confirm('Are you sure you want to delete this study post?')) return;
+    setDeletingPostId(postId);
+    setActiveMenuPostId(null);
+    try {
+      const res = await fetch(`/api/posts/${postId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setPosts((prev) => prev.filter((p) => p.id !== postId));
+      }
+    } catch (err) {
+      console.warn('Failed to delete post:', err);
+    } finally {
+      setDeletingPostId(null);
+    }
+  };
+
   const handleImageFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -382,10 +454,8 @@ export default function ChatterFeedView({
         </div>
       )}
 
-      {/* ── 1. Top Snapshots Story Rail (Chatter circular stories) ── */}
-      <div style={{ padding: '8px 12px 14px', borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
-        <SnapshotRail serverId={serverId} currentUserId={userId} />
-      </div>
+      {/* ── 1. Top Chatter Study Notes & Stories Carousel ── */}
+      <ChatterNotesBar user={{ id: userId }} profile={profile} onOpenLiveSpaces={onOpenLiveSpaces} />
 
       {/* ── 2. Chatter Social Posts Stream (Followed users prioritized) ── */}
       <div style={{ marginTop: 8 }}>
@@ -393,7 +463,7 @@ export default function ChatterFeedView({
           const isMe = post.author.id === userId || post.author.id === 'me';
           const isFollowing = !!(activeFollowing[post.author.id]);
           return (
-            <article key={post.id} className="chatter-post-card">
+            <article key={post.id} id={`post-${post.id}`} className="chatter-post-card">
               {/* Header: Author + Follow Button + Tag */}
               <div className="chatter-post-header">
                 <div
@@ -434,7 +504,7 @@ export default function ChatterFeedView({
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   {/* Chatter Follow Button (Desktop only on card, mobile follows via Profile Sheet) */}
                   {!isMe && (
                     <button
@@ -456,8 +526,97 @@ export default function ChatterFeedView({
                       {isFollowing ? '✓ Following' : '+ Follow'}
                     </button>
                   )}
+
                   {/* Tag Pill */}
                   <span className="chatter-hashtag">{post.tag}</span>
+
+                  {/* Author Post Options Menu (Edit / Delete) */}
+                  {isMe && (
+                    <div style={{ position: 'relative' }}>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveMenuPostId(activeMenuPostId === post.id ? null : post.id);
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--chatter-light-text)',
+                          cursor: 'pointer',
+                          padding: '4px 6px',
+                          fontSize: 16,
+                          borderRadius: 8,
+                          lineHeight: 1,
+                        }}
+                        title="Post options"
+                      >
+                        •••
+                      </button>
+
+                      {activeMenuPostId === post.id && (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            position: 'absolute',
+                            top: 26,
+                            right: 0,
+                            background: '#1c1c1c',
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            borderRadius: 12,
+                            padding: 4,
+                            zIndex: 50,
+                            minWidth: 125,
+                            boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
+                          }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => handleStartEdit(post)}
+                            style={{
+                              width: '100%',
+                              textAlign: 'left',
+                              padding: '8px 12px',
+                              background: 'none',
+                              border: 'none',
+                              color: '#fff',
+                              fontSize: 12.5,
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              borderRadius: 8,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 6,
+                            }}
+                          >
+                            <span>✏️</span> Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePost(post.id)}
+                            disabled={deletingPostId === post.id}
+                            style={{
+                              width: '100%',
+                              textAlign: 'left',
+                              padding: '8px 12px',
+                              background: 'none',
+                              border: 'none',
+                              color: '#f87171',
+                              fontSize: 12.5,
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              borderRadius: 8,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 6,
+                            }}
+                          >
+                            <span>🗑️</span> {deletingPostId === post.id ? 'Deleting…' : 'Delete'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -744,6 +903,132 @@ export default function ChatterFeedView({
           profile={profile}
           userId={userId}
         />
+      )}
+
+      {/* ── 7. Edit Post Modal ── */}
+      {editingPost && (
+        <div
+          onClick={() => setEditingPost(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--chatter-sheet)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: 20,
+              padding: 22,
+              maxWidth: 480,
+              width: '100%',
+              boxShadow: '0 16px 40px rgba(0,0,0,0.8)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700, color: '#fff', margin: 0 }}>Edit Study Post</h3>
+              <button
+                type="button"
+                onClick={() => setEditingPost(null)}
+                style={{ background: 'none', border: 'none', color: '#fff', fontSize: 16, cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit}>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: 12, color: 'var(--chatter-light-text)', display: 'block', marginBottom: 6 }}>
+                  Topic Tag
+                </label>
+                <input
+                  type="text"
+                  value={editTag}
+                  onChange={(e) => setEditTag(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: 12,
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    color: '#fff',
+                    fontSize: 13,
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 12, color: 'var(--chatter-light-text)', display: 'block', marginBottom: 6 }}>
+                  Post Content
+                </label>
+                <textarea
+                  rows={4}
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: 12,
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    color: '#fff',
+                    fontSize: 14,
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    resize: 'vertical',
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setEditingPost(null)}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: 14,
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    border: 'none',
+                    color: '#fff',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!editText.trim() || savingEdit}
+                  style={{
+                    padding: '8px 20px',
+                    borderRadius: 14,
+                    background: 'var(--chatter-primary)',
+                    border: 'none',
+                    color: '#0E0E0E',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: editText.trim() ? 'pointer' : 'not-allowed',
+                    opacity: editText.trim() ? 1 : 0.6,
+                  }}
+                >
+                  {savingEdit ? 'Saving…' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

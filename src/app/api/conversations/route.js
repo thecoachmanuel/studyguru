@@ -54,7 +54,7 @@ export async function GET(req) {
           username: otherUser?.username || otherUser?.name || 'Study Partner',
           name: otherUser?.name || otherUser?.username || 'Study Partner',
           avatar_url: otherUser?.avatar_url || otherUser?.image || null,
-          status: otherUser?.status || { state: 'offline' },
+          status: otherUser?.status || { state: 'online' },
         },
       };
     });

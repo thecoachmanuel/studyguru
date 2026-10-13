@@ -5,12 +5,10 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { signIn, useSession } from 'next-auth/react';
 import Seo from '@/components/Seo';
-import ThemeToggle from '@/components/ThemeToggle';
-import StudyGuruLogo from '@/components/StudyGuruLogo';
 
 const SIGNUP_SEO = {
-  title: 'Sign Up – StudyGuru',
-  description: 'Create an account on StudyGuru, your AI-powered student collaboration platform.',
+  title: 'Sign Up – StudyCord',
+  description: 'Create an account on StudyCord, your student collaboration and AI study group network.',
   path: '/signup',
 };
 
@@ -19,7 +17,6 @@ export default function SignupPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [loadingSignup, setLoadingSignup] = useState(false);
@@ -29,7 +26,7 @@ export default function SignupPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
 
-  // Detect existing session cookie to avoid form flash on page load
+  // Detect existing session cookie
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const cookies = document.cookie || '';
@@ -93,7 +90,7 @@ export default function SignupPage() {
         router.refresh();
       }
     } catch (err) {
-      setError(err.message || 'Unable to reach the authentication service. Please try again.');
+      setError(err.message || 'Unable to complete registration. Please try again.');
     } finally {
       setLoadingSignup(false);
     }
@@ -106,22 +103,48 @@ export default function SignupPage() {
     try {
       await signIn('google', { callbackUrl: '/dashboard' });
     } catch {
-      setError('Unable to start Google sign up. Please try again.');
+      setError('Unable to connect with Google. Please try again.');
       setLoadingGoogle(false);
     }
   };
 
   if (status === 'authenticated' || (status === 'loading' && hasSessionHint)) {
     return (
-      <div className="cogni-auth-shell" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+      <div
+        style={{
+          minHeight: '100dvh',
+          background: '#0E0E0E',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#fff',
+        }}
+      >
         <Seo {...SIGNUP_SEO} />
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', textAlign: 'center' }}>
-          <StudyGuruLogo width={180} height={50} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '14px' }}>
-            <svg className="ai-spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-            </svg>
-            <span>Redirecting to your workspace...</span>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 12,
+                background: 'linear-gradient(135deg, #40e378, #22c55e)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#0E0E0E',
+                fontWeight: 900,
+                fontSize: 20,
+              }}
+            >
+              S
+            </div>
+            <span style={{ fontSize: 24, fontWeight: 900, letterSpacing: '-0.03em', color: '#fff' }}>
+              Study<span style={{ color: '#40e378' }}>Cord</span>
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#888', fontSize: 14 }}>
+            <span>Setting up your study lounge…</span>
           </div>
         </div>
       </div>
@@ -129,212 +152,273 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="cogni-auth-shell">
+    <div
+      style={{
+        minHeight: '100dvh',
+        background: '#0E0E0E',
+        backgroundImage: 'radial-gradient(circle at 50% 12%, rgba(64, 227, 120, 0.08) 0%, transparent 60%)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '24px 16px',
+        boxSizing: 'border-box',
+        color: '#fff',
+        fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
+      }}
+    >
       <Seo {...SIGNUP_SEO} />
 
-      {/* Floating Theme Switcher */}
-      <div className="cogni-auth-theme-floating">
-        <ThemeToggle />
-      </div>
-
-      {/* ── Left: Form Panel ─────────────────────────────────── */}
-      <div className="cogni-auth-form-side">
-        <div className="cogni-auth-form-box">
-          {/* Header & Logo */}
-          <div className="cogni-auth-header">
-            <Link href="/" style={{ display: 'inline-flex', textDecoration: 'none' }}>
-              <StudyGuruLogo width={180} height={50} />
-            </Link>
-            <p className="cogni-auth-mobile-tagline">Your personal AI study system.</p>
-            <p className="cogni-auth-title">Create your account to get started</p>
-          </div>
-
-          {/* Continue with Google */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <button
-              type="button"
-              onClick={handleGoogleSignup}
-              disabled={loadingGoogle || loadingSignup}
-              className="cogni-google-btn"
+      {/* Main Flutter Chatter Card */}
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 420,
+          background: '#141414',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRadius: 24,
+          padding: '36px 28px',
+          boxSizing: 'border-box',
+          boxShadow: '0 24px 60px rgba(0, 0, 0, 0.65)',
+        }}
+      >
+        {/* Brand Header */}
+        <div style={{ textAlign: 'center', marginBottom: 26 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 12,
+                background: 'linear-gradient(135deg, #40e378, #22c55e)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#0E0E0E',
+                fontWeight: 900,
+                fontSize: 22,
+                boxShadow: '0 4px 16px rgba(64, 227, 120, 0.3)',
+              }}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style={{ flexShrink: 0 }}>
-                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-              </svg>
-              {loadingGoogle ? 'Connecting…' : 'Continue with Google'}
-            </button>
-
-            <p className="cogni-auth-disclaimer">
-              By continuing you agree to the{' '}
-              <Link href="/terms" target="_blank">Terms</Link> and{' '}
-              <Link href="/privacy" target="_blank">Privacy Policy</Link>.
-            </p>
-
-            <div className="cogni-auth-divider">
-              <span>or</span>
+              S
             </div>
+            <span style={{ fontSize: 26, fontWeight: 900, letterSpacing: '-0.03em', color: '#fff' }}>
+              Study<span style={{ color: '#40e378' }}>Cord</span>
+            </span>
+          </div>
+          <p style={{ fontSize: 14, color: '#888', margin: 0, fontWeight: 500 }}>
+            Join classmates & study groups across universities.
+          </p>
+        </div>
+
+        {/* Google One-Tap / Button */}
+        <button
+          type="button"
+          onClick={handleGoogleSignup}
+          disabled={loadingGoogle || loadingSignup}
+          style={{
+            width: '100%',
+            padding: '12px 16px',
+            borderRadius: 14,
+            background: 'rgba(255, 255, 255, 0.06)',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            color: '#fff',
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 10,
+            transition: 'background 0.15s ease',
+            marginBottom: 20,
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style={{ flexShrink: 0 }}>
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+          </svg>
+          <span>{loadingGoogle ? 'Connecting…' : 'Sign up with Google'}</span>
+        </button>
+
+        {/* Divider */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+          <div style={{ flex: 1, height: 1, background: 'rgba(255, 255, 255, 0.08)' }} />
+          <span style={{ fontSize: 12, color: '#666', textTransform: 'uppercase', letterSpacing: '0.04em' }}>or email</span>
+          <div style={{ flex: 1, height: 1, background: 'rgba(255, 255, 255, 0.08)' }} />
+        </div>
+
+        {/* Error Alert */}
+        {error && (
+          <div
+            style={{
+              padding: '10px 14px',
+              borderRadius: 12,
+              background: 'rgba(239, 68, 68, 0.12)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              color: '#f87171',
+              fontSize: 13,
+              marginBottom: 16,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            <span>⚠️</span> {error}
+          </div>
+        )}
+
+        {/* Success Alert */}
+        {success && (
+          <div
+            style={{
+              padding: '10px 14px',
+              borderRadius: 12,
+              background: 'rgba(64, 227, 120, 0.12)',
+              border: '1px solid rgba(64, 227, 120, 0.3)',
+              color: 'var(--chatter-primary)',
+              fontSize: 13,
+              marginBottom: 16,
+            }}
+          >
+            Account created! <Link href="/login" style={{ color: '#fff', fontWeight: 700 }}>Click here to log in</Link>.
+          </div>
+        )}
+
+        {/* Credentials Form */}
+        <form onSubmit={handleEmailSignup} style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
+          <div>
+            <label style={{ fontSize: 12.5, fontWeight: 600, color: '#bbb', display: 'block', marginBottom: 6 }}>
+              Email address
+            </label>
+            <input
+              type="email"
+              placeholder="student@university.edu"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              disabled={loadingSignup || loadingGoogle}
+              style={{
+                width: '100%',
+                padding: '12px 14px',
+                borderRadius: 12,
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                color: '#fff',
+                fontSize: 14,
+                outline: 'none',
+                boxSizing: 'border-box',
+                transition: 'border-color 0.15s ease',
+              }}
+              onFocus={(e) => (e.target.style.borderColor = '#40e378')}
+              onBlur={(e) => (e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)')}
+            />
           </div>
 
-          {/* Feedback Notices */}
-          {error && (
-            <div className="cogni-alert cogni-alert--error">
-              {error}
-            </div>
-          )}
-
-          {success && (
-            <div className="cogni-alert cogni-alert--success">
-              Account created successfully! Please sign in.
-            </div>
-          )}
-
-          {/* Registration Form */}
-          <form onSubmit={handleEmailSignup} className="cogni-form">
-            <div className="cogni-form-group">
-              <label htmlFor="signup-email" className="cogni-form-label">Email</label>
+          <div>
+            <label style={{ fontSize: 12.5, fontWeight: 600, color: '#bbb', display: 'block', marginBottom: 6 }}>
+              Password (min. 8 characters)
+            </label>
+            <div style={{ position: 'relative' }}>
               <input
-                id="signup-email"
-                type="email"
-                placeholder="you@university.edu"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                type={showPassword ? 'text' : 'password'}
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={loadingSignup || loadingGoogle}
-                className="cogni-input"
-                autoComplete="email"
+                style={{
+                  width: '100%',
+                  padding: '12px 42px 12px 14px',
+                  borderRadius: 12,
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  color: '#fff',
+                  fontSize: 14,
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                  transition: 'border-color 0.15s ease',
+                }}
+                onFocus={(e) => (e.target.style.borderColor = '#40e378')}
+                onBlur={(e) => (e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)')}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: 12,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: '#888',
+                  cursor: 'pointer',
+                  padding: 4,
+                }}
+              >
+                {showPassword ? '👁️' : '👁️‍🗨️'}
+              </button>
             </div>
-
-            <div className="cogni-form-group">
-              <label htmlFor="signup-password" className="cogni-form-label">Password</label>
-              <div className="cogni-input-wrap">
-                <input
-                  id="signup-password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="At least 8 characters"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={8}
-                  disabled={loadingSignup || loadingGoogle}
-                  className="cogni-input cogni-input--password"
-                  autoComplete="new-password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="cogni-password-toggle"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  tabIndex={-1}
-                >
-                  {showPassword ? (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-                      <line x1="1" y1="1" x2="23" y2="23" />
-                    </svg>
-                  ) : (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            <div className="cogni-form-group">
-              <label htmlFor="signup-confirm-password" className="cogni-form-label">Confirm Password</label>
-              <div className="cogni-input-wrap">
-                <input
-                  id="signup-confirm-password"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  placeholder="Re-enter password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  minLength={8}
-                  disabled={loadingSignup || loadingGoogle}
-                  className="cogni-input cogni-input--password"
-                  autoComplete="new-password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="cogni-password-toggle"
-                  aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
-                  tabIndex={-1}
-                >
-                  {showConfirmPassword ? (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-                      <line x1="1" y1="1" x2="23" y2="23" />
-                    </svg>
-                  ) : (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loadingSignup || loadingGoogle}
-              className="cogni-submit-btn"
-            >
-              {loadingSignup ? 'Creating account…' : 'Create account'}
-            </button>
-          </form>
-
-          {/* Footer Switcher */}
-          <p className="cogni-auth-footer">
-            Already have an account?{' '}
-            <Link href="/login" className="cogni-auth-switch-link">
-              Sign in
-            </Link>
-          </p>
-
-          {/* Public Navigation Links down below signup box */}
-          <nav className="cogni-auth-nav-links" aria-label="Explore StudyGuru">
-            <Link href="/features">Features</Link>
-            <span aria-hidden="true">•</span>
-            <Link href="/about">About</Link>
-            <span aria-hidden="true">•</span>
-            <Link href="/faq">FAQ</Link>
-          </nav>
-        </div>
-      </div>
-
-      {/* ── Right: Branded Hero Panel (Desktop only) ───────────── */}
-      <div className="cogni-auth-brand-side">
-        {/* Abstract decorative ambient orbs */}
-        <div className="cogni-brand-orb cogni-brand-orb--1" />
-        <div className="cogni-brand-orb cogni-brand-orb--2" />
-        <div className="cogni-brand-orb cogni-brand-orb--3" />
-
-        <div className="cogni-brand-content">
-          <StudyGuruLogo variant="white" width={240} height={64} />
-          <p className="cogni-brand-tagline">
-            Your personal AI study system.
-          </p>
-
-          <div className="cogni-brand-bullets">
-            {[
-              'Real-time study channels & group messaging',
-              'WebRTC voice, video, and screen sharing',
-              'Semantic document search across notes & slides',
-              'AI study assistant for Q&A, summaries & quizzes',
-            ].map((feature) => (
-              <div key={feature} className="cogni-brand-bullet">
-                <div className="cogni-brand-bullet-dot" />
-                <span>{feature}</span>
-              </div>
-            ))}
           </div>
+
+          <div>
+            <label style={{ fontSize: 12.5, fontWeight: 600, color: '#bbb', display: 'block', marginBottom: 6 }}>
+              Confirm Password
+            </label>
+            <input
+              type={showPassword ? 'text' : 'password'}
+              placeholder="••••••••"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              disabled={loadingSignup || loadingGoogle}
+              style={{
+                width: '100%',
+                padding: '12px 14px',
+                borderRadius: 12,
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                color: '#fff',
+                fontSize: 14,
+                outline: 'none',
+                boxSizing: 'border-box',
+                transition: 'border-color 0.15s ease',
+              }}
+              onFocus={(e) => (e.target.style.borderColor = '#40e378')}
+              onBlur={(e) => (e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)')}
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loadingSignup || loadingGoogle || !email.trim() || !password || !confirmPassword}
+            style={{
+              width: '100%',
+              padding: '13px',
+              borderRadius: 14,
+              background: '#40e378',
+              border: 'none',
+              color: '#0E0E0E',
+              fontSize: 14.5,
+              fontWeight: 800,
+              cursor: loadingSignup || !email.trim() || !password ? 'not-allowed' : 'pointer',
+              opacity: loadingSignup || !email.trim() || !password ? 0.6 : 1,
+              marginTop: 4,
+            }}
+          >
+            {loadingSignup ? 'Creating Account…' : 'Create Account'}
+          </button>
+        </form>
+
+        {/* Footer Link */}
+        <div style={{ textAlign: 'center', marginTop: 24, fontSize: 13, color: '#888' }}>
+          Already have an account?{' '}
+          <Link href="/login" style={{ color: '#40e378', textDecoration: 'none', fontWeight: 700 }}>
+            Sign In
+          </Link>
         </div>
       </div>
     </div>

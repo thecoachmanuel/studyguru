@@ -12,6 +12,7 @@ export default function ChatterProfileView({
   onSelectServer,
   onOpenGuru,
   followingMap = {},
+  onSelectPost,
 }) {
   const [activeTab, setActiveTab] = useState('posts'); // 'posts' | 'notes' | 'rooms'
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || '');
@@ -619,16 +620,25 @@ export default function ChatterProfileView({
               myPosts.map((post) => (
                 <div
                   key={post.id}
+                  onClick={() => onSelectPost?.(post.id)}
+                  title="Click to view and discuss on feed"
                   style={{
                     background: 'var(--chatter-sheet)',
                     borderRadius: 16,
                     padding: 14,
-                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.06)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
                   }}
+                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--chatter-primary)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.06)')}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                     <span className="chatter-hashtag">{post.tag}</span>
-                    <span style={{ fontSize: 11.5, color: 'var(--chatter-light-text)' }}>{post.timestamp}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 11.5, color: 'var(--chatter-light-text)' }}>{post.timestamp}</span>
+                      <span style={{ fontSize: 11, color: 'var(--chatter-primary)', fontWeight: 600 }}>View on Feed ↗</span>
+                    </div>
                   </div>
                   <p style={{ fontSize: 13.5, color: '#D4D4D4', lineHeight: 1.5, margin: '0 0 10px 0' }}>
                     {post.text}
