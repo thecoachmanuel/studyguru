@@ -25,6 +25,7 @@ function normalizeMessage(m, currentUserId) {
     attachment_url: attachmentUrl,
     createdAt: createdAt,
     reactions: m.reactions || [],
+    is_read: Boolean(m.is_read || m.read_at || m.read),
   };
 }
 
@@ -47,6 +48,9 @@ export default function ChatterChatRoom({
   const [sending, setSending] = useState(false);
   const [attachedImage, setAttachedImage] = useState(null);
   const [reactionMenuMessageId, setReactionMenuMessageId] = useState(null);
+  const [dmRequestStatus, setDmRequestStatus] = useState('accepted'); // 'pending' | 'accepted' | 'declined'
+  const [requestedBy, setRequestedBy] = useState(null);
+  const [requestActionLoading, setRequestActionLoading] = useState(false);
 
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -102,6 +106,19 @@ export default function ChatterChatRoom({
 
     loadMessages();
 
+    // If DM, fetch conversation request status
+    if (isDM) {
+      fetch(`/api/conversations/${channelId}`)
+        .then((r) => r.ok ? r.json() : null)
+        .then((conv) => {
+          if (conv && mounted) {
+            setDmRequestStatus(conv.status || 'accepted');
+            setRequestedBy(conv.requested_by || null);
+          }
+        })
+        .catch(() => {});
+    }
+
     // Pusher real-time listener for incoming messages
     let channel = null;
     let fallbackChannel = null;
@@ -148,6 +165,18 @@ export default function ChatterChatRoom({
           fallbackChannel.bind('new-message', handleIncoming);
         }
 
+        channel.bind('messages-read', () => {
+          if (mounted) {
+            setMessages((prev) => prev.map((m) => ({ ...m, is_read: true })));
+          }
+        });
+
+        channel.bind('request-status', (data) => {
+          if (mounted && data?.status) {
+            setDmRequestStatus(data.status);
+          }
+        });
+
         channel.bind('message-reacted', (data) => {
           if (mounted && data?.messageId) {
             setMessages((prev) =>
@@ -178,6 +207,27 @@ export default function ChatterChatRoom({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const handleRespondRequest = async (action) => {
+    setRequestActionLoading(true);
+    try {
+      const res = await fetch(`/api/conversations/${channelId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      if (res.ok) {
+        setDmRequestStatus(action === 'accept' ? 'accepted' : 'declined');
+        if (action === 'decline') {
+          onBack?.();
+        }
+      }
+    } catch (e) {
+      console.warn('Request respond notice:', e);
+    } finally {
+      setRequestActionLoading(false);
+    }
+  };
 
   // Send message
   const handleSendMessage = async (e) => {
@@ -386,8 +436,7 @@ export default function ChatterChatRoom({
               {channelType === 'dm' && <TwitterVerifiedBadge />}
             </div>
             {channelType === 'dm' ? (
-              <div style={{ fontSize: 11.5, color: isPartnerOnline ? 'var(--chatter-primary)' : 'var(--chatter-light-text)', display: 'flex', alignItems: 'center', gap: 5 }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: isPartnerOnline ? 'var(--chatter-primary)' : 'rgba(255, 255, 255, 0.35)' }} />
+              <div style={{ fontSize: 11.5, color: isPartnerOnline ? 'var(--chatter-primary)' : 'var(--chatter-light-text)', fontWeight: 500 }}>
                 <span>{isPartnerOnline ? 'Active now' : 'Offline · Last seen recently'}</span>
               </div>
             ) : (
@@ -520,7 +569,19 @@ export default function ChatterChatRoom({
                   <span>
                     {m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
                   </span>
-                  {isMe && <span>✓✓</span>}
+                  {isMe && (
+                    <span
+                      style={{
+                        fontSize: 11.5,
+                        fontWeight: 800,
+                        color: m.is_read ? 'var(--chatter-primary)' : 'rgba(255, 255, 255, 0.45)',
+                        marginLeft: 3,
+                      }}
+                      title={m.is_read ? 'Read' : 'Delivered'}
+                    >
+                      {m.is_read ? '✓✓' : '✓'}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -628,6 +689,89 @@ export default function ChatterChatRoom({
           </div>
         )}
 
+        {/* Message Request Banners */}
+        {channelType === 'dm' && dmRequestStatus === 'pending' && requestedBy && String(requestedBy) !== String(userId) && (
+          <div
+            style={{
+              padding: '12px 14px',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(64, 227, 120, 0.3)',
+              borderRadius: 14,
+              marginBottom: 10,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+            }}
+          >
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>
+                Message Request
+              </div>
+              <div style={{ fontSize: 11.5, color: 'var(--chatter-light-text)' }}>
+                {channelName || 'This user'} sent you a message request. Accept to reply.
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button
+                type="button"
+                onClick={() => handleRespondRequest('accept')}
+                disabled={requestActionLoading}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 16,
+                  background: 'var(--chatter-primary)',
+                  border: 'none',
+                  color: '#0E0E0E',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Accept
+              </button>
+              <button
+                type="button"
+                onClick={() => handleRespondRequest('decline')}
+                disabled={requestActionLoading}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: 16,
+                  background: 'rgba(255, 57, 57, 0.15)',
+                  border: 'none',
+                  color: 'var(--chatter-red)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Decline
+              </button>
+            </div>
+          </div>
+        )}
+
+        {channelType === 'dm' && dmRequestStatus === 'pending' && requestedBy && String(requestedBy) === String(userId) && (
+          <div
+            style={{
+              padding: '9px 14px',
+              background: 'rgba(64, 227, 120, 0.1)',
+              border: '1px solid rgba(64, 227, 120, 0.25)',
+              borderRadius: 12,
+              marginBottom: 10,
+              fontSize: 12,
+              color: 'var(--chatter-primary)',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <span>📨</span>
+            <span>Initial message request sent. You can chat further once {channelName || 'peer'} accepts your request.</span>
+          </div>
+        )}
+
         <form
           onSubmit={handleSendMessage}
           style={{
@@ -677,7 +821,14 @@ export default function ChatterChatRoom({
           {/* Text Input */}
           <input
             type="text"
-            placeholder={`Message #${channelName || 'room'}...`}
+            disabled={channelType === 'dm' && dmRequestStatus === 'pending' && requestedBy && String(requestedBy) === String(userId) && messages.length >= 1}
+            placeholder={
+              channelType === 'dm' && dmRequestStatus === 'pending' && requestedBy && String(requestedBy) === String(userId) && messages.length >= 1
+                ? `Waiting for ${channelName || 'peer'} to accept request...`
+                : channelType === 'dm'
+                ? `Message @${channelName || 'partner'}...`
+                : `Message #${channelName || 'room'}...`
+            }
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             style={{
@@ -693,7 +844,11 @@ export default function ChatterChatRoom({
           {/* Send Button */}
           <button
             type="submit"
-            disabled={(!inputText.trim() && !attachedImage) || sending}
+            disabled={
+              (!inputText.trim() && !attachedImage) ||
+              sending ||
+              (channelType === 'dm' && dmRequestStatus === 'pending' && requestedBy && String(requestedBy) === String(userId) && messages.length >= 1)
+            }
             style={{
               width: 38,
               height: 38,

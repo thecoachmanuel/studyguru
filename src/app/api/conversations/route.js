@@ -44,6 +44,8 @@ export async function GET(req) {
       return {
         id: c._id.toString(),
         participants: c.participants,
+        status: c.status || 'accepted',
+        requested_by: c.requested_by || null,
         last_message: c.last_message || null,
         updated_at: c.updated_at,
         other_user: {
@@ -98,6 +100,8 @@ export async function POST(req) {
       const newConv = {
         participants: [userId, recipient_id],
         type: 'direct',
+        status: 'pending',
+        requested_by: userId,
         last_message: null,
         created_at: now,
         updated_at: now,
@@ -114,6 +118,8 @@ export async function POST(req) {
     return NextResponse.json({
       id: conv._id.toString(),
       participants: conv.participants,
+      status: conv.status || 'accepted',
+      requested_by: conv.requested_by || null,
       last_message: conv.last_message,
       updated_at: conv.updated_at,
       other_user: {

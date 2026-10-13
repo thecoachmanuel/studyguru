@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { getDatabase } from '@/lib/mongodb';
+import { getDatabase, safeObjectId } from '@/lib/mongodb';
 
 export async function POST(req) {
   try {
@@ -11,16 +11,22 @@ export async function POST(req) {
 
     const { invite_code } = await req.json();
     if (!invite_code || !invite_code.trim()) {
-      return NextResponse.json({ error: 'Invite code is required' }, { status: 400 });
+      return NextResponse.json({ error: 'Room ID or Invite code is required' }, { status: 400 });
     }
 
     const code = invite_code.trim();
     const userId = session.user.id;
     const db = await getDatabase();
 
-    const server = await db.collection('servers').findOne({ invite_code: code });
+    const server = await db.collection('servers').findOne({
+      $or: [
+        { invite_code: code },
+        { _id: safeObjectId(code) },
+        { id: code },
+      ],
+    });
     if (!server) {
-      return NextResponse.json({ error: 'Invalid invite code or server not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Invalid room code/ID or study room not found' }, { status: 404 });
     }
 
     const serverId = server._id.toString();

@@ -24,6 +24,31 @@ export async function GET(req, { params }) {
       return NextResponse.json({ error: 'Conversation not found or unauthorized' }, { status: 404 });
     }
 
+    // Mark unread messages sent by peer as read
+    const unreadUpdate = await db.collection('messages').updateMany(
+      {
+        conversation_id: conversationId,
+        user_id: { $ne: userId },
+        $or: [{ is_read: { $ne: true } }, { is_read: null }],
+      },
+      {
+        $set: { is_read: true, read_at: new Date() },
+      }
+    );
+
+    if (unreadUpdate.modifiedCount > 0) {
+      try {
+        const pusher = getPusherServer();
+        if (pusher) {
+          await pusher.trigger(`conversation-${conversationId}`, 'messages-read', {
+            conversationId,
+            readBy: userId,
+            readAt: new Date().toISOString(),
+          });
+        }
+      } catch (pushErr) {}
+    }
+
     const messages = await db.collection('messages')
       .find({
         conversation_id: conversationId,
@@ -55,7 +80,9 @@ export async function GET(req, { params }) {
         conversation_id: conversationId,
         user_id: m.user_id,
         content: m.content,
+        attachment_url: m.attachment_url || null,
         reactions: m.reactions || [],
+        is_read: Boolean(m.is_read || m.read_at),
         created_at: m.created_at,
         profiles: {
           id: m.user_id,
@@ -93,7 +120,7 @@ export async function POST(req, { params }) {
       } catch {}
     }
 
-    const { content = '' } = body || {};
+    const { content = '', attachment_url = null } = body || {};
     if (!content || !content.trim()) {
       return NextResponse.json({ error: 'Message content is required' }, { status: 400 });
     }
@@ -109,12 +136,37 @@ export async function POST(req, { params }) {
       return NextResponse.json({ error: 'Conversation not found or unauthorized' }, { status: 404 });
     }
 
+    // Check message request state
+    if (conv.status === 'pending') {
+      if (conv.requested_by === userId) {
+        // Check if user has already sent an initial message request
+        const existingCount = await db.collection('messages').countDocuments({
+          conversation_id: conversationId,
+          user_id: userId,
+        });
+        if (existingCount >= 1) {
+          return NextResponse.json({
+            error: 'Message request sent. Please wait for the recipient to accept your request before sending more messages.',
+            isRequestPending: true,
+          }, { status: 403 });
+        }
+      } else {
+        // The recipient is replying, auto-accept the conversation!
+        await db.collection('conversations').updateOne(
+          { $or: [{ _id: convObjId }, { id: conversationId }] },
+          { $set: { status: 'accepted', updated_at: new Date() } }
+        );
+      }
+    }
+
     const now = new Date();
     const newMessage = {
       conversation_id: conversationId,
       user_id: userId,
       content: content.trim(),
+      attachment_url: attachment_url || null,
       reactions: [],
+      is_read: false,
       deleted_at: null,
       created_at: now,
       updated_at: now,
@@ -147,13 +199,15 @@ export async function POST(req, { params }) {
       conversation_id: conversationId,
       user_id: userId,
       content: newMessage.content,
+      attachment_url: newMessage.attachment_url,
       reactions: [],
-      created_at: now,
+      is_read: false,
+      created_at: now.toISOString(),
       profiles: {
         id: userId,
-        username: author?.username || session.user.name || 'User',
-        name: author?.name || session.user.name || 'User',
-        avatar_url: author?.avatar_url || session.user.image || null,
+        username: author?.username || author?.name || 'User',
+        name: author?.name || author?.username || 'User',
+        avatar_url: author?.avatar_url || author?.image || null,
       },
     };
 

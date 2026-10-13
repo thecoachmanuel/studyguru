@@ -19,6 +19,8 @@ export default function ChatterGuruView({
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const MAX_DOCS = 5;
+
   // Uploaded Documents state
   const [uploadedDocs, setUploadedDocs] = useState([
     {
@@ -47,10 +49,42 @@ export default function ChatterGuruView({
     '📐 Explain like I am 5',
   ];
 
+  // Delete an indexed document
+  const handleDeleteDoc = (docId, docFilename) => {
+    setUploadedDocs((prev) => prev.filter((d) => d.doc_id !== docId));
+    if (selectedDocId === docId) {
+      setSelectedDocId(null);
+    }
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `g-delete-${Date.now()}`,
+        role: 'assistant',
+        content: `🗑️ Removed **${docFilename || 'study document'}** from your knowledge index. Space is now available for new study notes!`,
+        timestamp: 'Just now',
+      },
+    ]);
+  };
+
   // Handle Document Upload to /api/rag/upload
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (uploadedDocs.length >= MAX_DOCS) {
+      setDocsPanelOpen(true);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `g-limit-${Date.now()}`,
+          role: 'assistant',
+          content: `⚠️ **Upload Limit Reached**: You have reached the maximum of ${MAX_DOCS} study documents. Please delete an older document from the **Notes (${uploadedDocs.length}/${MAX_DOCS})** panel before indexing new files.`,
+          timestamp: 'Just now',
+        },
+      ]);
+      if (docFileInputRef.current) docFileInputRef.current.value = '';
+      return;
+    }
 
     setUploadingDoc(true);
     setUploadFileName(file.name);
@@ -403,7 +437,7 @@ export default function ChatterGuruView({
               transition: 'all 0.15s ease',
             }}
           >
-            <span>📚 Notes ({uploadedDocs.length})</span>
+            <span>📚 Notes ({uploadedDocs.length}/{MAX_DOCS})</span>
           </button>
 
           <button
@@ -487,24 +521,45 @@ export default function ChatterGuruView({
             </button>
           );
         })}
-        <button
-          type="button"
-          onClick={() => docFileInputRef.current?.click()}
-          disabled={uploadingDoc}
-          style={{
-            padding: '4px 12px',
-            borderRadius: 14,
-            border: '1px dashed rgba(64, 227, 120, 0.4)',
-            background: 'transparent',
-            color: 'var(--chatter-primary)',
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          + Upload
-        </button>
+        {uploadedDocs.length < MAX_DOCS ? (
+          <button
+            type="button"
+            onClick={() => docFileInputRef.current?.click()}
+            disabled={uploadingDoc}
+            style={{
+              padding: '4px 12px',
+              borderRadius: 14,
+              border: '1px dashed rgba(64, 227, 120, 0.4)',
+              background: 'transparent',
+              color: 'var(--chatter-primary)',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            + Upload ({uploadedDocs.length}/{MAX_DOCS})
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setDocsPanelOpen(true)}
+            style={{
+              padding: '4px 12px',
+              borderRadius: 14,
+              border: '1px solid rgba(245, 158, 11, 0.4)',
+              background: 'rgba(245, 158, 11, 0.1)',
+              color: '#f59e0b',
+              fontSize: 11.5,
+              fontWeight: 700,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+            title="Max 5 documents reached. Open panel to delete old notes"
+          >
+            ⚠️ Max 5/5
+          </button>
+        )}
       </div>
 
       {/* ── 2. Collapsible Document Manager Drawer ── */}
@@ -523,28 +578,52 @@ export default function ChatterGuruView({
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--chatter-light-text)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Indexed Course Materials ({uploadedDocs.length})
+              Indexed Course Materials ({uploadedDocs.length}/{MAX_DOCS})
             </span>
             <button
               type="button"
-              onClick={() => docFileInputRef.current?.click()}
-              disabled={uploadingDoc}
+              onClick={() => {
+                if (uploadedDocs.length >= MAX_DOCS) {
+                  return;
+                }
+                docFileInputRef.current?.click();
+              }}
+              disabled={uploadingDoc || uploadedDocs.length >= MAX_DOCS}
               style={{
                 padding: '5px 12px',
                 borderRadius: 14,
-                background: 'var(--chatter-primary)',
+                background: uploadedDocs.length >= MAX_DOCS ? 'rgba(255, 255, 255, 0.08)' : 'var(--chatter-primary)',
                 border: 'none',
-                color: '#0E0E0E',
+                color: uploadedDocs.length >= MAX_DOCS ? '#888' : '#0E0E0E',
                 fontSize: 12,
                 fontWeight: 700,
-                cursor: uploadingDoc ? 'not-allowed' : 'pointer',
+                cursor: (uploadingDoc || uploadedDocs.length >= MAX_DOCS) ? 'not-allowed' : 'pointer',
               }}
             >
-              + Upload File (.pdf, .docx)
+              {uploadedDocs.length >= MAX_DOCS ? `Max Limit (${MAX_DOCS}/${MAX_DOCS})` : '+ Upload File (.pdf, .docx)'}
             </button>
           </div>
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, maxHeight: 160, overflowY: 'auto' }}>
+          {uploadedDocs.length >= MAX_DOCS && (
+            <div
+              style={{
+                fontSize: 12,
+                color: '#f59e0b',
+                background: 'rgba(245, 158, 11, 0.1)',
+                border: '1px solid rgba(245, 158, 11, 0.25)',
+                borderRadius: 10,
+                padding: '6px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <span>⚠️</span>
+              <span>Maximum {MAX_DOCS} documents reached. Click <strong>Delete</strong> on an existing note to upload new ones.</span>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, maxHeight: 180, overflowY: 'auto' }}>
             {uploadedDocs.map((doc) => (
               <div
                 key={doc.doc_id}
@@ -560,7 +639,9 @@ export default function ChatterGuruView({
               >
                 <span style={{ fontSize: 16 }}>📄</span>
                 <div>
-                  <div style={{ fontSize: 12.5, fontWeight: 700, color: '#fff' }}>{doc.filename}</div>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: '#fff', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {doc.filename}
+                  </div>
                   <div style={{ fontSize: 11, color: 'var(--chatter-primary)' }}>
                     {doc.chunksCount} chunks · {doc.status}
                   </div>
@@ -598,6 +679,23 @@ export default function ChatterGuruView({
                     }}
                   >
                     Cards
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteDoc(doc.doc_id, doc.filename)}
+                    style={{
+                      padding: '3px 8px',
+                      borderRadius: 8,
+                      background: 'rgba(239, 68, 68, 0.15)',
+                      border: 'none',
+                      color: '#f87171',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                    title="Delete document to free up index space"
+                  >
+                    ✕ Delete
                   </button>
                 </div>
               </div>

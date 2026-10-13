@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { TwitterVerifiedBadge } from './ChatterFeedView';
 
 export default function ChatterProfileView({
@@ -16,7 +16,13 @@ export default function ChatterProfileView({
   const [activeTab, setActiveTab] = useState('posts'); // 'posts' | 'notes' | 'rooms'
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || '');
   const [bannerUrl, setBannerUrl] = useState('');
+  const [bioText, setBioText] = useState('📚 Studying Computer Science & Machine Learning · Always open to collaborate on projects & exam drills!');
+  const [isEditingBio, setIsEditingBio] = useState(false);
+  const [savingBio, setSavingBio] = useState(false);
+  const [followersCount, setFollowersCount] = useState(14);
   const [toastMessage, setToastMessage] = useState('');
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
 
   const avatarInputRef = useRef(null);
   const bannerInputRef = useRef(null);
@@ -28,26 +34,135 @@ export default function ChatterProfileView({
     setTimeout(() => setToastMessage(''), 2500);
   };
 
-  const handleAvatarChange = (e) => {
+  // Load persistent user profile from MongoDB
+  useEffect(() => {
+    let mounted = true;
+    const fetchProfile = async () => {
+      try {
+        const res = await fetch('/api/user/profile');
+        if (res.ok) {
+          const data = await res.json();
+          if (mounted && data) {
+            if (data.avatar_url) setAvatarUrl(data.avatar_url);
+            if (data.banner_url) setBannerUrl(data.banner_url);
+            if (data.bio) setBioText(data.bio);
+            if (typeof data.followers_count === 'number') setFollowersCount(data.followers_count);
+          }
+        }
+      } catch (err) {
+        console.warn('Profile load notice:', err);
+      }
+    };
+
+    fetchProfile();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleAvatarChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setAvatarUrl(reader.result);
-      showToast('Profile photo updated successfully!');
-    };
-    reader.readAsDataURL(file);
+
+    setUploadingAvatar(true);
+    showToast('Uploading profile photo...');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('prefix', 'studycord/avatars');
+
+      const uploadRes = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!uploadRes.ok) throw new Error('Upload failed');
+      const uploadData = await uploadRes.json();
+      const finalUrl = uploadData.url;
+
+      setAvatarUrl(finalUrl);
+
+      // Save to MongoDB profile
+      await fetch('/api/user/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ avatar_url: finalUrl }),
+      });
+
+      showToast('Profile photo saved!');
+    } catch (err) {
+      console.warn('Avatar upload fallback:', err);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setAvatarUrl(reader.result);
+        showToast('Profile photo updated!');
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setUploadingAvatar(false);
+    }
   };
 
-  const handleBannerChange = (e) => {
+  const handleBannerChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setBannerUrl(reader.result);
-      showToast('Cover banner updated successfully!');
-    };
-    reader.readAsDataURL(file);
+
+    setUploadingBanner(true);
+    showToast('Uploading cover banner...');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('prefix', 'studycord/banners');
+
+      const uploadRes = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!uploadRes.ok) throw new Error('Upload failed');
+      const uploadData = await uploadRes.json();
+      const finalUrl = uploadData.url;
+
+      setBannerUrl(finalUrl);
+
+      // Save to MongoDB profile
+      await fetch('/api/user/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ banner_url: finalUrl }),
+      });
+
+      showToast('Cover banner saved!');
+    } catch (err) {
+      console.warn('Banner upload fallback:', err);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setBannerUrl(reader.result);
+        showToast('Cover banner updated!');
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setUploadingBanner(false);
+    }
+  };
+
+  const handleSaveBio = async () => {
+    setSavingBio(true);
+    try {
+      await fetch('/api/user/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bio: bioText.trim() }),
+      });
+      showToast('Bio updated successfully!');
+      setIsEditingBio(false);
+    } catch (err) {
+      showToast('Failed to save bio');
+    } finally {
+      setSavingBio(false);
+    }
   };
 
   // User's own study posts
@@ -326,11 +441,91 @@ export default function ChatterProfileView({
           @{profile?.username || 'scholar'} · {profile?.email}
         </div>
 
-        <p style={{ fontSize: 13.5, color: '#D4D4D4', lineHeight: 1.5, margin: '0 0 16px 0' }}>
-          📚 Studying Computer Science & Machine Learning · Always open to collaborate on projects & exam drills!
-        </p>
+        {/* Bio Section with Edit capability */}
+        {isEditingBio ? (
+          <div style={{ marginBottom: 16 }}>
+            <textarea
+              value={bioText}
+              onChange={(e) => setBioText(e.target.value)}
+              rows={3}
+              style={{
+                width: '100%',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid var(--chatter-primary)',
+                borderRadius: 12,
+                color: '#fff',
+                padding: '10px 12px',
+                fontSize: 13.5,
+                lineHeight: 1.5,
+                outline: 'none',
+                resize: 'none',
+                fontFamily: 'inherit',
+                boxSizing: 'border-box',
+              }}
+              placeholder="Write your study bio, major, or research interests..."
+            />
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button
+                type="button"
+                onClick={handleSaveBio}
+                disabled={savingBio}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 16,
+                  background: 'var(--chatter-primary)',
+                  border: 'none',
+                  color: '#0E0E0E',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: savingBio ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {savingBio ? 'Saving...' : 'Save Bio'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsEditingBio(false)}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: 16,
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: 'none',
+                  color: '#fff',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, margin: '0 0 16px 0' }}>
+            <p style={{ fontSize: 13.5, color: '#D4D4D4', lineHeight: 1.5, margin: 0, flex: 1 }}>
+              {bioText}
+            </p>
+            <button
+              type="button"
+              onClick={() => setIsEditingBio(true)}
+              style={{
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: 'none',
+                color: 'var(--chatter-light-text)',
+                fontSize: 11.5,
+                fontWeight: 600,
+                padding: '4px 10px',
+                borderRadius: 14,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              ✏️ Edit
+            </button>
+          </div>
+        )}
 
-        {/* ── 3. Study Stats Grid ── */}
+        {/* ── 3. Study Stats Grid with Followers and Following ── */}
         <div
           style={{
             display: 'grid',
@@ -340,16 +535,16 @@ export default function ChatterProfileView({
           }}
         >
           <div style={{ background: 'var(--chatter-sheet)', borderRadius: 14, padding: '12px 8px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--chatter-primary)' }}>48h</div>
-            <div style={{ fontSize: 11, color: 'var(--chatter-light-text)' }}>Study Time</div>
-          </div>
-          <div style={{ background: 'var(--chatter-sheet)', borderRadius: 14, padding: '12px 8px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
             <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--chatter-primary)' }}>14</div>
             <div style={{ fontSize: 11, color: 'var(--chatter-light-text)' }}>Notes Shared</div>
           </div>
           <div style={{ background: 'var(--chatter-sheet)', borderRadius: 14, padding: '12px 8px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
             <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--chatter-primary)' }}>7🔥</div>
             <div style={{ fontSize: 11, color: 'var(--chatter-light-text)' }}>Day Streak</div>
+          </div>
+          <div style={{ background: 'var(--chatter-sheet)', borderRadius: 14, padding: '12px 8px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--chatter-primary)' }}>{followersCount}</div>
+            <div style={{ fontSize: 11, color: 'var(--chatter-light-text)' }}>Followers</div>
           </div>
           <div style={{ background: 'var(--chatter-sheet)', borderRadius: 14, padding: '12px 8px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
             <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--chatter-primary)' }}>{followingCount}</div>

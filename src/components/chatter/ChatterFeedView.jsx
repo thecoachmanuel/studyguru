@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import SnapshotRail from '@/components/SnapshotRail';
 import ChatterUserProfileModal from './ChatterUserProfileModal';
 import ChatterCommentsSheet from './ChatterCommentsSheet';
+import { getPusherClient } from '@/lib/pusherClient';
 
 export function TwitterVerifiedBadge() {
   return (
@@ -29,60 +30,8 @@ export default function ChatterFeedView({
   followingMap = {},
   onToggleFollow,
 }) {
-  const [posts, setPosts] = useState([
-    {
-      id: 'p1',
-      author: {
-        id: 'u-sarah',
-        name: 'Sarah Chen',
-        username: 'schen_ai',
-        avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&auto=format&fit=crop&q=80',
-        followersCount: 42,
-        bio: 'Senior studying AI & Computational Neuroscience · Passionate about vector calculus & transformers.',
-      },
-      tag: '#CalculusIII',
-      text: 'Just finished deriving Stokes’ Theorem with vector line integrals! 📐 Remember: boundary orientation must always match the surface normal by the right-hand rule.',
-      timestamp: '25m ago',
-      likes: 14,
-      liked: false,
-      comments: 3,
-      attachmentUrl: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=600&auto=format&fit=crop&q=80',
-    },
-    {
-      id: 'p2',
-      author: {
-        id: 'u-alex',
-        name: 'Alex Rivera',
-        username: 'arivera_cs',
-        avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
-        followersCount: 31,
-        bio: 'Computer Science Major · Building open-source machine learning tooling.',
-      },
-      tag: '#DeepLearning',
-      text: 'Quick tip for training Transformers: Always normalize your layer inputs before Multi-Head Attention (Pre-LN) for smoother gradients and no warmup spikes! 🚀',
-      timestamp: '1h ago',
-      likes: 29,
-      liked: true,
-      comments: 7,
-    },
-    {
-      id: 'p3',
-      author: {
-        id: 'u-emily',
-        name: 'Emily Watson',
-        username: 'em_bio',
-        avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
-        followersCount: 56,
-        bio: 'Pre-Med Scholar · Biochemistry & Cellular Biology study groups.',
-      },
-      tag: '#Biochemistry',
-      text: 'Citric Acid Cycle study group starting in 15 minutes in the Live Audio Space! Jump in if you need a quick review for tomorrow’s midterm. 🧬🔬',
-      timestamp: '2h ago',
-      likes: 18,
-      liked: false,
-      comments: 5,
-    },
-  ]);
+  const [posts, setPosts] = useState([]);
+  const [loadingPosts, setLoadingPosts] = useState(true);
 
   const [localFollowing, setLocalFollowing] = useState({});
   const activeFollowing = { ...localFollowing, ...followingMap };
@@ -96,7 +45,90 @@ export default function ChatterFeedView({
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef(null);
 
-  const handleLike = (id) => {
+  // 1. Fetch persistent posts from MongoDB
+  useEffect(() => {
+    let mounted = true;
+    const fetchPosts = async () => {
+      try {
+        const res = await fetch('/api/posts');
+        if (res.ok) {
+          const data = await res.json();
+          if (mounted && Array.isArray(data)) {
+            setPosts(data);
+          }
+        }
+      } catch (err) {
+        console.warn('Could not load posts:', err);
+      } finally {
+        if (mounted) setLoadingPosts(false);
+      }
+    };
+
+    fetchPosts();
+
+    // 2. Real-time Pusher listener for feed updates
+    let channel = null;
+    try {
+      const pusher = getPusherClient();
+      if (pusher) {
+        channel = pusher.subscribe('feed');
+
+        channel.bind('new-post', (newP) => {
+          if (!mounted || !newP) return;
+          setPosts((prev) => {
+            if (prev.some((p) => p.id === newP.id)) return prev;
+            return [newP, ...prev];
+          });
+        });
+
+        channel.bind('post-liked', ({ postId, likes, userId: likeUserId }) => {
+          if (!mounted || !postId) return;
+          setPosts((prev) =>
+            prev.map((p) => {
+              if (p.id === postId) {
+                return {
+                  ...p,
+                  likes,
+                  liked: likeUserId === String(userId) ? p.liked : p.liked,
+                };
+              }
+              return p;
+            })
+          );
+        });
+
+        channel.bind('new-comment', ({ postId, comment, commentsCount }) => {
+          if (!mounted || !postId) return;
+          setPosts((prev) =>
+            prev.map((p) => {
+              if (p.id === postId) {
+                const list = p.commentsList || [];
+                const already = list.some((c) => c.id === comment.id);
+                return {
+                  ...p,
+                  comments: commentsCount || p.comments + 1,
+                  commentsList: already ? list : [...list, comment],
+                };
+              }
+              return p;
+            })
+          );
+        });
+      }
+    } catch {}
+
+    return () => {
+      mounted = false;
+      if (channel) {
+        try {
+          channel.unbind_all();
+        } catch {}
+      }
+    };
+  }, [userId]);
+
+  const handleLike = async (id) => {
+    // Optimistic toggle
     setPosts((prev) =>
       prev.map((post) => {
         if (post.id === id) {
@@ -110,6 +142,21 @@ export default function ChatterFeedView({
         return post;
       })
     );
+
+    // Persistent API call
+    try {
+      const res = await fetch(`/api/posts/${id}/like`, { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        setPosts((prev) =>
+          prev.map((post) =>
+            post.id === id ? { ...post, liked: data.liked, likes: data.likes } : post
+          )
+        );
+      }
+    } catch (err) {
+      console.warn('Like sync notice:', err);
+    }
   };
 
   const handleToggleFollow = (authorId) => {
@@ -123,7 +170,8 @@ export default function ChatterFeedView({
     }
   };
 
-  const handleAddComment = (postId, newComment) => {
+  const handleAddComment = async (postId, newComment) => {
+    // Optimistic update
     setPosts((prev) =>
       prev.map((post) => {
         if (post.id === postId) {
@@ -137,6 +185,35 @@ export default function ChatterFeedView({
         return post;
       })
     );
+
+    // Persistent API call
+    try {
+      const res = await fetch(`/api/posts/${postId}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: newComment.text }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.comment) {
+          setPosts((prev) =>
+            prev.map((post) => {
+              if (post.id === postId) {
+                const list = (post.commentsList || []).filter((c) => c.id !== newComment.id);
+                return {
+                  ...post,
+                  comments: data.commentsCount,
+                  commentsList: [...list, data.comment],
+                };
+              }
+              return post;
+            })
+          );
+        }
+      }
+    } catch (err) {
+      console.warn('Comment sync notice:', err);
+    }
   };
 
   const [shareToast, setShareToast] = useState('');
@@ -162,43 +239,101 @@ export default function ChatterFeedView({
     }
   };
 
-  const handleImageFileChange = (e) => {
+  const handleImageFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setUploadingImage(true);
-    const reader = new FileReader();
-    reader.onload = () => {
-      setAttachedImage(reader.result);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAttachedImage(data.url);
+      } else {
+        const reader = new FileReader();
+        reader.onload = () => setAttachedImage(reader.result);
+        reader.readAsDataURL(file);
+      }
+    } catch {
+      const reader = new FileReader();
+      reader.onload = () => setAttachedImage(reader.result);
+      reader.readAsDataURL(file);
+    } finally {
       setUploadingImage(false);
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
-  const handleCreatePost = (e) => {
+  const handleCreatePost = async (e) => {
     e.preventDefault();
     if (!newPostText.trim()) return;
 
-    const newPost = {
-      id: `p-${Date.now()}`,
-      author: {
-        id: userId || 'me',
-        name: profile?.name || 'You',
-        username: profile?.username || 'scholar',
-        avatar_url: profile?.avatar_url || null,
-        followersCount: 1,
-        bio: 'Study enthusiast',
-      },
-      tag: newPostTag.startsWith('#') ? newPostTag : `#${newPostTag}`,
-      text: newPostText,
+    const postPayload = {
+      text: newPostText.trim(),
+      tag: newPostTag,
       attachmentUrl: attachedImage,
-      timestamp: 'Just now',
-      likes: 0,
-      liked: false,
-      comments: 0,
     };
 
-    setPosts([newPost, ...posts]);
+    try {
+      const res = await fetch('/api/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(postPayload),
+      });
+
+      if (res.ok) {
+        const created = await res.json();
+        setPosts((prev) => [created, ...prev.filter((p) => p.id !== created.id)]);
+      } else {
+        // Fallback optimistic post
+        const fallbackPost = {
+          id: `p-${Date.now()}`,
+          author: {
+            id: userId || 'me',
+            name: profile?.name || 'You',
+            username: profile?.username || 'scholar',
+            avatar_url: profile?.avatar_url || null,
+            followersCount: 1,
+            bio: 'Study enthusiast',
+          },
+          tag: newPostTag.startsWith('#') ? newPostTag : `#${newPostTag}`,
+          text: newPostText,
+          attachmentUrl: attachedImage,
+          timestamp: 'Just now',
+          likes: 0,
+          liked: false,
+          comments: 0,
+          commentsList: [],
+        };
+        setPosts((prev) => [fallbackPost, ...prev]);
+      }
+    } catch {
+      const fallbackPost = {
+        id: `p-${Date.now()}`,
+        author: {
+          id: userId || 'me',
+          name: profile?.name || 'You',
+          username: profile?.username || 'scholar',
+          avatar_url: profile?.avatar_url || null,
+          followersCount: 1,
+          bio: 'Study enthusiast',
+        },
+        tag: newPostTag.startsWith('#') ? newPostTag : `#${newPostTag}`,
+        text: newPostText,
+        attachmentUrl: attachedImage,
+        timestamp: 'Just now',
+        likes: 0,
+        liked: false,
+        comments: 0,
+        commentsList: [],
+      };
+      setPosts((prev) => [fallbackPost, ...prev]);
+    }
+
     setNewPostText('');
     setAttachedImage(null);
     setCreateModalOpen(false);

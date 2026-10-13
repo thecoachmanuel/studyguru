@@ -9,32 +9,13 @@ export default function ChatterCommentsSheet({
   profile,
   userId,
 }) {
-  const [comments, setComments] = useState(post?.commentsList || [
-    {
-      id: 'c1',
-      author: {
-        id: 'u-user1',
-        name: 'Jordan Lee',
-        avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
-      },
-      text: 'This breakdown is so helpful! Can you also share your cheat sheet for polar coordinates?',
-      timestamp: '15m ago',
-      likes: 3,
-      liked: false,
-    },
-    {
-      id: 'c2',
-      author: {
-        id: 'u-user2',
-        name: 'Maya Patel',
-        avatar_url: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&auto=format&fit=crop&q=80',
-      },
-      text: 'Agreed! We covered this exact proof in lecture yesterday. Good catch on the surface orientation.',
-      timestamp: '8m ago',
-      likes: 1,
-      liked: false,
-    },
-  ]);
+  const [comments, setComments] = useState(post?.commentsList || []);
+
+  useEffect(() => {
+    if (Array.isArray(post?.commentsList)) {
+      setComments(post.commentsList);
+    }
+  }, [post?.commentsList]);
 
   const [newCommentText, setNewCommentText] = useState('');
   const commentsEndRef = useRef(null);

@@ -28,6 +28,7 @@ import ChatterAudioSpaceModal from '@/components/chatter/ChatterAudioSpaceModal'
 import ChatterUserProfileModal from '@/components/chatter/ChatterUserProfileModal';
 import ChatterSearchModal from '@/components/chatter/ChatterSearchModal';
 import ChatterNewDMSheet from '@/components/chatter/ChatterNewDMSheet';
+import ChatterRoomActionModal from '@/components/chatter/ChatterRoomActionModal';
 
 function moveChannelLocally(channels, channelId, beforeChannelId, afterChannelId) {
   const movedChannel = channels.find((channel) => channel.id === channelId);
@@ -1035,6 +1036,25 @@ export default function DashboardPage() {
         members={members}
         currentUserId={user?.id}
         onSelectUser={handleStartDM}
+      />
+
+      {/* ── Chatter Room Action Modal (Create & Join Study Rooms) ── */}
+      <ChatterRoomActionModal
+        isOpen={Boolean(serverActionModal)}
+        mode={serverActionModal || 'create'}
+        onClose={() => setServerActionModal(null)}
+        onRoomCreated={(newServer) => {
+          setServers((prev) => [newServer, ...prev.filter((s) => s.id !== newServer.id)]);
+          handleSelectServer(newServer.id);
+          setChatterTab('chats');
+          showToast(`Study room "${newServer.name}" created!`);
+        }}
+        onRoomJoined={(joinedServer) => {
+          setServers((prev) => [joinedServer, ...prev.filter((s) => s.id !== joinedServer.id)]);
+          handleSelectServer(joinedServer.id);
+          setChatterTab('chats');
+          showToast(`Joined study room "${joinedServer.name}"!`);
+        }}
       />
     </div>
   );
