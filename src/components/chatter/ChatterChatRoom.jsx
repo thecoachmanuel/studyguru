@@ -3,16 +3,19 @@
 import { useState, useEffect, useRef } from 'react';
 import { apiRequest } from '@/lib/api';
 import { getPusherClient } from '@/lib/pusherClient';
+import { TwitterVerifiedBadge } from './ChatterFeedView';
 
 const STUDY_EMOJIS = ['👍', '💡', '❓', '🔥', '✅'];
 
 export default function ChatterChatRoom({
   channelId,
   channelName,
+  channelType = 'text',
   serverId,
   serverName,
   userId,
   profile,
+  isPartnerOnline = true,
   onBack,
   onStartAudioCall,
   onStartVideoCall,
@@ -232,7 +235,7 @@ export default function ChatterChatRoom({
                 height: 42,
                 borderRadius: 14,
                 background: '#242424',
-                color: 'var(--chatter-primary)',
+                color: channelType === 'voice' ? 'var(--chatter-primary)' : '#fff',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -240,30 +243,59 @@ export default function ChatterChatRoom({
                 fontWeight: 700,
               }}
             >
-              {channelName?.[0]?.toUpperCase() || '#'}
+              {channelType === 'voice' ? '🎙️' : channelType === 'dm' ? (channelName?.[0]?.toUpperCase() || 'U') : '#'}
             </div>
-            <span
-              style={{
-                position: 'absolute',
-                bottom: -1,
-                right: -1,
-                width: 10,
-                height: 10,
-                borderRadius: '50%',
-                background: 'var(--chatter-primary)',
-                border: '2px solid var(--chatter-sheet)',
-              }}
-            />
+            {channelType === 'dm' && (
+              isPartnerOnline ? (
+                <span
+                  style={{
+                    position: 'absolute',
+                    bottom: -1,
+                    right: -1,
+                    width: 10,
+                    height: 10,
+                    borderRadius: '50%',
+                    background: 'var(--chatter-primary)',
+                    border: '2px solid var(--chatter-sheet)',
+                  }}
+                  title="Online"
+                />
+              ) : (
+                <span
+                  style={{
+                    position: 'absolute',
+                    bottom: -1,
+                    right: -1,
+                    width: 10,
+                    height: 10,
+                    borderRadius: '50%',
+                    background: 'rgba(255, 255, 255, 0.3)',
+                    border: '2px solid var(--chatter-sheet)',
+                  }}
+                  title="Offline"
+                />
+              )
+            )}
           </div>
 
           <div>
-            <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 2px 0', color: '#fff' }}>
-              {channelName?.startsWith('#') ? channelName : channelName || 'Study Conversation'}
-            </h3>
-            <div style={{ fontSize: 11.5, color: 'var(--chatter-primary)', display: 'flex', alignItems: 'center', gap: 5 }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--chatter-primary)' }} />
-              <span>{serverName ? `${serverName} · Discussion` : 'Active now'}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#fff' }}>
+                {channelName?.startsWith('#') ? channelName : channelName || 'Study Conversation'}
+              </h3>
+              {channelType === 'dm' && <TwitterVerifiedBadge />}
             </div>
+            {channelType === 'dm' ? (
+              <div style={{ fontSize: 11.5, color: isPartnerOnline ? 'var(--chatter-primary)' : 'var(--chatter-light-text)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: isPartnerOnline ? 'var(--chatter-primary)' : 'rgba(255, 255, 255, 0.35)' }} />
+                <span>{isPartnerOnline ? 'Active now' : 'Offline · Last seen recently'}</span>
+              </div>
+            ) : (
+              <div style={{ fontSize: 11.5, color: 'var(--chatter-light-text)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgba(255, 255, 255, 0.4)' }} />
+                <span>{serverName ? `${serverName} · Discussion` : 'Study Channel'}</span>
+              </div>
+            )}
           </div>
         </div>
 

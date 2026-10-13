@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import ChatbotIcon from '@/components/ChatbotIcon';
+import ChatMarkdownMessage from '@/components/ChatMarkdownMessage';
 
 export default function ChatterGuruView({
   channelName,
@@ -27,6 +28,7 @@ export default function ChatterGuruView({
       status: 'Indexed & Ready',
     },
   ]);
+  const [selectedDocId, setSelectedDocId] = useState(null); // null = All Knowledge
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [uploadFileName, setUploadFileName] = useState('');
   const [docsPanelOpen, setDocsPanelOpen] = useState(false);
@@ -281,6 +283,7 @@ export default function ChatterGuruView({
           query: text,
           serverId,
           channelName,
+          documentId: selectedDocId,
         }),
       });
 
@@ -344,11 +347,11 @@ export default function ChatterGuruView({
           flexShrink: 0,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div
             style={{
-              width: 40,
-              height: 40,
+              width: 38,
+              height: 38,
               borderRadius: 14,
               background: 'rgba(64, 227, 120, 0.16)',
               color: 'var(--chatter-primary)',
@@ -359,18 +362,9 @@ export default function ChatterGuruView({
           >
             <ChatbotIcon size={22} />
           </div>
-          <div>
-            <h3 style={{ fontSize: 15.5, fontWeight: 800, margin: '0 0 2px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span>StudyGuru AI</span>
-              <span style={{ fontSize: 11, background: 'rgba(64, 227, 120, 0.18)', color: 'var(--chatter-primary)', padding: '2px 7px', borderRadius: 10, fontWeight: 700 }}>
-                RAG 2.0
-              </span>
-            </h3>
-            <p style={{ fontSize: 11.5, color: 'var(--chatter-light-text)', margin: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--chatter-primary)' }} />
-              Active Partner · Vector Textbook Search
-            </p>
-          </div>
+          <h3 style={{ fontSize: 16.5, fontWeight: 800, margin: 0, color: '#fff' }}>
+            StudyGuru AI
+          </h3>
         </div>
 
         {/* Header Actions: Docs Tray + New Chat */}
@@ -421,6 +415,87 @@ export default function ChatterGuruView({
             ↺ Reset
           </button>
         </div>
+      </div>
+
+      {/* ── 1b. Chat Target (Active Note Selector) ── */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          overflowX: 'auto',
+          padding: '8px 18px',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+          background: 'var(--chatter-black)',
+          scrollbarWidth: 'none',
+          flexShrink: 0,
+        }}
+      >
+        <span style={{ fontSize: 11, color: 'var(--chatter-light-text)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
+          Target:
+        </span>
+        <button
+          type="button"
+          onClick={() => setSelectedDocId(null)}
+          style={{
+            padding: '4px 12px',
+            borderRadius: 14,
+            border: selectedDocId === null ? '1.5px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
+            background: selectedDocId === null ? 'rgba(64, 227, 120, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+            color: selectedDocId === null ? 'var(--chatter-primary)' : '#D4D4D4',
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          🌐 All Notes
+        </button>
+        {uploadedDocs.map((doc) => {
+          const isSelected = selectedDocId === doc.doc_id;
+          return (
+            <button
+              key={doc.doc_id}
+              type="button"
+              onClick={() => setSelectedDocId(doc.doc_id)}
+              style={{
+                padding: '4px 12px',
+                borderRadius: 14,
+                border: isSelected ? '1.5px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
+                background: isSelected ? 'rgba(64, 227, 120, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                color: isSelected ? 'var(--chatter-primary)' : '#D4D4D4',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+              }}
+            >
+              <span>📄 {doc.filename}</span>
+              {isSelected && <span style={{ fontSize: 11, color: 'var(--chatter-primary)' }}>✓</span>}
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => docFileInputRef.current?.click()}
+          disabled={uploadingDoc}
+          style={{
+            padding: '4px 12px',
+            borderRadius: 14,
+            border: '1px dashed rgba(64, 227, 120, 0.4)',
+            background: 'transparent',
+            color: 'var(--chatter-primary)',
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          + Upload
+        </button>
       </div>
 
       {/* ── 2. Collapsible Document Manager Drawer ── */}
@@ -555,10 +630,14 @@ export default function ChatterGuruView({
                   fontSize: 14.5,
                   lineHeight: 1.55,
                   boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
-                  whiteSpace: 'pre-wrap',
+                  whiteSpace: isUser ? 'pre-wrap' : undefined,
                 }}
               >
-                {m.content}
+                {isUser ? (
+                  m.content
+                ) : (
+                  <ChatMarkdownMessage content={m.content} />
+                )}
 
                 {/* Interactive Quiz Component */}
                 {m.quizData && (
@@ -710,7 +789,11 @@ export default function ChatterGuruView({
           <input
             ref={inputRef}
             type="text"
-            placeholder="Ask StudyGuru or upload lecture notes..."
+            placeholder={
+              uploadedDocs.find((d) => d.doc_id === selectedDocId)
+                ? `Ask about ${uploadedDocs.find((d) => d.doc_id === selectedDocId)?.filename}...`
+                : 'Ask StudyGuru or upload lecture notes...'
+            }
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             style={{

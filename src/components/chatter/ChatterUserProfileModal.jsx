@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { TwitterVerifiedBadge } from './ChatterFeedView';
 
 export default function ChatterUserProfileModal({
   targetUser,
@@ -141,9 +142,12 @@ export default function ChatterUserProfileModal({
           </div>
 
           {/* Name & Bio */}
-          <h3 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: '0 0 2px 0' }}>
-            {targetUser.name}
-          </h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+            <h3 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 }}>
+              {targetUser.name}
+            </h3>
+            <TwitterVerifiedBadge />
+          </div>
           <div style={{ fontSize: 12.5, color: 'var(--chatter-light-text)', marginBottom: 8 }}>
             @{targetUser.username || targetUser.name?.toLowerCase().replace(/\s+/g, '_')}
           </div>

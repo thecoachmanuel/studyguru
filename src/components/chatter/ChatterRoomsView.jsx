@@ -16,6 +16,18 @@ export default function ChatterRoomsView({
 
   const interests = ['All', 'Computer Science', 'Mathematics', 'Biology', 'Medicine', 'Physics', 'Law'];
 
+  // Categorize study servers dynamically
+  const getServerCategory = (server) => {
+    const name = (server.name || '').toLowerCase();
+    if (name.includes('math') || name.includes('calc') || name.includes('algebra')) return 'Mathematics';
+    if (name.includes('code') || name.includes('cs') || name.includes('comp') || name.includes('algo') || name.includes('prog')) return 'Computer Science';
+    if (name.includes('bio') || name.includes('med')) return 'Medicine';
+    if (name.includes('chem')) return 'Biology';
+    if (name.includes('phys')) return 'Physics';
+    if (name.includes('law')) return 'Law';
+    return 'Computer Science';
+  };
+
   // Simulated live audio study spaces matching Chatter
   const [audioSpaces] = useState([
     {
@@ -43,7 +55,18 @@ export default function ChatterRoomsView({
     },
     {
       id: 'space-3',
-      title: 'Silent Pomodoro Room (50/10) ⏳ Concentration',
+      title: 'Calculus III & Differential Equations Workshop 📐',
+      category: 'Mathematics',
+      tags: ['#Calculus', '#Integration', '#LinearAlgebra'],
+      listenersCount: 19,
+      speakers: [
+        { name: 'Alex', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80' },
+        { name: 'Kenji', avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&auto=format&fit=crop&q=80' },
+      ],
+    },
+    {
+      id: 'space-4',
+      title: 'Silent Pomodoro Study Room (50/10) ⏳ Concentration',
       category: 'All',
       tags: ['#Pomodoro', '#DeepWork', '#Focus'],
       listenersCount: 22,
@@ -57,9 +80,13 @@ export default function ChatterRoomsView({
     ? audioSpaces
     : audioSpaces.filter((s) => s.category === selectedInterest || s.category === 'All');
 
+  const filteredServers = selectedInterest === 'All'
+    ? servers
+    : servers.filter((s) => getServerCategory(s) === selectedInterest);
+
   return (
     <div style={{ paddingBottom: 'calc(84px + env(safe-area-inset-bottom))', maxWidth: 680, margin: '0 auto', width: '100%' }}>
-      {/* ── 1. Top Interests Filter Carousel ── */}
+      {/* ── 1. Top Subject & Interest Carousel ── */}
       <div
         style={{
           display: 'flex',
@@ -68,6 +95,7 @@ export default function ChatterRoomsView({
           padding: '12px 16px',
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
         }}
       >
         {interests.map((tag) => {
@@ -78,7 +106,7 @@ export default function ChatterRoomsView({
               type="button"
               onClick={() => setSelectedInterest(tag)}
               style={{
-                padding: '7px 15px',
+                padding: '7px 16px',
                 borderRadius: 20,
                 fontSize: 13,
                 fontWeight: 600,
@@ -96,23 +124,200 @@ export default function ChatterRoomsView({
         })}
       </div>
 
-      {/* ── 2. Live Audio Spaces Section ── */}
+      {/* ── 2. Study Rooms (Primary High-Priority Section) ── */}
+      <div style={{ padding: '16px 16px 8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+          <div>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>Study Rooms</span>
+              <span style={{ fontSize: 12, background: 'rgba(64, 227, 120, 0.16)', color: 'var(--chatter-primary)', padding: '2px 8px', borderRadius: 12, fontWeight: 700 }}>
+                {filteredServers.length}
+              </span>
+            </h2>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              type="button"
+              onClick={onJoinServer}
+              style={{
+                padding: '6px 13px',
+                borderRadius: 16,
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: 'none',
+                color: '#fff',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Join Code
+            </button>
+            <button
+              type="button"
+              onClick={onCreateServer}
+              style={{
+                padding: '6px 14px',
+                borderRadius: 16,
+                background: 'var(--chatter-primary)',
+                border: 'none',
+                color: '#0E0E0E',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              + Create Room
+            </button>
+          </div>
+        </div>
+        <p style={{ fontSize: 12.5, color: 'var(--chatter-light-text)', margin: '0 0 14px 0' }}>
+          Collaborative course groups, textbook revision channels, and shared study materials.
+        </p>
+
+        {filteredServers.length === 0 ? (
+          <div
+            style={{
+              padding: '28px 16px',
+              textAlign: 'center',
+              background: 'var(--chatter-sheet)',
+              borderRadius: 16,
+              border: '1px solid rgba(255, 255, 255, 0.05)',
+              marginBottom: 16,
+            }}
+          >
+            <div style={{ fontSize: 24, marginBottom: 8 }}>📚</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>No study rooms under #{selectedInterest}</div>
+            <button
+              type="button"
+              onClick={() => setSelectedInterest('All')}
+              style={{
+                marginTop: 10,
+                padding: '5px 14px',
+                borderRadius: 14,
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: 'none',
+                color: 'var(--chatter-primary)',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              View All Study Rooms
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+            {filteredServers.map((server) => {
+              const isCurrent = activeServerId === server.id;
+              const channelsCount = server.channels?.length || 0;
+              const category = getServerCategory(server);
+              return (
+                <div
+                  key={server.id}
+                  onClick={() => onSelectServer(server.id)}
+                  style={{
+                    background: 'var(--chatter-sheet)',
+                    border: isCurrent ? '1.5px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.06)',
+                    borderRadius: 16,
+                    padding: 14,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    {server.icon_url ? (
+                      <img
+                        src={server.icon_url}
+                        alt={server.name}
+                        style={{ width: 46, height: 46, borderRadius: 14, objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: 46,
+                          height: 46,
+                          borderRadius: 14,
+                          background: '#242424',
+                          color: 'var(--chatter-primary)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 800,
+                          fontSize: 18,
+                        }}
+                      >
+                        {server.name?.[0]?.toUpperCase() || 'S'}
+                      </div>
+                    )}
+
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                        <h4 style={{ fontSize: 15, fontWeight: 700, color: '#fff', margin: 0 }}>
+                          {server.name}
+                        </h4>
+                        <span style={{ fontSize: 11, background: 'rgba(255, 255, 255, 0.06)', color: 'var(--chatter-light-text)', padding: '1px 7px', borderRadius: 10 }}>
+                          #{category}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--chatter-light-text)' }}>
+                        {channelsCount} study channels · {server.member_count || 1} members
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {isCurrent ? (
+                      <span style={{ fontSize: 11, background: 'rgba(64, 227, 120, 0.15)', color: 'var(--chatter-primary)', padding: '5px 10px', borderRadius: 12, fontWeight: 700 }}>
+                        Active Room
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        style={{
+                          padding: '6px 14px',
+                          borderRadius: 14,
+                          background: 'rgba(255, 255, 255, 0.08)',
+                          border: 'none',
+                          color: '#fff',
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Enter
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ── 3. Live Audio Spaces (Drop-in Voice Study Discussions) ── */}
       <div style={{ padding: '0 16px 8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 700, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ marginBottom: 6 }}>
+          <h2 style={{ fontSize: 17, fontWeight: 800, color: '#fff', margin: '0 0 3px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
             <span>Live Audio Spaces</span>
             <span className="chatter-audiospace-live-badge">
               <span className="chatter-audiospace-live-dot" />
               LIVE
             </span>
           </h2>
+          <p style={{ fontSize: 12.5, color: 'var(--chatter-light-text)', margin: 0 }}>
+            Drop-in audio study spaces. Join as a listener or unmute to discuss topics with peers in real time.
+          </p>
         </div>
 
         {filteredSpaces.map((space) => (
-          <div key={space.id} className="chatter-audiospace-card">
+          <div key={space.id} className="chatter-audiospace-card" style={{ marginTop: 12 }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
               <div>
-                <h3 style={{ fontSize: 16, fontWeight: 700, color: '#fff', margin: '0 0 6px 0' }}>
+                <h3 style={{ fontSize: 15.5, fontWeight: 700, color: '#fff', margin: '0 0 6px 0' }}>
                   {space.title}
                 </h3>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -124,8 +329,8 @@ export default function ChatterRoomsView({
                 </div>
               </div>
 
-              <div style={{ fontSize: 12, color: 'var(--chatter-light-text)', whiteSpace: 'nowrap', fontWeight: 600 }}>
-                🎙️ {space.listenersCount} listening
+              <div style={{ fontSize: 12, color: 'var(--chatter-light-text)', whiteSpace: 'nowrap', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span>🎙️</span> {space.listenersCount} listening
               </div>
             </div>
 
@@ -167,127 +372,16 @@ export default function ChatterRoomsView({
                   fontSize: 12.5,
                   cursor: 'pointer',
                   transition: 'transform 0.12s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
                 }}
               >
-                Join Space
+                <span>🎙️</span> Join Space
               </button>
             </div>
           </div>
         ))}
-      </div>
-
-      {/* ── 3. Study Rooms / Servers Directory ── */}
-      <div style={{ padding: '16px 16px 8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 700, color: '#fff', margin: 0 }}>
-            Study Group Rooms ({servers.length})
-          </h2>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              type="button"
-              onClick={onJoinServer}
-              style={{
-                padding: '6px 12px',
-                borderRadius: 16,
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: 'none',
-                color: '#fff',
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              Join with Code
-            </button>
-            <button
-              type="button"
-              onClick={onCreateServer}
-              style={{
-                padding: '6px 12px',
-                borderRadius: 16,
-                background: 'var(--chatter-primary)',
-                border: 'none',
-                color: '#0E0E0E',
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              + Create Room
-            </button>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {servers.map((server) => {
-            const isCurrent = activeServerId === server.id;
-            const channelsCount = server.channels?.length || 0;
-            return (
-              <div
-                key={server.id}
-                onClick={() => onSelectServer(server.id)}
-                style={{
-                  background: 'var(--chatter-sheet)',
-                  border: isCurrent ? '1.5px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.06)',
-                  borderRadius: 16,
-                  padding: 14,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  {server.icon_url ? (
-                    <img
-                      src={server.icon_url}
-                      alt={server.name}
-                      style={{ width: 44, height: 44, borderRadius: 12, objectFit: 'cover' }}
-                    />
-                  ) : (
-                    <div
-                      style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 12,
-                        background: '#242424',
-                        color: 'var(--chatter-primary)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 700,
-                        fontSize: 16,
-                      }}
-                    >
-                      {server.name?.[0]?.toUpperCase() || 'S'}
-                    </div>
-                  )}
-
-                  <div>
-                    <h4 style={{ fontSize: 15, fontWeight: 700, color: '#fff', margin: '0 0 2px 0' }}>
-                      {server.name}
-                    </h4>
-                    <div style={{ fontSize: 12, color: 'var(--chatter-light-text)' }}>
-                      {channelsCount} study channels · {server.member_count || 1} members
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {isCurrent && (
-                    <span style={{ fontSize: 11, background: 'rgba(64, 227, 120, 0.15)', color: 'var(--chatter-primary)', padding: '4px 8px', borderRadius: 10, fontWeight: 700 }}>
-                      Active
-                    </span>
-                  )}
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#979797' }}>
-                    <polyline points="9 18 15 12 9 6" />
-                  </svg>
-                </div>
-              </div>
-            );
-          })}
-        </div>
       </div>
     </div>
   );

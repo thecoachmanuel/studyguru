@@ -9509,6 +9509,12 @@ body {
   }
 }
 
+.chatter-post-follow-desktop {
+  display: inline-flex;
+}
 
-
-
+@media (max-width: 768px) {
+  .chatter-post-follow-desktop {
+    display: none !important;
+  }
+}

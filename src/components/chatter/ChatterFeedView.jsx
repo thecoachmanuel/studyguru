@@ -5,6 +5,21 @@ import SnapshotRail from '@/components/SnapshotRail';
 import ChatterUserProfileModal from './ChatterUserProfileModal';
 import ChatterCommentsSheet from './ChatterCommentsSheet';
 
+export function TwitterVerifiedBadge() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }} aria-label="Verified">
+      <path
+        d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.79-4-4-4-.495 0-.965.084-1.4.238C14.55 2.475 13.18 1.6 11.6 1.6c-1.58 0-2.95.875-3.6 2.148-.435-.154-.905-.238-1.4-.238-2.21 0-4 1.79-4 4 0 .495.084.965.238 1.4C1.575 9.55.7 10.92.7 12.5c0 1.58.875 2.95 2.148 3.6-.154.435-.238.905-.238 1.4 0 2.21 1.79 4 4 4 .495 0 .965-.084 1.4-.238.65 1.273 2.02 2.148 3.6 2.148 1.58 0 2.95-.875 3.6-2.148.435.154.905.238 1.4.238 2.21 0 4-1.79 4-4 0-.495-.084-.965-.238-1.4 1.273-.65 2.148-2.02 2.148-3.6z"
+        fill="#1D9BF0"
+      />
+      <path
+        d="M10.2 16.2l-3.5-3.5 1.4-1.4 2.1 2.1 5.3-5.3 1.4 1.4-6.7 6.7z"
+        fill="#FFFFFF"
+      />
+    </svg>
+  );
+}
+
 export default function ChatterFeedView({
   serverId,
   profile,
@@ -124,6 +139,29 @@ export default function ChatterFeedView({
     );
   };
 
+  const [shareToast, setShareToast] = useState('');
+
+  const handleSharePost = async (post) => {
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: `StudyCord: ${post.tag}`,
+          text: `${post.author.name}: "${post.text}"`,
+          url: window.location.href,
+        });
+        return;
+      } catch {}
+    }
+    try {
+      await navigator.clipboard.writeText(`${post.author.name}: "${post.text}" (${window.location.href})`);
+      setShareToast('Link copied to clipboard!');
+      setTimeout(() => setShareToast(''), 2500);
+    } catch {
+      setShareToast('Post link ready!');
+      setTimeout(() => setShareToast(''), 2500);
+    }
+  };
+
   const handleImageFileChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -167,7 +205,33 @@ export default function ChatterFeedView({
   };
 
   return (
-    <div style={{ paddingBottom: 80, maxWidth: 680, margin: '0 auto', width: '100%' }}>
+    <div style={{ paddingBottom: 80, maxWidth: 680, margin: '0 auto', width: '100%', position: 'relative' }}>
+      {/* Share Toast Banner */}
+      {shareToast && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 64,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'var(--chatter-sheet)',
+            color: 'var(--chatter-primary)',
+            border: '1px solid var(--chatter-primary)',
+            padding: '8px 18px',
+            borderRadius: 20,
+            fontSize: 13,
+            fontWeight: 700,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
+        >
+          <span>✓</span> {shareToast}
+        </div>
+      )}
+
       {/* ── 1. Top Snapshots Story Rail (Chatter circular stories) ── */}
       <div style={{ padding: '8px 12px 14px', borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
         <SnapshotRail serverId={serverId} currentUserId={userId} />
@@ -212,7 +276,7 @@ export default function ChatterFeedView({
                   <div>
                     <div className="chatter-post-name" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span>{post.author.name}</span>
-                      <span style={{ color: 'var(--chatter-bluetick)', fontSize: 13 }}>✓</span>
+                      <TwitterVerifiedBadge />
                     </div>
                     <div className="chatter-post-meta">
                       @{post.author.username} · {post.timestamp}
@@ -221,10 +285,11 @@ export default function ChatterFeedView({
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  {/* Chatter Follow Button */}
+                  {/* Chatter Follow Button (Desktop only on card, mobile follows via Profile Sheet) */}
                   {!isMe && (
                     <button
                       type="button"
+                      className="chatter-post-follow-desktop"
                       onClick={() => handleToggleFollow(post.author.id)}
                       style={{
                         padding: '5px 13px',
@@ -295,7 +360,12 @@ export default function ChatterFeedView({
                   <span>{post.comments}</span>
                 </button>
 
-                <button type="button" className="chatter-post-action-btn" aria-label="Share">
+                <button
+                  type="button"
+                  className="chatter-post-action-btn"
+                  onClick={() => handleSharePost(post)}
+                  aria-label="Share"
+                >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="18" cy="5" r="3" />
                     <circle cx="6" cy="12" r="3" />

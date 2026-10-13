@@ -26,6 +26,8 @@ import UserStatusModal from '@/components/UserStatusModal';
 import ChatterChatRoom from '@/components/chatter/ChatterChatRoom';
 import ChatterAudioSpaceModal from '@/components/chatter/ChatterAudioSpaceModal';
 import ChatterUserProfileModal from '@/components/chatter/ChatterUserProfileModal';
+import ChatterSearchModal from '@/components/chatter/ChatterSearchModal';
+import ChatterNewDMSheet from '@/components/chatter/ChatterNewDMSheet';
 
 function moveChannelLocally(channels, channelId, beforeChannelId, afterChannelId) {
   const movedChannel = channels.find((channel) => channel.id === channelId);
@@ -122,6 +124,8 @@ export default function DashboardPage() {
   // ---------- Chatter UI States ----------
   const [chatterTab, setChatterTab] = useState('feed'); // 'feed' | 'rooms' | 'guru' | 'chats' | 'profile'
   const [directMessagesModalOpen, setDirectMessagesModalOpen] = useState(false);
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
+  const [newDMSheetOpen, setNewDMSheetOpen] = useState(false);
   const [userStatusModalOpen, setUserStatusModalOpen] = useState(false);
   const [userCurrentStatus, setUserCurrentStatus] = useState(null);
   const [audioSpaceModalOpen, setAudioSpaceModalOpen] = useState(false);
@@ -754,7 +758,7 @@ export default function DashboardPage() {
         <div style={{ flex: 1, overflowY: 'auto', background: 'var(--chatter-black)', minHeight: '100vh' }}>
           <ChatterTopBar
             onOpenNotifications={() => showToast('No new notifications')}
-            onOpenSearch={handleOpenAdvancedSearch}
+            onOpenSearch={() => setSearchModalOpen(true)}
             onOpenLiveSpaces={() => setChatterTab('rooms')}
             onRandomTopic={() => setChatterTab('rooms')}
           />
@@ -775,7 +779,7 @@ export default function DashboardPage() {
         <div style={{ flex: 1, overflowY: 'auto', background: 'var(--chatter-black)', minHeight: '100vh' }}>
           <ChatterTopBar
             onOpenNotifications={() => showToast('No new notifications')}
-            onOpenSearch={handleOpenAdvancedSearch}
+            onOpenSearch={() => setSearchModalOpen(true)}
             onOpenLiveSpaces={() => setChatterTab('rooms')}
             onRandomTopic={() => setChatterTab('rooms')}
           />
@@ -807,7 +811,7 @@ export default function DashboardPage() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: 'var(--chatter-black)' }}>
           <ChatterTopBar
             onOpenNotifications={() => showToast('No new notifications')}
-            onOpenSearch={handleOpenAdvancedSearch}
+            onOpenSearch={() => setSearchModalOpen(true)}
             onOpenLiveSpaces={() => setChatterTab('rooms')}
             onRandomTopic={() => setChatterTab('rooms')}
           />
@@ -823,15 +827,21 @@ export default function DashboardPage() {
         <div style={{ flex: 1, overflowY: 'auto', background: 'var(--chatter-black)', minHeight: '100vh' }}>
           <ChatterTopBar
             onOpenNotifications={() => showToast('No new notifications')}
-            onOpenSearch={handleOpenAdvancedSearch}
+            onOpenSearch={() => setSearchModalOpen(true)}
             onOpenLiveSpaces={() => setChatterTab('rooms')}
             onRandomTopic={() => setChatterTab('rooms')}
           />
           <ChatterProfileView
             profile={profile}
+            servers={servers}
             onLogout={handleLogout}
             onOpenStatusModal={() => setUserStatusModalOpen(true)}
             onOpenSettings={() => setSettingsOpen(true)}
+            onSelectServer={(sId) => {
+              handleSelectServer(sId);
+              setChatterTab('chats');
+            }}
+            onOpenGuru={() => setChatterTab('guru')}
             followingMap={followingMap}
           />
         </div>
@@ -844,7 +854,7 @@ export default function DashboardPage() {
           <div className={`chatter-chats-list-pane ${activeChannelId ? 'chatter-chats-list-pane--with-active' : ''}`}>
             <ChatterTopBar
               onOpenNotifications={() => showToast('No new notifications')}
-              onOpenSearch={handleOpenAdvancedSearch}
+              onOpenSearch={() => setSearchModalOpen(true)}
               onOpenLiveSpaces={() => setChatterTab('rooms')}
               onRandomTopic={() => setChatterTab('rooms')}
             />
@@ -858,7 +868,7 @@ export default function DashboardPage() {
                 setActiveChannelName(cName);
                 setActiveChannelType(cType || 'text');
               }}
-              onOpenDMsModal={() => setDirectMessagesModalOpen(true)}
+              onOpenDMsModal={() => setNewDMSheetOpen(true)}
               unreadCounts={unreadCounts}
               user={user}
             />
@@ -870,6 +880,7 @@ export default function DashboardPage() {
               <ChatterChatRoom
                 channelId={activeChannelId}
                 channelName={activeChannelName}
+                channelType={activeChannelType || 'text'}
                 serverId={activeServerId}
                 serverName={activeServerName}
                 userId={user?.id}
@@ -999,6 +1010,32 @@ export default function DashboardPage() {
           }}
         />
       )}
+
+      {/* ── Chatter Search Modal ── */}
+      <ChatterSearchModal
+        isOpen={searchModalOpen}
+        onClose={() => setSearchModalOpen(false)}
+        servers={servers}
+        onSelectServer={(sId) => {
+          handleSelectServer(sId);
+          setChatterTab('chats');
+        }}
+        onStartDM={handleStartDM}
+        onSelectTopic={(_topicName) => {
+          setChatterTab('rooms');
+        }}
+        followingMap={followingMap}
+        onToggleFollow={handleToggleFollow}
+      />
+
+      {/* ── Chatter New DM Mobile Sheet ── */}
+      <ChatterNewDMSheet
+        isOpen={newDMSheetOpen}
+        onClose={() => setNewDMSheetOpen(false)}
+        members={members}
+        currentUserId={user?.id}
+        onSelectUser={handleStartDM}
+      />
     </div>
   );
 }
