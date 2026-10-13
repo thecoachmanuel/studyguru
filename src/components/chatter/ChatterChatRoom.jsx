@@ -7,6 +7,27 @@ import { TwitterVerifiedBadge } from './ChatterFeedView';
 
 const STUDY_EMOJIS = ['👍', '💡', '❓', '🔥', '✅'];
 
+function normalizeMessage(m, currentUserId) {
+  if (!m) return null;
+  const rawSenderId = m.sender_id || m.user_id || m.profiles?.id || m.author_id || (m.profiles?._id ? String(m.profiles._id) : '');
+  const senderId = rawSenderId ? String(rawSenderId) : '';
+  const senderName = m.sender_name || m.profiles?.name || m.profiles?.username || m.author || (senderId === String(currentUserId) ? 'You' : 'Scholar');
+  const senderAvatar = m.sender_avatar || m.profiles?.avatar_url || m.profiles?.image || null;
+  const attachmentUrl = m.attachment_url || m.attachments?.[0]?.file_url || m.attachments?.[0]?.url || m.attachment?.file_url || null;
+  const createdAt = m.createdAt || m.created_at || new Date().toISOString();
+
+  return {
+    id: String(m.id || m._id || `msg-${Date.now()}`),
+    sender_id: senderId,
+    sender_name: senderName,
+    sender_avatar: senderAvatar,
+    content: m.content || '',
+    attachment_url: attachmentUrl,
+    createdAt: createdAt,
+    reactions: m.reactions || [],
+  };
+}
+
 export default function ChatterChatRoom({
   channelId,
   channelName,
@@ -37,11 +58,24 @@ export default function ChatterChatRoom({
     let mounted = true;
     setLoading(true);
 
+    const isDM = channelType === 'dm';
+    const primaryEndpoint = isDM ? `/api/conversations/${channelId}/messages` : `/api/channels/${channelId}/messages`;
+    const fallbackEndpoint = isDM ? `/api/channels/${channelId}/messages` : null;
+
     const loadMessages = async () => {
       try {
-        const data = await apiRequest(`/api/channels/${channelId}/messages`);
+        let data = null;
+        try {
+          data = await apiRequest(primaryEndpoint);
+        } catch (e1) {
+          if (fallbackEndpoint) {
+            data = await apiRequest(fallbackEndpoint);
+          } else {
+            throw e1;
+          }
+        }
         if (mounted && Array.isArray(data)) {
-          setMessages(data);
+          setMessages(data.map((m) => normalizeMessage(m, userId)).filter(Boolean));
         }
       } catch (err) {
         console.warn('Failed to load channel messages:', err);
@@ -51,20 +85,13 @@ export default function ChatterChatRoom({
             {
               id: 'm1',
               sender_id: 'u-peer',
-              sender_name: 'David Kim',
+              sender_name: isDM ? (channelName || 'Study Partner') : 'David Kim',
               sender_avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
-              content: 'Hey everyone! Has anyone reviewed the problems from Chapter 3 yet?',
+              content: isDM
+                ? `Hey! Let's collaborate and review the recent lecture notes.`
+                : 'Hey everyone! Has anyone reviewed the problems from Chapter 3 yet?',
               createdAt: new Date(Date.now() - 3600000).toISOString(),
               reactions: [{ emoji: '👍', count: 2, users: [] }],
-            },
-            {
-              id: 'm2',
-              sender_id: userId,
-              sender_name: profile?.name || 'You',
-              sender_avatar: profile?.avatar_url,
-              content: 'Yes! Problems 3.4 and 3.8 were covered in yesterday’s audio space. Let me share my notes.',
-              createdAt: new Date(Date.now() - 1800000).toISOString(),
-              reactions: [{ emoji: '🔥', count: 3, users: [] }],
             },
           ]);
         }
@@ -77,15 +104,50 @@ export default function ChatterChatRoom({
 
     // Pusher real-time listener for incoming messages
     let channel = null;
+    let fallbackChannel = null;
     try {
       const pusher = getPusherClient();
       if (pusher) {
-        channel = pusher.subscribe(`channel-${channelId}`);
-        channel.bind('new-message', (newMsg) => {
-          if (mounted && newMsg) {
-            setMessages((prev) => [...prev, newMsg]);
-          }
-        });
+        const pusherChannelName = isDM ? `conversation-${channelId}` : `channel-${channelId}`;
+        channel = pusher.subscribe(pusherChannelName);
+
+        if (isDM) {
+          try {
+            fallbackChannel = pusher.subscribe(`channel-${channelId}`);
+          } catch {}
+        }
+
+        const handleIncoming = (rawMsg) => {
+          if (!mounted || !rawMsg) return;
+          const newMsg = normalizeMessage(rawMsg, userId);
+          if (!newMsg) return;
+
+          setMessages((prev) => {
+            // Prevent duplicate message if already in state
+            if (prev.some((m) => m.id === newMsg.id)) return prev;
+
+            // If incoming message belongs to current user, replace matching optimistic message
+            const isMine = String(newMsg.sender_id) === String(userId) || (userId && String(newMsg.sender_id).includes(String(userId)));
+            if (isMine) {
+              const tempIndex = prev.findIndex(
+                (m) => String(m.id).startsWith('temp-') && m.content === newMsg.content
+              );
+              if (tempIndex !== -1) {
+                const next = [...prev];
+                next[tempIndex] = newMsg;
+                return next;
+              }
+            }
+
+            return [...prev, newMsg];
+          });
+        };
+
+        channel.bind('new-message', handleIncoming);
+        if (fallbackChannel) {
+          fallbackChannel.bind('new-message', handleIncoming);
+        }
+
         channel.bind('message-reacted', (data) => {
           if (mounted && data?.messageId) {
             setMessages((prev) =>
@@ -105,8 +167,13 @@ export default function ChatterChatRoom({
           channel.unbind_all();
         } catch {}
       }
+      if (fallbackChannel) {
+        try {
+          fallbackChannel.unbind_all();
+        } catch {}
+      }
     };
-  }, [channelId, userId, profile]);
+  }, [channelId, channelType, channelName, userId, profile]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -123,9 +190,9 @@ export default function ChatterChatRoom({
 
     const optimisticMsg = {
       id: tempId,
-      sender_id: userId,
+      sender_id: String(userId || ''),
       sender_name: profile?.name || 'You',
-      sender_avatar: profile?.avatar_url,
+      sender_avatar: profile?.avatar_url || null,
       content,
       attachment_url: attachedImage,
       createdAt: new Date().toISOString(),
@@ -136,15 +203,48 @@ export default function ChatterChatRoom({
     setInputText('');
     setAttachedImage(null);
 
+    const isDM = channelType === 'dm';
+    const primaryEndpoint = isDM ? `/api/conversations/${channelId}/messages` : `/api/channels/${channelId}/messages`;
+    const fallbackEndpoint = isDM ? `/api/channels/${channelId}/messages` : null;
+
     try {
-      await apiRequest(`/api/channels/${channelId}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content,
-          attachment_url: attachedImage,
-        }),
-      });
+      let sentMsg = null;
+      try {
+        sentMsg = await apiRequest(primaryEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            content,
+            attachment_url: attachedImage,
+            recipient_id: isDM ? channelId : undefined,
+          }),
+        });
+      } catch (err1) {
+        if (fallbackEndpoint) {
+          sentMsg = await apiRequest(fallbackEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              content,
+              attachment_url: attachedImage,
+            }),
+          });
+        } else {
+          throw err1;
+        }
+      }
+
+      if (sentMsg) {
+        const normalized = normalizeMessage(sentMsg, userId);
+        setMessages((prev) => {
+          // If Pusher already updated it, remove the tempId
+          if (prev.some((m) => m.id === normalized.id)) {
+            return prev.filter((m) => m.id !== tempId);
+          }
+          // Otherwise swap the tempId with the server-saved message
+          return prev.map((m) => (m.id === tempId ? normalized : m));
+        });
+      }
     } catch (err) {
       console.warn('Message send warning (offline or fallback mode):', err?.message);
     } finally {
@@ -356,7 +456,12 @@ export default function ChatterChatRoom({
       {/* ── 2. Chatter Messages List ── */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
         {messages.map((m) => {
-          const isMe = m.sender_id === userId;
+          const isMe =
+            Boolean(userId && String(m.sender_id) === String(userId)) ||
+            m.sender_name === 'You' ||
+            (profile?.name && m.sender_name === profile.name) ||
+            (profile?.username && m.sender_name === profile.username) ||
+            (userId && m.sender_id && String(m.sender_id).includes(String(userId)));
           return (
             <div
               key={m.id}

@@ -755,7 +755,7 @@ export default function DashboardPage() {
       {/* ── Content View ── */}
       {/* If chatterTab === 'feed', render ChatterFeedView */}
       {chatterTab === 'feed' && (
-        <div style={{ flex: 1, overflowY: 'auto', background: 'var(--chatter-black)', minHeight: '100vh' }}>
+        <div style={{ flex: 1, overflowY: 'auto', background: 'var(--chatter-black)', minHeight: '100dvh' }}>
           <ChatterTopBar
             onOpenNotifications={() => showToast('No new notifications')}
             onOpenSearch={() => setSearchModalOpen(true)}
@@ -776,7 +776,7 @@ export default function DashboardPage() {
 
       {/* If chatterTab === 'rooms', render ChatterRoomsView */}
       {chatterTab === 'rooms' && (
-        <div style={{ flex: 1, overflowY: 'auto', background: 'var(--chatter-black)', minHeight: '100vh' }}>
+        <div style={{ flex: 1, overflowY: 'auto', background: 'var(--chatter-black)', minHeight: '100dvh' }}>
           <ChatterTopBar
             onOpenNotifications={() => showToast('No new notifications')}
             onOpenSearch={() => setSearchModalOpen(true)}
@@ -808,7 +808,7 @@ export default function DashboardPage() {
 
       {/* If chatterTab === 'guru', render ChatterGuruView */}
       {chatterTab === 'guru' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: 'var(--chatter-black)' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden', background: 'var(--chatter-black)' }}>
           <ChatterTopBar
             onOpenNotifications={() => showToast('No new notifications')}
             onOpenSearch={() => setSearchModalOpen(true)}
@@ -824,7 +824,7 @@ export default function DashboardPage() {
 
       {/* If chatterTab === 'profile', render ChatterProfileView */}
       {chatterTab === 'profile' && (
-        <div style={{ flex: 1, overflowY: 'auto', background: 'var(--chatter-black)', minHeight: '100vh' }}>
+        <div style={{ flex: 1, overflowY: 'auto', background: 'var(--chatter-black)', minHeight: '100dvh' }}>
           <ChatterTopBar
             onOpenNotifications={() => showToast('No new notifications')}
             onOpenSearch={() => setSearchModalOpen(true)}
@@ -849,7 +849,7 @@ export default function DashboardPage() {
 
       {/* If chatterTab === 'chats' */}
       {chatterTab === 'chats' && (
-        <div style={{ flex: 1, display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--chatter-black)' }}>
+        <div style={{ flex: 1, display: 'flex', height: '100dvh', overflow: 'hidden', background: 'var(--chatter-black)' }}>
           {/* Left conversations list pane */}
           <div className={`chatter-chats-list-pane ${activeChannelId ? 'chatter-chats-list-pane--with-active' : ''}`}>
             <ChatterTopBar

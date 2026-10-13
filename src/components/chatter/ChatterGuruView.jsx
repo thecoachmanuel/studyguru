@@ -341,34 +341,43 @@ export default function ChatterGuruView({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '12px 18px',
+          padding: '8px 16px',
           borderBottom: '1px solid rgba(255, 255, 255, 0.07)',
           background: 'var(--chatter-sheet)',
           flexShrink: 0,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
           <div
             style={{
-              width: 38,
-              height: 38,
-              borderRadius: 14,
+              width: 32,
+              height: 32,
+              borderRadius: 10,
               background: 'rgba(64, 227, 120, 0.16)',
               color: 'var(--chatter-primary)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              flexShrink: 0,
             }}
           >
-            <ChatbotIcon size={22} />
+            <ChatbotIcon size={18} />
           </div>
-          <h3 style={{ fontSize: 16.5, fontWeight: 800, margin: 0, color: '#fff' }}>
-            StudyGuru AI
-          </h3>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 14.5, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' }}>
+                StudyGuru AI
+              </span>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--chatter-primary)', display: 'inline-block' }} />
+            </div>
+            <span style={{ fontSize: 10.5, color: 'var(--chatter-primary)', fontWeight: 600, display: 'block', marginTop: -2 }}>
+              Multi-LLM Active · Notes RAG
+            </span>
+          </div>
         </div>
 
         {/* Header Actions: Docs Tray + New Chat */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
           <input
             ref={docFileInputRef}
             type="file"
@@ -382,13 +391,13 @@ export default function ChatterGuruView({
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 6,
-              padding: '7px 13px',
-              borderRadius: 18,
+              gap: 5,
+              padding: '5px 11px',
+              borderRadius: 16,
               background: docsPanelOpen ? 'rgba(64, 227, 120, 0.2)' : 'rgba(255, 255, 255, 0.08)',
               border: docsPanelOpen ? '1px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
               color: docsPanelOpen ? 'var(--chatter-primary)' : '#fff',
-              fontSize: 12.5,
+              fontSize: 12,
               fontWeight: 600,
               cursor: 'pointer',
               transition: 'all 0.15s ease',
@@ -401,12 +410,12 @@ export default function ChatterGuruView({
             type="button"
             onClick={handleClearSession}
             style={{
-              padding: '7px 11px',
-              borderRadius: 18,
+              padding: '5px 10px',
+              borderRadius: 16,
               background: 'rgba(255, 255, 255, 0.06)',
               border: 'none',
               color: 'var(--chatter-light-text)',
-              fontSize: 12,
+              fontSize: 11.5,
               fontWeight: 600,
               cursor: 'pointer',
             }}
@@ -422,16 +431,16 @@ export default function ChatterGuruView({
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 8,
+          gap: 7,
           overflowX: 'auto',
-          padding: '8px 18px',
+          padding: '6px 16px',
           borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
           background: 'var(--chatter-black)',
           scrollbarWidth: 'none',
           flexShrink: 0,
         }}
       >
-        <span style={{ fontSize: 11, color: 'var(--chatter-light-text)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: 10.5, color: 'var(--chatter-light-text)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
           Target:
         </span>
         <button
