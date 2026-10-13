@@ -54,6 +54,8 @@ export default function ChatterChatRoom({
 
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  // Track IDs of messages we sent ourselves so we can ignore their Pusher echo
+  const sentMessageIdsRef = useRef(new Set());
 
   // Fetch messages from channel or conversation
   useEffect(() => {
@@ -121,18 +123,11 @@ export default function ChatterChatRoom({
 
     // Pusher real-time listener for incoming messages
     let channel = null;
-    let fallbackChannel = null;
     try {
       const pusher = getPusherClient();
       if (pusher) {
         const pusherChannelName = isDM ? `conversation-${channelId}` : `channel-${channelId}`;
         channel = pusher.subscribe(pusherChannelName);
-
-        if (isDM) {
-          try {
-            fallbackChannel = pusher.subscribe(`channel-${channelId}`);
-          } catch {}
-        }
 
         const handleIncoming = (rawMsg) => {
           if (!mounted || !rawMsg) return;
@@ -140,30 +135,20 @@ export default function ChatterChatRoom({
           if (!newMsg) return;
 
           setMessages((prev) => {
-            // Prevent duplicate message if already in state
+            // 1. Already in state (exact ID match) — skip
             if (prev.some((m) => m.id === newMsg.id)) return prev;
 
-            // If incoming message belongs to current user, replace matching optimistic message
-            const isMine = String(newMsg.sender_id) === String(userId) || (userId && String(newMsg.sender_id).includes(String(userId)));
-            if (isMine) {
-              const tempIndex = prev.findIndex(
-                (m) => String(m.id).startsWith('temp-') && m.content === newMsg.content
-              );
-              if (tempIndex !== -1) {
-                const next = [...prev];
-                next[tempIndex] = newMsg;
-                return next;
-              }
-            }
+            // 2. This is the Pusher echo of a message WE just sent — the
+            //    optimistic message is already in state (as tempId). Skip the
+            //    echo; the handleSendMessage callback will swap tempId → real ID.
+            if (sentMessageIdsRef.current.has(newMsg.id)) return prev;
 
+            // 3. Peer message — append normally
             return [...prev, newMsg];
           });
         };
 
         channel.bind('new-message', handleIncoming);
-        if (fallbackChannel) {
-          fallbackChannel.bind('new-message', handleIncoming);
-        }
 
         channel.bind('messages-read', () => {
           if (mounted) {
@@ -194,11 +179,6 @@ export default function ChatterChatRoom({
       if (channel) {
         try {
           channel.unbind_all();
-        } catch {}
-      }
-      if (fallbackChannel) {
-        try {
-          fallbackChannel.unbind_all();
         } catch {}
       }
     };
@@ -236,15 +216,16 @@ export default function ChatterChatRoom({
 
     setSending(true);
     const content = inputText.trim();
+    const capturedImage = attachedImage;
     const tempId = `temp-${Date.now()}`;
 
     const optimisticMsg = {
       id: tempId,
       sender_id: String(userId || ''),
-      sender_name: profile?.name || 'You',
+      sender_name: profile?.name || profile?.username || 'You',
       sender_avatar: profile?.avatar_url || null,
       content,
-      attachment_url: attachedImage,
+      attachment_url: capturedImage,
       createdAt: new Date().toISOString(),
       reactions: [],
     };
@@ -254,49 +235,40 @@ export default function ChatterChatRoom({
     setAttachedImage(null);
 
     const isDM = channelType === 'dm';
-    const primaryEndpoint = isDM ? `/api/conversations/${channelId}/messages` : `/api/channels/${channelId}/messages`;
-    const fallbackEndpoint = isDM ? `/api/channels/${channelId}/messages` : null;
+    const endpoint = isDM
+      ? `/api/conversations/${channelId}/messages`
+      : `/api/channels/${channelId}/messages`;
 
     try {
-      let sentMsg = null;
-      try {
-        sentMsg = await apiRequest(primaryEndpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            content,
-            attachment_url: attachedImage,
-            recipient_id: isDM ? channelId : undefined,
-          }),
-        });
-      } catch (err1) {
-        if (fallbackEndpoint) {
-          sentMsg = await apiRequest(fallbackEndpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              content,
-              attachment_url: attachedImage,
-            }),
-          });
-        } else {
-          throw err1;
-        }
-      }
+      const sentMsg = await apiRequest(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content,
+          attachment_url: capturedImage,
+        }),
+      });
 
       if (sentMsg) {
         const normalized = normalizeMessage(sentMsg, userId);
+        // Register this real ID so the Pusher echo is ignored
+        sentMessageIdsRef.current.add(normalized.id);
+        // Clean up after a few seconds so the Set doesn't grow forever
+        setTimeout(() => sentMessageIdsRef.current.delete(normalized.id), 10000);
+
         setMessages((prev) => {
-          // If Pusher already updated it, remove the tempId
+          // Swap tempId → real message (idempotent if Pusher somehow beat us)
           if (prev.some((m) => m.id === normalized.id)) {
+            // Real message is already in state — just remove the temp
             return prev.filter((m) => m.id !== tempId);
           }
-          // Otherwise swap the tempId with the server-saved message
           return prev.map((m) => (m.id === tempId ? normalized : m));
         });
       }
     } catch (err) {
-      console.warn('Message send warning (offline or fallback mode):', err?.message);
+      console.warn('Message send error:', err?.message);
+      // Remove the optimistic message on hard failure
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
     } finally {
       setSending(false);
     }
