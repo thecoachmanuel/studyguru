@@ -12,7 +12,7 @@ export default function ChatterGuruView({
     {
       id: 'g-intro',
       role: 'assistant',
-      content: 'Hello! I am **StudyGuru**, your AI Study Partner powered by RAG document indexing. You can upload lecture notes, textbook chapters (.pdf, .docx, .txt), generate automated quizzes, create flashcards, or ask any complex study question!',
+      content: 'Hello! I am **StudyGuru**, your AI Study Partner powered by StudyCord. You can upload lecture notes, textbook chapters (.pdf, .docx, .txt), generate automated quizzes, create flashcards, or ask any complex study question!',
       timestamp: 'Now',
     },
   ]);
@@ -21,15 +21,8 @@ export default function ChatterGuruView({
 
   const MAX_DOCS = 5;
 
-  // Uploaded Documents state
-  const [uploadedDocs, setUploadedDocs] = useState([
-    {
-      doc_id: 'doc-sample-1',
-      filename: 'Calculus_Vector_Fields.pdf',
-      chunksCount: 18,
-      status: 'Indexed & Ready',
-    },
-  ]);
+  // Uploaded Documents state (loaded dynamically from database)
+  const [uploadedDocs, setUploadedDocs] = useState([]);
   const [selectedDocId, setSelectedDocId] = useState(null); // null = All Knowledge
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [uploadFileName, setUploadFileName] = useState('');
@@ -37,6 +30,19 @@ export default function ChatterGuruView({
   const docFileInputRef = useRef(null);
   const chatBottomRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Load real user documents on mount
+  useEffect(() => {
+    fetch('/api/rag/documents')
+      .then((r) => (r.ok ? r.json() : []))
+      .then((docs) => {
+        if (Array.isArray(docs) && docs.length > 0) {
+          setUploadedDocs(docs);
+          setSelectedDocId(docs[0].doc_id || docs[0].id);
+        }
+      })
+      .catch((err) => console.warn('Documents load notice:', err));
+  }, []);
 
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -50,11 +56,15 @@ export default function ChatterGuruView({
   ];
 
   // Delete an indexed document
-  const handleDeleteDoc = (docId, docFilename) => {
-    setUploadedDocs((prev) => prev.filter((d) => d.doc_id !== docId));
+  const handleDeleteDoc = async (docId, docFilename) => {
+    setUploadedDocs((prev) => prev.filter((d) => (d.doc_id || d.id) !== docId));
     if (selectedDocId === docId) {
       setSelectedDocId(null);
     }
+    try {
+      await fetch(`/api/rag/documents?id=${docId}`, { method: 'DELETE' });
+    } catch {}
+
     setMessages((prev) => [
       ...prev,
       {
@@ -109,6 +119,7 @@ export default function ChatterGuruView({
         doc_id: data.doc_id || `doc-${Date.now()}`,
         filename: data.filename || file.name,
         chunksCount: data.chunksCount || 12,
+        extractedText: data.extractedText || data.extracted_text || data.text || '',
         status: 'Indexed & Ready',
       };
 
@@ -131,6 +142,7 @@ export default function ChatterGuruView({
         doc_id: `doc-${Date.now()}`,
         filename: file.name,
         chunksCount: 14,
+        extractedText: 'Lecture notes loaded locally for review session.',
         status: 'Parsed (Local)',
       };
       setUploadedDocs((prev) => [newDoc, ...prev]);
@@ -310,14 +322,23 @@ export default function ChatterGuruView({
     setLoading(true);
 
     try {
+      const activeDoc = uploadedDocs.find((d) => (d.doc_id || d.id) === selectedDocId) || (selectedDocId === null ? uploadedDocs[0] : null);
+      const docText = activeDoc?.extractedText || (uploadedDocs.length > 0 ? uploadedDocs.map((d) => d.extractedText).filter(Boolean).join('\n\n') : '');
+      const docTitle = activeDoc?.filename || activeDoc?.title || (uploadedDocs.length > 0 ? uploadedDocs[0].filename : '');
+
       const res = await fetch('/api/rag/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          message: text,
           query: text,
+          question: text,
           serverId,
           channelName,
-          documentId: selectedDocId,
+          documentId: selectedDocId || activeDoc?.doc_id || activeDoc?.id || null,
+          documentTitle: docTitle,
+          documentText: docText,
+          history: messages.slice(-6).map((m) => ({ role: m.role, content: m.content })),
         }),
       });
 
@@ -361,7 +382,7 @@ export default function ChatterGuruView({
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
-        maxWidth: 880,
+        maxWidth: 960,
         margin: '0 auto',
         width: '100%',
         color: '#fff',
@@ -369,19 +390,19 @@ export default function ChatterGuruView({
         position: 'relative',
       }}
     >
-      {/* ── 1. Top Guru Header ── */}
+      {/* ── 1. Top Guru Header (Clean & Minimal with Max Breathing Space) ── */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '8px 16px',
+          padding: '10px 16px',
           borderBottom: '1px solid rgba(255, 255, 255, 0.07)',
           background: 'var(--chatter-sheet)',
           flexShrink: 0,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div
             style={{
               width: 32,
@@ -397,16 +418,11 @@ export default function ChatterGuruView({
           >
             <ChatbotIcon size={18} />
           </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 14.5, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' }}>
-                StudyGuru AI
-              </span>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--chatter-primary)', display: 'inline-block' }} />
-            </div>
-            <span style={{ fontSize: 10.5, color: 'var(--chatter-primary)', fontWeight: 600, display: 'block', marginTop: -2 }}>
-              Multi-LLM Active · Notes RAG
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+            <span style={{ fontSize: 15, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' }}>
+              StudyGuru AI
             </span>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--chatter-primary)', display: 'inline-block' }} />
           </div>
         </div>
 

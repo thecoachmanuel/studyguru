@@ -61,3 +61,44 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: error.message || 'Failed to create channel' }, { status: 500 });
   }
 }
+
+export async function GET(req, { params }) {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { serverId } = await params;
+    let db = null;
+    try {
+      db = await getDatabase();
+    } catch {}
+
+    if (!db) {
+      return NextResponse.json([
+        { id: `ch-${serverId}-general`, server_id: serverId, name: 'general', type: 'text', position: 0 },
+        { id: `ch-${serverId}-study`, server_id: serverId, name: 'study-room', type: 'text', position: 1 },
+        { id: `ch-${serverId}-voice`, server_id: serverId, name: 'Study Room', type: 'voice', position: 2 },
+      ]);
+    }
+
+    const channels = await db.collection('channels')
+      .find({ server_id: serverId })
+      .sort({ position: 1, created_at: 1 })
+      .toArray();
+
+    return NextResponse.json(
+      channels.map((c) => ({
+        id: c._id.toString(),
+        server_id: c.server_id,
+        name: c.name,
+        type: c.type || 'text',
+        position: c.position || 0,
+      }))
+    );
+  } catch (error) {
+    console.error('Error fetching channels:', error);
+    return NextResponse.json({ error: error.message || 'Failed to fetch channels' }, { status: 500 });
+  }
+}

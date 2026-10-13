@@ -43,7 +43,7 @@ export async function POST(req) {
     }
 
     const body = await req.json();
-    const message = body.message || body.question;
+    const message = body.message || body.question || body.query || body.prompt;
     const documentId = body.documentId || body.document_id || body.doc_id;
     const sessionId = body.sessionId || body.session_id;
     const rawHistory = Array.isArray(body.history) ? body.history : [];

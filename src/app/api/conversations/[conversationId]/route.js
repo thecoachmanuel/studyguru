@@ -15,8 +15,12 @@ export async function GET(req, { params }) {
     const db = await getDatabase();
 
     const convObjId = safeObjectId(conversationId);
-    const conv = await db.collection('conversations').findOne({
-      $or: [{ _id: convObjId }, { id: conversationId }],
+    let conv = await db.collection('conversations').findOne({
+      $or: [
+        { _id: convObjId },
+        { id: conversationId },
+        { participants: { $all: [userId, conversationId] } },
+      ],
       participants: userId,
     });
 

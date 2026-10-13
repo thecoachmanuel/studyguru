@@ -9054,7 +9054,7 @@ body {
   display: flex;
   justify-content: space-around;
   align-items: center;
-  z-index: 60;
+  z-index: 80;
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
 }
@@ -9126,7 +9126,7 @@ body {
   flex-direction: column;
   justify-content: space-between;
   padding: 24px 16px;
-  z-index: 40;
+  z-index: 80;
 }
 
 .chatter-desktop-brand {

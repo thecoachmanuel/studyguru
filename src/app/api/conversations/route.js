@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getDatabase, safeObjectId } from '@/lib/mongodb';
+import { getPusherServer } from '@/lib/pusherServer';
 
 export async function GET(req) {
   try {
@@ -114,6 +115,20 @@ export async function POST(req) {
     const recipient = await db.collection('users').findOne({
       $or: [{ _id: safeObjectId(recipient_id) }, { id: recipient_id }],
     });
+
+    // Notify recipient in real-time
+    try {
+      const pusher = getPusherServer();
+      if (pusher) {
+        await pusher.trigger(`user-${recipient_id}`, 'new-conversation', {
+          id: conv._id.toString(),
+          requested_by: userId,
+          status: conv.status,
+        });
+      }
+    } catch (e) {
+      console.warn('Pusher new-conversation notification notice:', e.message);
+    }
 
     return NextResponse.json({
       id: conv._id.toString(),

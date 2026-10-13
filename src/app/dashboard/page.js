@@ -152,16 +152,40 @@ export default function DashboardPage() {
     });
   }, []);
 
-  const handleStartDM = useCallback((targetUser) => {
-    const targetId = typeof targetUser === 'object' ? targetUser.id : targetUser;
-    const targetName = typeof targetUser === 'object' ? targetUser.name : 'Study Partner';
+  const handleStartDM = useCallback(async (targetUser) => {
+    const targetId = typeof targetUser === 'object' ? (targetUser.user_id || targetUser.id) : targetUser;
+    const targetName = typeof targetUser === 'object' ? (targetUser.name || targetUser.username || 'Study Partner') : 'Study Partner';
 
     setUserProfileModalTarget(null);
     setActiveServerId(null);
-    setActiveChannelId(targetId);
-    setActiveChannelName(targetName);
     setActiveChannelType('dm');
+    setActiveChannelName(targetName);
     setChatterTab('chats');
+
+    // If targetUser already provided a conversation id
+    if (typeof targetUser === 'object' && targetUser.conversation_id) {
+      setActiveChannelId(targetUser.conversation_id);
+      return;
+    }
+
+    // Initialize or fetch conversation with recipient
+    try {
+      const res = await apiRequest('/api/conversations', {
+        method: 'POST',
+        body: JSON.stringify({ recipient_id: targetId }),
+      });
+      if (res?.id) {
+        setActiveChannelId(res.id);
+        if (res.other_user?.name) {
+          setActiveChannelName(res.other_user.name);
+        }
+        return;
+      }
+    } catch (err) {
+      console.warn('Conversation init fallback:', err);
+    }
+
+    setActiveChannelId(targetId);
   }, []);
 
   // Ensure mobile screens land on welcome panel
@@ -169,6 +193,36 @@ export default function DashboardPage() {
     if (typeof window !== 'undefined' && window.innerWidth <= 768) {
       setMobilePanelView('chat');
     }
+  }, []);
+
+  // Handle ?tab=... and ?joinRoom=... URL parameters seamlessly
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabParam = urlParams.get('tab');
+      if (tabParam && ['feed', 'rooms', 'guru', 'chats', 'profile'].includes(tabParam)) {
+        setChatterTab(tabParam);
+      }
+      const joinCode = urlParams.get('joinRoom');
+      if (joinCode) {
+        apiRequest('/api/servers/join', {
+          method: 'POST',
+          body: JSON.stringify({ code: joinCode }),
+        })
+          .then((res) => {
+            const srv = res?.server;
+            if (srv?.id) {
+              fetchServers().then(() => {
+                handleSelectServer(srv.id);
+                setChatterTab('chats');
+              });
+              setToast(`Joined room "${srv.name}"!`);
+            }
+          })
+          .catch(() => {});
+      }
+    } catch {}
   }, []);
 
   // Dismiss popup menus on route/channel changes
@@ -322,31 +376,49 @@ export default function DashboardPage() {
     // Home button passes null — clear everything and mark that the user
     // explicitly went home so fetchServers won't auto-select again.
     if (!serverId) {
-      hasAutoSelectedRef.current = true; // keep the guard so re-fetches don't override
+      hasAutoSelectedRef.current = true;
       setChannels([]);
       setActiveChannelId(null);
       setActiveChannelName(null);
       setActiveChannelType(null);
-      setMobilePanelView('chat'); // on mobile, going Home shows the NeutralHomeState (Welcome back screen)
+      setMobilePanelView('chat');
       return;
     }
 
     setMobilePanelView('sidebar');
-    const srv = servers.find((s) => s.id === serverId);
-    if (srv && srv.channels && srv.channels.length > 0) {
-      setChannels(srv.channels);
-      const textChannel = srv.channels.find((c) => c.type === 'text') || srv.channels[0];
+    const srv = servers.find((s) => s.id === serverId || s._id === serverId);
+    let serverChannels = (srv && Array.isArray(srv.channels) && srv.channels.length > 0)
+      ? srv.channels
+      : [
+          { id: `ch-${serverId}-general`, server_id: serverId, name: 'general', type: 'text', position: 0 },
+          { id: `ch-${serverId}-resources`, server_id: serverId, name: 'study-lounge', type: 'text', position: 1 },
+        ];
+
+    setChannels(serverChannels);
+    const textChannel = serverChannels.find((c) => c.type === 'text') || serverChannels[0];
+    if (textChannel) {
       setActiveChannelId(textChannel.id);
       setActiveChannelName(textChannel.name);
       setActiveChannelType(textChannel.type || 'text');
-      if (textChannel.type !== 'voice') {
-        handleMarkChannelRead(textChannel.id);
-      }
-    } else {
-      setActiveChannelId(null);
-      setActiveChannelName(null);
-      setActiveChannelType(null);
     }
+
+    // Always fetch fresh channels asynchronously and bind to real channel
+    apiRequest(`/api/servers/${serverId}/channels`)
+      .then((freshChannels) => {
+        if (Array.isArray(freshChannels) && freshChannels.length > 0) {
+          setChannels(freshChannels);
+          const stillValid = textChannel?.id && !textChannel.id.startsWith('ch-') && freshChannels.find((c) => c.id === textChannel.id);
+          if (!stillValid) {
+            const first = freshChannels.find((c) => c.type === 'text') || freshChannels[0];
+            if (first) {
+              setActiveChannelId(first.id);
+              setActiveChannelName(first.name);
+              setActiveChannelType(first.type || 'text');
+            }
+          }
+        }
+      })
+      .catch(() => {});
   };
 
   const handleCreateServer = async (serverName) => {
@@ -787,8 +859,13 @@ export default function DashboardPage() {
           <ChatterRoomsView
             servers={servers}
             activeServerId={activeServerId}
-            onSelectServer={(sId) => {
+            onSelectServer={(sId, cId, cName) => {
               handleSelectServer(sId);
+              if (cId) {
+                setActiveChannelId(cId);
+                if (cName) setActiveChannelName(cName);
+                setActiveChannelType('text');
+              }
               setChatterTab('chats');
             }}
             onCreateServer={() => setServerActionModal('create')}
@@ -807,15 +884,9 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* If chatterTab === 'guru', render ChatterGuruView */}
+      {/* If chatterTab === 'guru', render ChatterGuruView with full breathing space */}
       {chatterTab === 'guru' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden', background: 'var(--chatter-black)' }}>
-          <ChatterTopBar
-            onOpenNotifications={() => showToast('No new notifications')}
-            onOpenSearch={() => setSearchModalOpen(true)}
-            onOpenLiveSpaces={() => setChatterTab('rooms')}
-            onRandomTopic={() => setChatterTab('rooms')}
-          />
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden', background: 'var(--chatter-black)', paddingBottom: 'calc(62px + env(safe-area-inset-bottom))' }}>
           <ChatterGuruView
             channelName={activeChannelName}
             serverId={activeServerId}

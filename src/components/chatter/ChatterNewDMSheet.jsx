@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { TwitterVerifiedBadge } from './ChatterFeedView';
 
 export default function ChatterNewDMSheet({
@@ -11,54 +11,42 @@ export default function ChatterNewDMSheet({
   onSelectUser,
 }) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [dbUsers, setDbUsers] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  // Default suggested classmates / study partners
-  const defaultPeers = useMemo(() => [
-    {
-      id: 'sp-1',
-      name: 'Sarah Chen',
-      username: 'sarah_c',
-      avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80',
-      subject: 'Bioinformatics & Chemistry',
-      online: true,
-    },
-    {
-      id: 'sp-2',
-      name: 'David Kim',
-      username: 'david_k',
-      avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
-      subject: 'Algorithms & Computer Science',
-      online: true,
-    },
-    {
-      id: 'sp-3',
-      name: 'Alex Rivera',
-      username: 'arivera',
-      avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80',
-      subject: 'Physics & Applied Math',
-      online: false,
-    },
-    {
-      id: 'sp-4',
-      name: 'Elena Rostova',
-      username: 'elena_r',
-      avatar_url: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&auto=format&fit=crop&q=80',
-      subject: 'Machine Learning',
-      online: true,
-    },
-    {
-      id: 'sp-5',
-      name: 'Kenji Sato',
-      username: 'kenji_s',
-      avatar_url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&auto=format&fit=crop&q=80',
-      subject: 'Discrete Mathematics',
-      online: false,
-    },
-  ], []);
+  // Fetch classmates/peers dynamically from DB
+  useEffect(() => {
+    if (!isOpen) return;
 
-  // Combine server members with default peers, excluding current user
+    let active = true;
+    setLoading(true);
+
+    const timer = setTimeout(() => {
+      fetch(`/api/user/search?q=${encodeURIComponent(searchQuery.trim())}`)
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data) => {
+          if (active) {
+            setDbUsers(Array.isArray(data) ? data : []);
+            setLoading(false);
+          }
+        })
+        .catch(() => {
+          if (active) {
+            setDbUsers([]);
+            setLoading(false);
+          }
+        });
+    }, searchQuery ? 250 : 0);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [isOpen, searchQuery]);
+
+  // Combine DB users with server members, filtering out current user and duplicates
   const candidates = useMemo(() => {
-    const list = [...defaultPeers];
+    const list = [...dbUsers];
     members.forEach((m) => {
       const uId = m.user_id || m.id;
       if (uId && uId !== currentUserId && !list.some((p) => p.id === uId)) {
@@ -73,18 +61,7 @@ export default function ChatterNewDMSheet({
       }
     });
     return list;
-  }, [members, currentUserId, defaultPeers]);
-
-  const filteredCandidates = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
-    if (!q) return candidates;
-    return candidates.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.username.toLowerCase().includes(q) ||
-        c.subject.toLowerCase().includes(q)
-    );
-  }, [candidates, searchQuery]);
+  }, [members, currentUserId, dbUsers]);
 
   if (!isOpen) return null;
 
@@ -173,7 +150,7 @@ export default function ChatterNewDMSheet({
             <input
               type="text"
               autoFocus
-              placeholder="Search classmates by name or username..."
+              placeholder="Search classmates by name, username or major..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
@@ -190,12 +167,16 @@ export default function ChatterNewDMSheet({
 
         {/* User list */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {filteredCandidates.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '30px 10px', color: 'var(--chatter-light-text)' }}>
-              No classmates found matching &quot;{searchQuery}&quot;
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '30px 10px', color: 'var(--chatter-light-text)', fontSize: 13 }}>
+              Searching classmates...
+            </div>
+          ) : candidates.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '30px 10px', color: 'var(--chatter-light-text)', fontSize: 13 }}>
+              {searchQuery ? `No classmates found matching "${searchQuery}"` : 'No study partners found yet.'}
             </div>
           ) : (
-            filteredCandidates.map((user) => (
+            candidates.map((user) => (
               <div
                 key={user.id}
                 onClick={() => {
@@ -216,11 +197,30 @@ export default function ChatterNewDMSheet({
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <div style={{ position: 'relative' }}>
-                    <img
-                      src={user.avatar_url}
-                      alt={user.name}
-                      style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover' }}
-                    />
+                    {user.avatar_url ? (
+                      <img
+                        src={user.avatar_url}
+                        alt={user.name}
+                        style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: '50%',
+                          background: 'linear-gradient(135deg, var(--chatter-primary) 0%, #16a34a 100%)',
+                          color: '#0E0E0E',
+                          fontWeight: 800,
+                          fontSize: 16,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {(user.name || 'U').charAt(0).toUpperCase()}
+                      </div>
+                    )}
                     {user.online ? (
                       <span
                         style={{
@@ -235,21 +235,7 @@ export default function ChatterNewDMSheet({
                         }}
                         title="Online"
                       />
-                    ) : (
-                      <span
-                        style={{
-                          position: 'absolute',
-                          bottom: 1,
-                          right: 1,
-                          width: 10,
-                          height: 10,
-                          borderRadius: '50%',
-                          background: 'rgba(255, 255, 255, 0.25)',
-                          border: '2px solid var(--chatter-sheet)',
-                        }}
-                        title="Offline"
-                      />
-                    )}
+                    ) : null}
                   </div>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

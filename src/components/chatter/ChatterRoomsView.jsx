@@ -77,6 +77,7 @@ export default function ChatterRoomsView({
   ]);
 
   const [copiedServerId, setCopiedServerId] = useState(null);
+  const [copiedLinkId, setCopiedLinkId] = useState(null);
   const [prereqModalOpen, setPrereqModalOpen] = useState(false);
   const [createSpaceModalOpen, setCreateSpaceModalOpen] = useState(false);
   const [userFollowers, setUserFollowers] = useState(0);
@@ -106,6 +107,19 @@ export default function ChatterRoomsView({
     }
     setCopiedServerId(server.id);
     setTimeout(() => setCopiedServerId(null), 2200);
+  };
+
+  const handleCopyLink = (e, server) => {
+    e.stopPropagation();
+    const code = server.invite_code || server.id;
+    const url = typeof window !== 'undefined'
+      ? `${window.location.origin}/dashboard?joinRoom=${encodeURIComponent(code)}`
+      : `/dashboard?joinRoom=${encodeURIComponent(code)}`;
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(url);
+    }
+    setCopiedLinkId(server.id);
+    setTimeout(() => setCopiedLinkId(null), 2200);
   };
 
   const handleOpenStartSpace = () => {
@@ -281,7 +295,10 @@ export default function ChatterRoomsView({
               return (
                 <div
                   key={server.id}
-                  onClick={() => onSelectServer(server.id)}
+                  onClick={() => {
+                    const defaultCh = server.channels?.find((c) => c.type === 'text') || server.channels?.[0];
+                    onSelectServer(server.id, defaultCh?.id, defaultCh?.name);
+                  }}
                   style={{
                     background: 'var(--chatter-sheet)',
                     border: isCurrent ? '1.5px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.06)',
@@ -331,18 +348,18 @@ export default function ChatterRoomsView({
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                     <button
                       type="button"
                       onClick={(e) => handleCopyCode(e, server)}
-                      title="Copy room invite code or ID to share"
+                      title="Copy room code"
                       style={{
-                        padding: '6px 10px',
+                        padding: '6px 9px',
                         borderRadius: 12,
                         background: isCopied ? 'rgba(64, 227, 120, 0.2)' : 'rgba(255, 255, 255, 0.06)',
                         border: isCopied ? '1px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
                         color: isCopied ? 'var(--chatter-primary)' : '#c0c0c0',
-                        fontSize: 11.5,
+                        fontSize: 11,
                         fontWeight: 600,
                         cursor: 'pointer',
                         display: 'flex',
@@ -351,7 +368,29 @@ export default function ChatterRoomsView({
                         transition: 'all 0.15s ease',
                       }}
                     >
-                      {isCopied ? '✓ Copied' : '📋 Copy Code'}
+                      {isCopied ? '✓ Copied' : '📋 Code'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={(e) => handleCopyLink(e, server)}
+                      title="Copy direct invite link to this room"
+                      style={{
+                        padding: '6px 9px',
+                        borderRadius: 12,
+                        background: copiedLinkId === server.id ? 'rgba(64, 227, 120, 0.2)' : 'rgba(255, 255, 255, 0.06)',
+                        border: copiedLinkId === server.id ? '1px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
+                        color: copiedLinkId === server.id ? 'var(--chatter-primary)' : '#c0c0c0',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {copiedLinkId === server.id ? '✓ Link Copied' : '🔗 Link'}
                     </button>
 
                     {isCurrent ? (
@@ -361,6 +400,11 @@ export default function ChatterRoomsView({
                     ) : (
                       <button
                         type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const defaultCh = server.channels?.find((c) => c.type === 'text') || server.channels?.[0];
+                          onSelectServer(server.id, defaultCh?.id, defaultCh?.name);
+                        }}
                         style={{
                           padding: '6px 14px',
                           borderRadius: 14,

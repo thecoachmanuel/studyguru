@@ -35,14 +35,29 @@ export async function GET(req, { params }) {
       return NextResponse.json({ error: 'Server not found' }, { status: 404 });
     }
 
+    const srvIdStr = server._id.toString();
+    const channels = await db.collection('channels')
+      .find({
+        $or: [{ server_id: srvIdStr }, { server_id: server.id || serverId }],
+      })
+      .sort({ position: 1, created_at: 1 })
+      .toArray();
+
     return NextResponse.json({
-      id: server._id.toString(),
+      id: srvIdStr,
       name: server.name,
       description: server.description || '',
       icon_url: server.icon_url || null,
       invite_code: server.invite_code,
       owner_id: server.owner_id,
       created_at: server.created_at,
+      channels: channels.map((c) => ({
+        id: c._id.toString(),
+        server_id: c.server_id,
+        name: c.name,
+        type: c.type || 'text',
+        position: c.position || 0,
+      })),
     });
   } catch (error) {
     console.error('Error fetching server:', error);

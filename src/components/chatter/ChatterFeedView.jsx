@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import SnapshotRail from '@/components/SnapshotRail';
 import ChatterUserProfileModal from './ChatterUserProfileModal';
 import ChatterCommentsSheet from './ChatterCommentsSheet';
@@ -339,6 +339,21 @@ export default function ChatterFeedView({
     setCreateModalOpen(false);
   };
 
+  // Prioritize posts of followed users, followed by chronological recency
+  const sortedPosts = useMemo(() => {
+    return [...posts].sort((a, b) => {
+      const aId = a.author?.id || a.author_id;
+      const bId = b.author?.id || b.author_id;
+      const aFollowing = Boolean(aId && activeFollowing[aId]);
+      const bFollowing = Boolean(bId && activeFollowing[bId]);
+      if (aFollowing && !bFollowing) return -1;
+      if (!aFollowing && bFollowing) return 1;
+      const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return timeB - timeA;
+    });
+  }, [posts, activeFollowing]);
+
   return (
     <div style={{ paddingBottom: 'calc(84px + env(safe-area-inset-bottom))', maxWidth: 680, margin: '0 auto', width: '100%', position: 'relative' }}>
       {/* Share Toast Banner */}
@@ -372,9 +387,9 @@ export default function ChatterFeedView({
         <SnapshotRail serverId={serverId} currentUserId={userId} />
       </div>
 
-      {/* ── 2. Chatter Social Posts Stream ── */}
+      {/* ── 2. Chatter Social Posts Stream (Followed users prioritized) ── */}
       <div style={{ marginTop: 8 }}>
-        {posts.map((post) => {
+        {sortedPosts.map((post) => {
           const isMe = post.author.id === userId || post.author.id === 'me';
           const isFollowing = !!(activeFollowing[post.author.id]);
           return (

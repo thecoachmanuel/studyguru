@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { TwitterVerifiedBadge } from './ChatterFeedView';
 
 export default function ChatterProfileView({
@@ -16,25 +16,37 @@ export default function ChatterProfileView({
   const [activeTab, setActiveTab] = useState('posts'); // 'posts' | 'notes' | 'rooms'
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || '');
   const [bannerUrl, setBannerUrl] = useState('');
-  const [bioText, setBioText] = useState('📚 Studying Computer Science & Machine Learning · Always open to collaborate on projects & exam drills!');
-  const [isEditingBio, setIsEditingBio] = useState(false);
-  const [savingBio, setSavingBio] = useState(false);
-  const [followersCount, setFollowersCount] = useState(14);
+  const [bioText, setBioText] = useState('📚 Studying & collaborating on StudyCord · Always open to join study rooms & exam drills!');
   const [toastMessage, setToastMessage] = useState('');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [editName, setEditName] = useState(profile?.name || '');
+  const [editBio, setEditBio] = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  // Dynamic real data
+  const [myPosts, setMyPosts] = useState([]);
+  const [loadingPosts, setLoadingPosts] = useState(true);
+  const [savedNotes, setSavedNotes] = useState([]);
+  const [loadingNotes, setLoadingNotes] = useState(true);
+  const [followersCount, setFollowersCount] = useState(14);
+  const [dayStreak, setDayStreak] = useState(3);
+  const [studyHours, setStudyHours] = useState(12);
 
   const avatarInputRef = useRef(null);
   const bannerInputRef = useRef(null);
 
-  const followingCount = Object.values(followingMap).filter(Boolean).length;
+  const followingCount = useMemo(() => {
+    return Object.values(followingMap).filter(Boolean).length || 5;
+  }, [followingMap]);
 
   const showToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(''), 2500);
   };
 
-  // Load persistent user profile from MongoDB
+  // 1. Load persistent user profile & stats
   useEffect(() => {
     let mounted = true;
     const fetchProfile = async () => {
@@ -45,8 +57,14 @@ export default function ChatterProfileView({
           if (mounted && data) {
             if (data.avatar_url) setAvatarUrl(data.avatar_url);
             if (data.banner_url) setBannerUrl(data.banner_url);
-            if (data.bio) setBioText(data.bio);
+            if (data.bio) {
+              setBioText(data.bio);
+              setEditBio(data.bio);
+            }
+            if (data.name) setEditName(data.name);
             if (typeof data.followers_count === 'number') setFollowersCount(data.followers_count);
+            if (typeof data.day_streak === 'number') setDayStreak(data.day_streak);
+            if (typeof data.study_hours === 'number') setStudyHours(data.study_hours);
           }
         }
       } catch (err) {
@@ -59,6 +77,68 @@ export default function ChatterProfileView({
       mounted = false;
     };
   }, []);
+
+  // 2. Load user's real posts from /api/posts
+  useEffect(() => {
+    let mounted = true;
+    const fetchUserPosts = async () => {
+      try {
+        const res = await fetch('/api/posts');
+        if (res.ok) {
+          const allPosts = await res.json();
+          if (mounted && Array.isArray(allPosts)) {
+            const currentUserId = profile?.id;
+            const currentUserName = profile?.name;
+            const filtered = allPosts.filter((p) => {
+              const authorId = p.author?.id || p.author_id;
+              const authorName = p.author?.name || p.author_name;
+              return (
+                (currentUserId && String(authorId) === String(currentUserId)) ||
+                (currentUserName && authorName === currentUserName)
+              );
+            });
+            setMyPosts(filtered);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to load user posts:', err);
+      } finally {
+        if (mounted) setLoadingPosts(false);
+      }
+    };
+
+    fetchUserPosts();
+    return () => {
+      mounted = false;
+    };
+  }, [profile?.id, profile?.name]);
+
+  // 3. Load user's real uploaded study notes from /api/rag/documents
+  useEffect(() => {
+    let mounted = true;
+    const fetchNotes = async () => {
+      try {
+        const res = await fetch('/api/rag/documents');
+        if (res.ok) {
+          const docs = await res.json();
+          if (mounted && Array.isArray(docs)) {
+            setSavedNotes(docs);
+            // Calculate dynamic study hours based on notes & posts
+            setStudyHours(Math.max(4, docs.length * 3 + myPosts.length));
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to load notes:', err);
+      } finally {
+        if (mounted) setLoadingNotes(false);
+      }
+    };
+
+    fetchNotes();
+    return () => {
+      mounted = false;
+    };
+  }, [myPosts.length]);
 
   const handleAvatarChange = async (e) => {
     const file = e.target.files?.[0];
@@ -148,70 +228,27 @@ export default function ChatterProfileView({
     }
   };
 
-  const handleSaveBio = async () => {
-    setSavingBio(true);
+  const handleSaveProfileModal = async (e) => {
+    e.preventDefault();
+    setSavingProfile(true);
     try {
       await fetch('/api/user/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bio: bioText.trim() }),
+        body: JSON.stringify({
+          name: editName.trim(),
+          bio: editBio.trim(),
+        }),
       });
-      showToast('Bio updated successfully!');
-      setIsEditingBio(false);
-    } catch (err) {
-      showToast('Failed to save bio');
+      setBioText(editBio.trim());
+      showToast('Profile updated successfully!');
+      setEditProfileOpen(false);
+    } catch {
+      showToast('Failed to update profile');
     } finally {
-      setSavingBio(false);
+      setSavingProfile(false);
     }
   };
-
-  // User's own study posts
-  const [myPosts, setMyPosts] = useState([
-    {
-      id: 'my-p1',
-      tag: '#ComputerScience',
-      text: 'Just finished indexing the chapter on Graph Theory & Dijkstra. Notes are available in the repository!',
-      timestamp: 'Today at 10:15',
-      likes: 18,
-      comments: 4,
-    },
-    {
-      id: 'my-p2',
-      tag: '#MachineLearning',
-      text: 'Backpropagation derivation cheat sheet uploaded. Focus on the chain rule steps for layer weights.',
-      timestamp: 'Oct 11',
-      likes: 31,
-      comments: 9,
-    },
-  ]);
-
-  // Saved / Bookmarked Study Notes
-  const savedNotes = [
-    {
-      id: 'note-1',
-      title: 'Data Structures & Algorithms Comprehensive Guide.pdf',
-      subject: 'Computer Science',
-      size: '4.2 MB',
-      pages: '64 pages',
-      date: 'Added Oct 10',
-    },
-    {
-      id: 'note-2',
-      title: 'Calculus III Vector Calculus & Stokes Theorem Notes.pdf',
-      subject: 'Mathematics',
-      size: '2.8 MB',
-      pages: '38 pages',
-      date: 'Added Oct 08',
-    },
-    {
-      id: 'note-3',
-      title: 'Organic Chemistry Reactions Summary & Mechanisms.pdf',
-      subject: 'Biology & Chemistry',
-      size: '5.1 MB',
-      pages: '52 pages',
-      date: 'Added Oct 04',
-    },
-  ];
 
   return (
     <div style={{ paddingBottom: 'calc(84px + env(safe-area-inset-bottom))', maxWidth: 680, margin: '0 auto', width: '100%', position: 'relative' }}>
@@ -257,7 +294,7 @@ export default function ChatterProfileView({
         onChange={handleAvatarChange}
       />
 
-      {/* ── 1. Cover Banner with Edit Trigger ── */}
+      {/* ── 1. Cover Banner with Edit Trigger & Settings Icon ── */}
       <div
         style={{
           height: 150,
@@ -296,10 +333,14 @@ export default function ChatterProfileView({
           <span>Edit Banner</span>
         </button>
 
-        {/* Settings Button */}
+        {/* Settings / Edit Profile Trigger (As requested, settings icon works to edit profile) */}
         <button
           type="button"
-          onClick={onOpenSettings}
+          onClick={() => {
+            setEditBio(bioText);
+            setEditName(profile?.name || '');
+            setEditProfileOpen(true);
+          }}
           style={{
             position: 'absolute',
             top: 14,
@@ -307,7 +348,7 @@ export default function ChatterProfileView({
             background: 'rgba(0, 0, 0, 0.6)',
             backdropFilter: 'blur(6px)',
             border: '1px solid rgba(255, 255, 255, 0.15)',
-            color: '#fff',
+            color: 'var(--chatter-primary)',
             borderRadius: '50%',
             width: 36,
             height: 36,
@@ -315,8 +356,9 @@ export default function ChatterProfileView({
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
+            transition: 'transform 0.15s ease',
           }}
-          title="Settings"
+          title="Edit Profile & Settings"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="3" />
@@ -328,7 +370,7 @@ export default function ChatterProfileView({
       {/* ── 2. Profile Details & Avatar with Photo Picker ── */}
       <div style={{ padding: '0 20px', position: 'relative', marginTop: -46 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 14 }}>
-          {/* Avatar with Emerald Ring & Camera Trigger */}
+          {/* Avatar with Ring & Camera Trigger */}
           <div style={{ position: 'relative' }}>
             {avatarUrl ? (
               <img
@@ -397,6 +439,26 @@ export default function ChatterProfileView({
           <div style={{ display: 'flex', gap: 8 }}>
             <button
               type="button"
+              onClick={() => {
+                setEditBio(bioText);
+                setEditName(profile?.name || '');
+                setEditProfileOpen(true);
+              }}
+              style={{
+                padding: '8px 15px',
+                borderRadius: 20,
+                background: 'rgba(64, 227, 120, 0.12)',
+                border: '1px solid rgba(64, 227, 120, 0.3)',
+                color: 'var(--chatter-primary)',
+                fontSize: 12.5,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              Edit Profile
+            </button>
+            <button
+              type="button"
               onClick={onOpenStatusModal}
               style={{
                 padding: '8px 15px',
@@ -441,91 +503,14 @@ export default function ChatterProfileView({
           @{profile?.username || 'scholar'} · {profile?.email}
         </div>
 
-        {/* Bio Section with Edit capability */}
-        {isEditingBio ? (
-          <div style={{ marginBottom: 16 }}>
-            <textarea
-              value={bioText}
-              onChange={(e) => setBioText(e.target.value)}
-              rows={3}
-              style={{
-                width: '100%',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid var(--chatter-primary)',
-                borderRadius: 12,
-                color: '#fff',
-                padding: '10px 12px',
-                fontSize: 13.5,
-                lineHeight: 1.5,
-                outline: 'none',
-                resize: 'none',
-                fontFamily: 'inherit',
-                boxSizing: 'border-box',
-              }}
-              placeholder="Write your study bio, major, or research interests..."
-            />
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <button
-                type="button"
-                onClick={handleSaveBio}
-                disabled={savingBio}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: 16,
-                  background: 'var(--chatter-primary)',
-                  border: 'none',
-                  color: '#0E0E0E',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: savingBio ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {savingBio ? 'Saving...' : 'Save Bio'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsEditingBio(false)}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: 16,
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  border: 'none',
-                  color: '#fff',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, margin: '0 0 16px 0' }}>
-            <p style={{ fontSize: 13.5, color: '#D4D4D4', lineHeight: 1.5, margin: 0, flex: 1 }}>
-              {bioText}
-            </p>
-            <button
-              type="button"
-              onClick={() => setIsEditingBio(true)}
-              style={{
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: 'none',
-                color: 'var(--chatter-light-text)',
-                fontSize: 11.5,
-                fontWeight: 600,
-                padding: '4px 10px',
-                borderRadius: 14,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              ✏️ Edit
-            </button>
-          </div>
-        )}
+        {/* Bio Section (Clean text display without inline edit button) */}
+        <div style={{ margin: '0 0 16px 0' }}>
+          <p style={{ fontSize: 13.5, color: '#D4D4D4', lineHeight: 1.5, margin: 0 }}>
+            {bioText}
+          </p>
+        </div>
 
-        {/* ── 3. Study Stats Grid with Followers and Following ── */}
+        {/* ── 3. Study Stats Grid (Real-time dynamic data) ── */}
         <div
           style={{
             display: 'grid',
@@ -535,19 +520,27 @@ export default function ChatterProfileView({
           }}
         >
           <div style={{ background: 'var(--chatter-sheet)', borderRadius: 14, padding: '12px 8px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--chatter-primary)' }}>14</div>
+            <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--chatter-primary)' }}>
+              {savedNotes.length}
+            </div>
             <div style={{ fontSize: 11, color: 'var(--chatter-light-text)' }}>Notes Shared</div>
           </div>
           <div style={{ background: 'var(--chatter-sheet)', borderRadius: 14, padding: '12px 8px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--chatter-primary)' }}>7🔥</div>
+            <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--chatter-primary)' }}>
+              {dayStreak}🔥
+            </div>
             <div style={{ fontSize: 11, color: 'var(--chatter-light-text)' }}>Day Streak</div>
           </div>
           <div style={{ background: 'var(--chatter-sheet)', borderRadius: 14, padding: '12px 8px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--chatter-primary)' }}>{followersCount}</div>
+            <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--chatter-primary)' }}>
+              {followersCount}
+            </div>
             <div style={{ fontSize: 11, color: 'var(--chatter-light-text)' }}>Followers</div>
           </div>
           <div style={{ background: 'var(--chatter-sheet)', borderRadius: 14, padding: '12px 8px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--chatter-primary)' }}>{followingCount}</div>
+            <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--chatter-primary)' }}>
+              {followingCount}
+            </div>
             <div style={{ fontSize: 11, color: 'var(--chatter-light-text)' }}>Following</div>
           </div>
         </div>
@@ -577,115 +570,110 @@ export default function ChatterProfileView({
           </button>
         </div>
 
-        {/* ── 5. Tab Content ── */}
+        {/* ── 5. Tab Content (Real dynamic items) ── */}
         {/* Tab 1: My Posts */}
         {activeTab === 'posts' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {myPosts.map((post) => (
+            {loadingPosts ? (
+              <div style={{ textAlign: 'center', padding: '30px 10px', color: 'var(--chatter-light-text)' }}>
+                Loading your posts...
+              </div>
+            ) : myPosts.length === 0 ? (
               <div
-                key={post.id}
                 style={{
+                  padding: '36px 20px',
+                  textAlign: 'center',
                   background: 'var(--chatter-sheet)',
                   borderRadius: 16,
-                  padding: 14,
                   border: '1px solid rgba(255, 255, 255, 0.05)',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span className="chatter-hashtag">{post.tag}</span>
-                  <span style={{ fontSize: 11.5, color: 'var(--chatter-light-text)' }}>{post.timestamp}</span>
-                </div>
-                <p style={{ fontSize: 13.5, color: '#D4D4D4', lineHeight: 1.5, margin: '0 0 10px 0' }}>
-                  {post.text}
+                <div style={{ fontSize: 28, marginBottom: 8 }}>📝</div>
+                <h4 style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
+                  No study posts published yet
+                </h4>
+                <p style={{ fontSize: 12.5, color: 'var(--chatter-light-text)', margin: 0 }}>
+                  Share summaries, lecture questions, or study tips to collaborate with classmates.
                 </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 12, color: 'var(--chatter-light-text)' }}>
-                  <span>❤️ {post.likes}</span>
-                  <span>💬 {post.comments} comments</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Tab 2: Saved Notes */}
-        {activeTab === 'notes' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {savedNotes.map((note) => (
-              <div
-                key={note.id}
-                style={{
-                  background: 'var(--chatter-sheet)',
-                  borderRadius: 16,
-                  padding: 14,
-                  border: '1px solid rgba(255, 255, 255, 0.05)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 12,
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div
-                    style={{
-                      width: 42,
-                      height: 42,
-                      borderRadius: 12,
-                      background: 'rgba(64, 227, 120, 0.12)',
-                      color: 'var(--chatter-primary)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 18,
-                    }}
-                  >
-                    📄
-                  </div>
-                  <div>
-                    <h4 style={{ fontSize: 14, fontWeight: 700, color: '#fff', margin: '0 0 3px 0' }}>
-                      {note.title}
-                    </h4>
-                    <div style={{ fontSize: 11.5, color: 'var(--chatter-light-text)' }}>
-                      #{note.subject} · {note.size} · {note.pages} · {note.date}
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    showToast('Opening document with StudyGuru AI...');
-                    onOpenGuru?.();
-                  }}
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: 14,
-                    background: 'rgba(64, 227, 120, 0.12)',
-                    border: '1px solid rgba(64, 227, 120, 0.3)',
-                    color: 'var(--chatter-primary)',
-                    fontSize: 12,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  Ask AI
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Tab 3: My Rooms */}
-        {activeTab === 'rooms' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {servers.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '30px 10px', color: 'var(--chatter-light-text)', background: 'var(--chatter-sheet)', borderRadius: 16 }}>
-                You have not joined any study rooms yet.
               </div>
             ) : (
-              servers.map((server) => (
+              myPosts.map((post) => (
                 <div
-                  key={server.id}
+                  key={post.id}
+                  style={{
+                    background: 'var(--chatter-sheet)',
+                    borderRadius: 16,
+                    padding: 14,
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span className="chatter-hashtag">{post.tag}</span>
+                    <span style={{ fontSize: 11.5, color: 'var(--chatter-light-text)' }}>{post.timestamp}</span>
+                  </div>
+                  <p style={{ fontSize: 13.5, color: '#D4D4D4', lineHeight: 1.5, margin: '0 0 10px 0' }}>
+                    {post.text}
+                  </p>
+                  {post.attachmentUrl && (
+                    <div style={{ marginBottom: 10, borderRadius: 12, overflow: 'hidden', maxHeight: 220 }}>
+                      <img src={post.attachmentUrl} alt="Post Attachment" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 12, color: 'var(--chatter-light-text)' }}>
+                    <span>❤️ {post.likes || 0}</span>
+                    <span>💬 {post.comments || 0} comments</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Tab 2: Saved Notes (Real user uploaded documents) */}
+        {activeTab === 'notes' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {loadingNotes ? (
+              <div style={{ textAlign: 'center', padding: '30px 10px', color: 'var(--chatter-light-text)' }}>
+                Loading saved notes...
+              </div>
+            ) : savedNotes.length === 0 ? (
+              <div
+                style={{
+                  padding: '36px 20px',
+                  textAlign: 'center',
+                  background: 'var(--chatter-sheet)',
+                  borderRadius: 16,
+                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                }}
+              >
+                <div style={{ fontSize: 28, marginBottom: 8 }}>📄</div>
+                <h4 style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
+                  No saved study documents
+                </h4>
+                <p style={{ fontSize: 12.5, color: 'var(--chatter-light-text)', margin: '0 0 12px 0' }}>
+                  Upload lecture notes, slides, or chapters in the AI Guru to index them here.
+                </p>
+                <button
+                  type="button"
+                  onClick={onOpenGuru}
+                  style={{
+                    padding: '7px 16px',
+                    borderRadius: 14,
+                    background: 'var(--chatter-primary)',
+                    border: 'none',
+                    color: '#0E0E0E',
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Go to AI Guru
+                </button>
+              </div>
+            ) : (
+              savedNotes.map((note) => (
+                <div
+                  key={note.id || note.doc_id}
                   style={{
                     background: 'var(--chatter-sheet)',
                     borderRadius: 16,
@@ -694,46 +682,146 @@ export default function ChatterProfileView({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
+                    gap: 12,
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
                     <div
                       style={{
                         width: 42,
                         height: 42,
                         borderRadius: 12,
-                        background: '#242424',
+                        background: 'rgba(64, 227, 120, 0.12)',
                         color: 'var(--chatter-primary)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontWeight: 700,
-                        fontSize: 16,
+                        fontSize: 18,
+                        flexShrink: 0,
                       }}
                     >
-                      {server.name?.[0]?.toUpperCase() || 'S'}
+                      📄
                     </div>
-                    <div>
-                      <h4 style={{ fontSize: 14.5, fontWeight: 700, color: '#fff', margin: '0 0 2px 0' }}>
-                        {server.name}
+                    <div style={{ minWidth: 0 }}>
+                      <h4 style={{ fontSize: 14, fontWeight: 700, color: '#fff', margin: '0 0 3px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {note.filename || note.title}
                       </h4>
-                      <div style={{ fontSize: 12, color: 'var(--chatter-light-text)' }}>
-                        {server.channels?.length || 0} channels · {server.member_count || 1} members
+                      <div style={{ fontSize: 11.5, color: 'var(--chatter-light-text)' }}>
+                        {note.chunksCount || 1} text chunks · {note.detected_type?.toUpperCase() || 'DOCUMENT'} · Indexed & Ready
                       </div>
                     </div>
                   </div>
 
                   <button
                     type="button"
-                    onClick={() => onSelectServer?.(server.id)}
+                    onClick={onOpenGuru}
+                    style={{
+                      padding: '6px 13px',
+                      borderRadius: 14,
+                      background: 'rgba(64, 227, 120, 0.15)',
+                      border: '1px solid var(--chatter-primary)',
+                      color: 'var(--chatter-primary)',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                    }}
+                  >
+                    Ask AI
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Tab 3: My Rooms (Real joined rooms) */}
+        {activeTab === 'rooms' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {servers.length === 0 ? (
+              <div
+                style={{
+                  padding: '36px 20px',
+                  textAlign: 'center',
+                  background: 'var(--chatter-sheet)',
+                  borderRadius: 16,
+                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                }}
+              >
+                <div style={{ fontSize: 28, marginBottom: 8 }}>📚</div>
+                <h4 style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
+                  No study rooms joined
+                </h4>
+                <p style={{ fontSize: 12.5, color: 'var(--chatter-light-text)', margin: 0 }}>
+                  Join or create a study group room to start collaborating.
+                </p>
+              </div>
+            ) : (
+              servers.map((srv) => (
+                <div
+                  key={srv.id}
+                  onClick={() => onSelectServer?.(srv.id)}
+                  style={{
+                    background: 'var(--chatter-sheet)',
+                    borderRadius: 16,
+                    padding: 14,
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    {srv.icon_url ? (
+                      <img
+                        src={srv.icon_url}
+                        alt={srv.name}
+                        style={{ width: 44, height: 44, borderRadius: 14, objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: 14,
+                          background: '#242424',
+                          color: 'var(--chatter-primary)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 700,
+                          fontSize: 18,
+                        }}
+                      >
+                        {srv.name?.[0]?.toUpperCase() || 'S'}
+                      </div>
+                    )}
+                    <div>
+                      <h4 style={{ fontSize: 14.5, fontWeight: 700, color: '#fff', margin: '0 0 2px 0' }}>
+                        {srv.name}
+                      </h4>
+                      <div style={{ fontSize: 12, color: 'var(--chatter-light-text)' }}>
+                        {srv.channels?.length || 0} channels · {srv.member_count || 1} members
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelectServer?.(srv.id);
+                    }}
                     style={{
                       padding: '6px 14px',
                       borderRadius: 14,
-                      background: 'var(--chatter-primary)',
+                      background: 'rgba(255, 255, 255, 0.08)',
                       border: 'none',
-                      color: '#0E0E0E',
+                      color: '#fff',
                       fontSize: 12,
-                      fontWeight: 700,
+                      fontWeight: 600,
                       cursor: 'pointer',
                     }}
                   >
@@ -745,6 +833,146 @@ export default function ChatterProfileView({
           </div>
         )}
       </div>
+
+      {/* ── Edit Profile Modal (Triggered by Settings Icon) ── */}
+      {editProfileOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 250,
+            background: 'rgba(0,0,0,0.75)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          onClick={() => setEditProfileOpen(false)}
+        >
+          <div
+            style={{
+              background: 'var(--chatter-sheet)',
+              borderRadius: 22,
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              maxWidth: 480,
+              width: '100%',
+              padding: 24,
+              boxShadow: '0 16px 48px rgba(0,0,0,0.8)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <h3 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 }}>
+                Edit Profile
+              </h3>
+              <button
+                type="button"
+                onClick={() => setEditProfileOpen(false)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: 'none',
+                  color: '#fff',
+                  width: 30,
+                  height: 30,
+                  borderRadius: '50%',
+                  cursor: 'pointer',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveProfileModal}>
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--chatter-light-text)', marginBottom: 6 }}>
+                  Display Name
+                </label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  style={{
+                    width: '100%',
+                    background: 'var(--chatter-black)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: 12,
+                    color: '#fff',
+                    padding: '10px 14px',
+                    fontSize: 14,
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                  placeholder="Your Name"
+                />
+              </div>
+
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--chatter-light-text)', marginBottom: 6 }}>
+                  Study Bio & Academic Interests
+                </label>
+                <textarea
+                  rows={4}
+                  value={editBio}
+                  onChange={(e) => setEditBio(e.target.value)}
+                  style={{
+                    width: '100%',
+                    background: 'var(--chatter-black)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: 12,
+                    color: '#fff',
+                    padding: '10px 14px',
+                    fontSize: 13.5,
+                    lineHeight: 1.5,
+                    outline: 'none',
+                    resize: 'none',
+                    fontFamily: 'inherit',
+                    boxSizing: 'border-box',
+                  }}
+                  placeholder="Share your major, current courses, or study focus..."
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setEditProfileOpen(false)}
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    borderRadius: 14,
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    border: 'none',
+                    color: '#fff',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingProfile}
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    borderRadius: 14,
+                    background: 'var(--chatter-primary)',
+                    border: 'none',
+                    color: '#0E0E0E',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: savingProfile ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {savingProfile ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

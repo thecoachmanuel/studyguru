@@ -15,14 +15,20 @@ export async function GET(req, { params }) {
     const db = await getDatabase();
 
     const convObjId = safeObjectId(conversationId);
-    const conv = await db.collection('conversations').findOne({
-      $or: [{ _id: convObjId }, { id: conversationId }],
+    let conv = await db.collection('conversations').findOne({
+      $or: [
+        { _id: convObjId },
+        { id: conversationId },
+        { participants: { $all: [userId, conversationId] } },
+      ],
       participants: userId,
     });
 
     if (!conv) {
       return NextResponse.json({ error: 'Conversation not found or unauthorized' }, { status: 404 });
     }
+
+    const realConvId = conv._id.toString();
 
     // Mark unread messages sent by peer as read
     const unreadUpdate = await db.collection('messages').updateMany(
@@ -127,14 +133,20 @@ export async function POST(req, { params }) {
 
     const db = await getDatabase();
     const convObjId = safeObjectId(conversationId);
-    const conv = await db.collection('conversations').findOne({
-      $or: [{ _id: convObjId }, { id: conversationId }],
+    let conv = await db.collection('conversations').findOne({
+      $or: [
+        { _id: convObjId },
+        { id: conversationId },
+        { participants: { $all: [userId, conversationId] } },
+      ],
       participants: userId,
     });
 
     if (!conv) {
       return NextResponse.json({ error: 'Conversation not found or unauthorized' }, { status: 404 });
     }
+
+    const actualConversationId = conv._id.toString();
 
     // Check message request state
     if (conv.status === 'pending') {
@@ -161,7 +173,7 @@ export async function POST(req, { params }) {
 
     const now = new Date();
     const newMessage = {
-      conversation_id: conversationId,
+      conversation_id: actualConversationId,
       user_id: userId,
       content: content.trim(),
       attachment_url: attachment_url || null,
@@ -177,7 +189,7 @@ export async function POST(req, { params }) {
 
     // Update last_message on conversation
     await db.collection('conversations').updateOne(
-      { $or: [{ _id: convObjId }, { id: conversationId }] },
+      { _id: conv._id },
       {
         $set: {
           last_message: {
@@ -196,7 +208,7 @@ export async function POST(req, { params }) {
 
     const payload = {
       id: messageId,
-      conversation_id: conversationId,
+      conversation_id: actualConversationId,
       user_id: userId,
       content: newMessage.content,
       attachment_url: newMessage.attachment_url,
@@ -214,7 +226,12 @@ export async function POST(req, { params }) {
     // Broadcast over Pusher
     try {
       const pusher = getPusherServer();
-      await pusher.trigger(`conversation-${conversationId}`, 'new-message', payload);
+      if (pusher) {
+        await pusher.trigger(`conversation-${actualConversationId}`, 'new-message', payload);
+        if (conversationId !== actualConversationId) {
+          await pusher.trigger(`conversation-${conversationId}`, 'new-message', payload);
+        }
+      }
     } catch (e) {
       console.warn('Pusher DM broadcast warning:', e.message);
     }

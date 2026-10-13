@@ -16,18 +16,26 @@ function parseKeyPool(...envNames) {
 
 const geminiKeys = parseKeyPool('GEMINI_API_KEYS', 'GEMINI_API_KEY', 'GOOGLE_API_KEY');
 const openrouterKeys = parseKeyPool('OPENROUTER_API_KEYS', 'OPENROUTER_API_KEY');
-const configuredModel = process.env.OPENROUTER_MODEL || 'openrouter/free';
+// Configured models with automatic multi-tier failover
+const GEMINI_MODELS = Array.from(
+  new Set([
+    process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+  ])
+);
 
 // Verified active high-performance free models pool on OpenRouter
 const OPENROUTER_MODELS = Array.from(
   new Set([
-    process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3.5-lightning:free',
+    process.env.OPENROUTER_MODEL || 'openrouter/auto',
+    'openrouter/auto',
+    'meta-llama/llama-3.3-70b-instruct:free',
+    'google/gemini-2.0-flash-exp:free',
+    'mistralai/mistral-7b-instruct:free',
     'nvidia/nemotron-3.5-lightning:free',
     'openrouter/free',
-    'inclusionai/ling-3.1-flash',
-    'liquid/lfm-2.5-2.6b:free',
-    'thinkingmachines/inkling:free',
-    'apodex/apodex-1.1-mini:free',
   ])
 );
 
@@ -334,42 +342,41 @@ export async function generateContentWithFallback({ prompt, systemPrompt = '', j
     return { text: cached, provider: 'cache' };
   }
 
-  // 1. Try Primary: Google Gemini (with key rotation on 429)
-  for (let attempt = 0; attempt < Math.max(geminiKeys.length, 1); attempt++) {
-    const aiClient = getActiveGeminiClient();
-    if (!aiClient) break;
+  // 1. Try Primary: Google Gemini with multi-key and multi-model rotation
+  if (geminiKeys.length > 0) {
+    for (let attempt = 0; attempt < Math.max(geminiKeys.length, 1); attempt++) {
+      const aiClient = getActiveGeminiClient();
+      if (!aiClient) break;
 
-    try {
       const contents = [];
       if (systemPrompt) {
         contents.push({ role: 'user', parts: [{ text: `${systemPrompt}\n\n${prompt}` }] });
       } else {
         contents.push({ role: 'user', parts: [{ text: prompt }] });
       }
-
       const config = json ? { responseMimeType: 'application/json' } : undefined;
 
-      const res = await aiClient.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents,
-        config,
-      });
+      for (const model of GEMINI_MODELS) {
+        try {
+          const res = await aiClient.models.generateContent({
+            model,
+            contents,
+            config,
+          });
 
-      const rawText = res.text || '';
-      const text = json ? rawText : cleanEmDashes(rawText);
-      if (text.trim()) {
-        setCachedResult(cacheKey, text);
-        return { text, provider: 'gemini' };
-      }
-    } catch (geminiError) {
-      console.warn('[LLM Scale] Gemini notice:', geminiError.message);
-      rotateGeminiKey();
-      // If credits are depleted or model not found, don't waste time retrying Gemini keys, fall to OpenRouter immediately
-      if (geminiError.message?.includes('depleted') || geminiError.message?.includes('402') || geminiError.message?.includes('404')) {
-        break;
-      }
-      if (geminiError.message?.includes('429') || geminiError.message?.includes('quota')) {
-        await sleep(200);
+          const rawText = res.text || '';
+          const text = json ? rawText : cleanEmDashes(rawText);
+          if (text.trim()) {
+            setCachedResult(cacheKey, text);
+            return { text, provider: 'gemini', model };
+          }
+        } catch (geminiError) {
+          console.warn(`[LLM Scale] Gemini (${model}) notice:`, geminiError.message);
+          rotateGeminiKey();
+          if (geminiError.message?.includes('429') || geminiError.message?.includes('quota')) {
+            await sleep(200);
+          }
+        }
       }
     }
   }
@@ -400,33 +407,33 @@ export async function generateContentWithFallback({ prompt, systemPrompt = '', j
  * Generate streaming content with multi-key Gemini streaming and OpenRouter streaming pool
  */
 export async function* generateStreamWithFallback({ prompt, systemPrompt = '' }) {
-  // 1. Try Primary: Google Gemini Streaming
-  let geminiFailed = false;
+  // 1. Try Primary: Google Gemini Streaming with multi-model failover
   if (geminiKeys.length > 0) {
     for (let attempt = 0; attempt < Math.max(geminiKeys.length, 1); attempt++) {
       const aiClient = getActiveGeminiClient();
       if (!aiClient) break;
 
-      try {
-        const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
-        const responseStream = await aiClient.models.generateContentStream({
-          model: 'gemini-3.8-flash',
-          contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
-        });
+      const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
 
-        let hadChunks = false;
-        for await (const chunk of responseStream) {
-          if (chunk.text) {
-            hadChunks = true;
-            yield cleanEmDashes(chunk.text);
+      for (const model of GEMINI_MODELS) {
+        try {
+          const responseStream = await aiClient.models.generateContentStream({
+            model,
+            contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
+          });
+
+          let hadChunks = false;
+          for await (const chunk of responseStream) {
+            if (chunk.text) {
+              hadChunks = true;
+              yield cleanEmDashes(chunk.text);
+            }
           }
+          if (hadChunks) return;
+        } catch (geminiError) {
+          console.warn(`[LLM Stream Scale] Gemini (${model}) notice, trying next model/provider:`, geminiError.message);
+          rotateGeminiKey();
         }
-        if (hadChunks) return;
-      } catch (geminiError) {
-        console.warn('[LLM Stream Scale] Gemini stream notice, falling back to OpenRouter pool:', geminiError.message);
-        rotateGeminiKey();
-        geminiFailed = true;
-        break; // Fast failover to OpenRouter
       }
     }
   }

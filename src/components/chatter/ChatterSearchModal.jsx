@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { TwitterVerifiedBadge } from './ChatterFeedView';
 
 export default function ChatterSearchModal({
@@ -15,83 +15,73 @@ export default function ChatterSearchModal({
 }) {
   const [activeSegment, setActiveSegment] = useState(0); // 0: Partners, 1: Posts, 2: Study Rooms, 3: Topics
   const [searchQuery, setSearchQuery] = useState('');
+  const [studyPartners, setStudyPartners] = useState([]);
+  const [posts, setPosts] = useState([]);
+  const [loadingPartners, setLoadingPartners] = useState(false);
+  const [loadingPosts, setLoadingPosts] = useState(false);
 
-  // Sample study partners matching Chatter
-  const [studyPartners] = useState([
-    {
-      id: 'sp-1',
-      name: 'Sarah Chen',
-      username: 'sarah_c',
-      avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80',
-      subject: 'Bioinformatics & Organic Chem',
-      online: true,
-      followersCount: 142,
-    },
-    {
-      id: 'sp-2',
-      name: 'David Kim',
-      username: 'david_k',
-      avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
-      subject: 'Algorithms & Data Structures',
-      online: true,
-      followersCount: 98,
-    },
-    {
-      id: 'sp-3',
-      name: 'Alex Rivera',
-      username: 'arivera',
-      avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80',
-      subject: 'Applied Physics & Calc III',
-      online: false,
-      followersCount: 56,
-    },
-    {
-      id: 'sp-4',
-      name: 'Elena Rostova',
-      username: 'elena_r',
-      avatar_url: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&auto=format&fit=crop&q=80',
-      subject: 'Machine Learning & NLP',
-      online: true,
-      followersCount: 210,
-    },
-    {
-      id: 'sp-5',
-      name: 'Kenji Sato',
-      username: 'kenji_s',
-      avatar_url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&auto=format&fit=crop&q=80',
-      subject: 'Discrete Math & Logic',
-      online: false,
-      followersCount: 77,
-    },
-  ]);
+  // Fetch real study partners dynamically
+  useEffect(() => {
+    if (!isOpen) return;
 
-  // Sample study posts
-  const [posts] = useState([
-    {
-      id: 'post-s1',
-      author: 'Sarah Chen',
-      tag: '#Biology',
-      text: 'Summary cheat sheet on cellular respiration and the Krebs cycle ready for review!',
-      likes: 24,
-      comments: 6,
-    },
-    {
-      id: 'post-s2',
-      author: 'David Kim',
-      tag: '#Algorithms',
-      text: 'Practicing Dijkstra vs Bellman-Ford shortest paths. Remember: Bellman handles negative weights!',
-      likes: 42,
-      comments: 11,
-    },
-    {
-      id: 'post-s3',
-      author: 'Elena Rostova',
-      tag: '#ComputerScience',
-      text: 'Transformer self-attention mechanism visualized step-by-step for the upcoming quiz.',
-      likes: 67,
-      comments: 19,
-    },
-  ]);
+    let active = true;
+    setLoadingPartners(true);
+    const timer = setTimeout(() => {
+      fetch(`/api/user/search?q=${encodeURIComponent(searchQuery.trim())}`)
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data) => {
+          if (active) {
+            setStudyPartners(Array.isArray(data) ? data : []);
+            setLoadingPartners(false);
+          }
+        })
+        .catch(() => {
+          if (active) {
+            setStudyPartners([]);
+            setLoadingPartners(false);
+          }
+        });
+    }, searchQuery ? 250 : 0);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [isOpen, searchQuery]);
+
+  // Fetch real posts
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let active = true;
+    setLoadingPosts(true);
+    fetch('/api/posts?limit=50')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (active) {
+          const formatted = (Array.isArray(data) ? data : []).map((p) => ({
+            id: p.id || p._id,
+            author: p.author_name || p.author?.name || 'Scholar',
+            tag: p.topic_tag || (p.tags?.[0] ? `#${p.tags[0]}` : '#General'),
+            text: p.content || '',
+            likes: p.likes_count || (Array.isArray(p.likes) ? p.likes.length : 0),
+            comments: p.comments_count || (Array.isArray(p.comments) ? p.comments.length : 0),
+          }));
+          setPosts(formatted);
+          setLoadingPosts(false);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setPosts([]);
+          setLoadingPosts(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isOpen]);
 
   // Topic tags matching Chatter
   const topics = [
@@ -106,16 +96,6 @@ export default function ChatterSearchModal({
   ];
 
   const q = searchQuery.toLowerCase().trim();
-
-  const filteredPartners = useMemo(() => {
-    if (!q) return studyPartners;
-    return studyPartners.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        p.username.toLowerCase().includes(q) ||
-        p.subject.toLowerCase().includes(q)
-    );
-  }, [studyPartners, q]);
 
   const filteredPosts = useMemo(() => {
     if (!q) return posts;
@@ -149,30 +129,34 @@ export default function ChatterSearchModal({
     <div
       style={{
         position: 'fixed',
-        inset: 0,
-        zIndex: 220,
-        background: 'rgba(0, 0, 0, 0.8)',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 65,
+        background: 'rgba(0, 0, 0, 0.75)',
         backdropFilter: 'blur(8px)',
         display: 'flex',
         alignItems: 'flex-start',
         justifyContent: 'center',
         padding: '16px',
+        paddingBottom: 'calc(74px + env(safe-area-inset-bottom))',
       }}
       onClick={onClose}
     >
       <div
         style={{
           background: 'var(--chatter-black)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
+          border: '1px solid rgba(255, 255, 255, 0.12)',
           borderRadius: 24,
           maxWidth: 620,
           width: '100%',
-          maxHeight: '90vh',
+          maxHeight: 'calc(100vh - 100px - env(safe-area-inset-bottom))',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          boxShadow: '0 24px 64px rgba(0,0,0,0.8)',
-          marginTop: 'env(safe-area-inset-top, 20px)',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.85)',
+          marginTop: 'max(16px, env(safe-area-inset-top, 16px))',
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -248,7 +232,7 @@ export default function ChatterSearchModal({
               className={`chatter-segment-btn ${activeSegment === 0 ? 'chatter-segment-btn--active' : ''}`}
               onClick={() => setActiveSegment(0)}
             >
-              Partners ({filteredPartners.length})
+              Partners ({studyPartners.length})
             </button>
             <button
               type="button"
@@ -279,12 +263,16 @@ export default function ChatterSearchModal({
           {/* Segment 0: Partners */}
           {activeSegment === 0 && (
             <>
-              {filteredPartners.length === 0 ? (
+              {loadingPartners ? (
+                <div style={{ textAlign: 'center', padding: '40px 10px', color: 'var(--chatter-light-text)', fontSize: 13 }}>
+                  Searching partners...
+                </div>
+              ) : studyPartners.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '40px 10px', color: 'var(--chatter-light-text)' }}>
                   No study partners found matching &quot;{searchQuery}&quot;
                 </div>
               ) : (
-                filteredPartners.map((partner) => {
+                studyPartners.map((partner) => {
                   const isFollowing = !!followingMap[partner.id];
                   return (
                     <div
@@ -301,11 +289,30 @@ export default function ChatterSearchModal({
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                         <div style={{ position: 'relative' }}>
-                          <img
-                            src={partner.avatar_url}
-                            alt={partner.name}
-                            style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover' }}
-                          />
+                          {partner.avatar_url ? (
+                            <img
+                              src={partner.avatar_url}
+                              alt={partner.name}
+                              style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover' }}
+                            />
+                          ) : (
+                            <div
+                              style={{
+                                width: 44,
+                                height: 44,
+                                borderRadius: '50%',
+                                background: 'linear-gradient(135deg, var(--chatter-primary) 0%, #16a34a 100%)',
+                                color: '#0E0E0E',
+                                fontWeight: 800,
+                                fontSize: 16,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              {(partner.name || 'U').charAt(0).toUpperCase()}
+                            </div>
+                          )}
                           {partner.online ? (
                             <span
                               style={{
@@ -320,21 +327,7 @@ export default function ChatterSearchModal({
                               }}
                               title="Online"
                             />
-                          ) : (
-                            <span
-                              style={{
-                                position: 'absolute',
-                                bottom: 1,
-                                right: 1,
-                                width: 10,
-                                height: 10,
-                                borderRadius: '50%',
-                                background: 'rgba(255, 255, 255, 0.25)',
-                                border: '2px solid var(--chatter-sheet)',
-                              }}
-                              title="Offline"
-                            />
-                          )}
+                          ) : null}
                         </div>
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -394,7 +387,11 @@ export default function ChatterSearchModal({
           {/* Segment 1: Posts */}
           {activeSegment === 1 && (
             <>
-              {filteredPosts.length === 0 ? (
+              {loadingPosts ? (
+                <div style={{ textAlign: 'center', padding: '40px 10px', color: 'var(--chatter-light-text)', fontSize: 13 }}>
+                  Loading posts...
+                </div>
+              ) : filteredPosts.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '40px 10px', color: 'var(--chatter-light-text)' }}>
                   No study posts found matching &quot;{searchQuery}&quot;
                 </div>

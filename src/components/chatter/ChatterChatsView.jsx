@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { TwitterVerifiedBadge } from './ChatterFeedView';
+import { getPusherClient } from '@/lib/pusherClient';
 
 export default function ChatterChatsView({
   servers = [],
@@ -14,114 +15,200 @@ export default function ChatterChatsView({
 }) {
   const [activeSegment, setActiveSegment] = useState(0); // 0: Direct Chats, 1: Study Rooms, 2: Requests
   const [searchQuery, setSearchQuery] = useState('');
+  const [conversations, setConversations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoadingId, setActionLoadingId] = useState(null);
 
-  // Sample DMs matching Chatter Direct Messages
-  const [directChats, setDirectChats] = useState([
-    {
-      id: 'dm-1',
-      user: {
-        id: 'u-sarah',
-        name: 'Sarah Chen',
-        avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80',
-        online: true,
-      },
-      lastMessage: 'Can you send the PDF of chapter 4 practice problems?',
-      timestamp: '14:20',
-      unread: 2,
-    },
-    {
-      id: 'dm-2',
-      user: {
-        id: 'u-alex',
-        name: 'Alex Rivera',
-        avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80',
-        online: false,
-      },
-      lastMessage: 'Good job on the quiz! That question 3 was tricky.',
-      timestamp: 'Yesterday',
-      unread: 0,
-    },
-    {
-      id: 'dm-3',
-      user: {
-        id: 'u-david',
-        name: 'David Kim',
-        avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
-        online: true,
-      },
-      lastMessage: 'Are we still meeting in the audio room at 8pm?',
-      timestamp: 'Oct 12',
-      unread: 0,
-    },
-  ]);
+  // Fetch real conversations from API
+  const fetchConversations = useCallback(async () => {
+    try {
+      const res = await fetch('/api/conversations');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setConversations(data);
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to load real conversations:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  // Pending Study Partner Requests matching Chatter requests tab
-  const [studyRequests, setStudyRequests] = useState([
-    {
-      id: 'req-1',
-      user: {
-        id: 'u-kenji',
-        name: 'Kenji Sato',
-        username: 'kenji_s',
-        avatar_url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&auto=format&fit=crop&q=80',
-        online: true,
-      },
-      message: 'Hey, saw your notes on Dynamic Programming. Would you like to study together for midterms?',
-      timestamp: '2h ago',
-    },
-    {
-      id: 'req-2',
-      user: {
-        id: 'u-mia',
-        name: 'Mia Thorne',
-        username: 'mia_t',
-        avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
-        online: false,
-      },
-      message: 'Hi! Can you share the solution set for Calculus Problem Set 3?',
-      timestamp: 'Yesterday',
-    },
-  ]);
+  useEffect(() => {
+    fetchConversations();
+  }, [fetchConversations]);
+
+  // Real-time Pusher updates for incoming chats and requests
+  useEffect(() => {
+    if (!user?.id) return;
+    let userChannel = null;
+    try {
+      const pusher = getPusherClient();
+      if (pusher) {
+        userChannel = pusher.subscribe(`user-${user.id}`);
+        userChannel.bind('new-conversation', () => {
+          fetchConversations();
+        });
+        userChannel.bind('new-message', () => {
+          fetchConversations();
+        });
+      }
+    } catch {}
+
+    return () => {
+      if (userChannel) {
+        try {
+          userChannel.unbind_all();
+        } catch {}
+      }
+    };
+  }, [user?.id, fetchConversations]);
+
+  // Separate real conversations into Direct Chats and Study Requests
+  const currentUserId = user?.id;
+
+  const directChats = useMemo(() => {
+    return conversations
+      .filter((c) => {
+        // Active if accepted, or if user was the sender of the request
+        return c.status === 'accepted' || (c.requested_by && String(c.requested_by) === String(currentUserId));
+      })
+      .map((c) => {
+        const lastMsgText = c.last_message?.content || (c.status === 'pending' ? 'Message request pending...' : 'No messages yet');
+        let timeStr = 'Recently';
+        if (c.updated_at) {
+          const d = new Date(c.updated_at);
+          timeStr = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        }
+        return {
+          id: c.id,
+          user: {
+            id: c.other_user?.id || 'peer',
+            name: c.other_user?.name || c.other_user?.username || 'Study Partner',
+            username: c.other_user?.username || 'partner',
+            avatar_url: c.other_user?.avatar_url || null,
+            online: c.other_user?.status?.state === 'online',
+          },
+          lastMessage: lastMsgText,
+          timestamp: timeStr,
+          unread: unreadCounts[c.id] || 0,
+        };
+      });
+  }, [conversations, currentUserId, unreadCounts]);
+
+  const studyRequests = useMemo(() => {
+    return conversations
+      .filter((c) => {
+        // Pending requests received from another user
+        return c.status === 'pending' && String(c.requested_by) !== String(currentUserId);
+      })
+      .map((c) => {
+        let timeStr = 'Recently';
+        if (c.updated_at) {
+          const diffMinutes = Math.floor((Date.now() - new Date(c.updated_at).getTime()) / 60000);
+          if (diffMinutes < 60) timeStr = `${Math.max(1, diffMinutes)}m ago`;
+          else if (diffMinutes < 1440) timeStr = `${Math.floor(diffMinutes / 60)}h ago`;
+          else timeStr = new Date(c.updated_at).toLocaleDateString([], { month: 'short', day: 'numeric' });
+        }
+        return {
+          id: c.id,
+          user: {
+            id: c.other_user?.id || 'peer',
+            name: c.other_user?.name || c.other_user?.username || 'Study Partner',
+            username: c.other_user?.username || 'partner',
+            avatar_url: c.other_user?.avatar_url || null,
+            online: c.other_user?.status?.state === 'online',
+          },
+          message: c.last_message?.content || 'Hi! Would you like to collaborate and study together?',
+          timestamp: timeStr,
+        };
+      });
+  }, [conversations, currentUserId]);
 
   // Aggregate channels from all joined servers
-  const allChannels = servers.flatMap((server) =>
-    (server.channels || []).map((ch) => ({
-      ...ch,
-      serverName: server.name,
-      serverId: server.id,
-    }))
-  );
+  const allChannels = useMemo(() => {
+    return servers.flatMap((server) =>
+      (server.channels || []).map((ch) => ({
+        ...ch,
+        serverName: server.name,
+        serverId: server.id,
+      }))
+    );
+  }, [servers]);
 
-  const filteredChannels = allChannels.filter(
-    (c) =>
-      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.serverName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredChannels = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return allChannels;
+    return allChannels.filter(
+      (c) =>
+        (c.name || '').toLowerCase().includes(q) ||
+        (c.serverName || '').toLowerCase().includes(q)
+    );
+  }, [allChannels, searchQuery]);
 
-  const filteredDMs = directChats.filter((dm) =>
-    dm.user.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredDMs = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return directChats;
+    return directChats.filter(
+      (dm) =>
+        dm.user.name.toLowerCase().includes(q) ||
+        dm.lastMessage.toLowerCase().includes(q)
+    );
+  }, [directChats, searchQuery]);
 
-  const filteredRequests = studyRequests.filter((req) =>
-    req.user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    req.message.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredRequests = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return studyRequests;
+    return studyRequests.filter(
+      (req) =>
+        req.user.name.toLowerCase().includes(q) ||
+        req.message.toLowerCase().includes(q)
+    );
+  }, [studyRequests, searchQuery]);
 
-  const handleAcceptRequest = (req) => {
-    // Add to direct chats
-    const newChat = {
-      id: `dm-${Date.now()}`,
-      user: req.user,
-      lastMessage: req.message,
-      timestamp: 'Just now',
-      unread: 1,
-    };
-    setDirectChats([newChat, ...directChats]);
-    setStudyRequests(studyRequests.filter((r) => r.id !== req.id));
+  // Accept a study request
+  const handleAcceptRequest = async (req) => {
+    setActionLoadingId(req.id);
+    try {
+      const res = await fetch(`/api/conversations/${req.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'accept' }),
+      });
+      if (res.ok) {
+        setConversations((prev) =>
+          prev.map((c) => (c.id === req.id ? { ...c, status: 'accepted' } : c))
+        );
+        // Switch to direct chats and select the new chat
+        setActiveSegment(0);
+        onSelectChannel?.(null, req.id, req.user.name, 'dm');
+      }
+    } catch (err) {
+      console.warn('Accept request error:', err);
+    } finally {
+      setActionLoadingId(null);
+    }
   };
 
-  const handleDeclineRequest = (reqId) => {
-    setStudyRequests(studyRequests.filter((r) => r.id !== reqId));
+  // Decline a study request
+  const handleDeclineRequest = async (reqId) => {
+    setActionLoadingId(reqId);
+    try {
+      const res = await fetch(`/api/conversations/${reqId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'decline' }),
+      });
+      if (res.ok) {
+        setConversations((prev) => prev.filter((c) => c.id !== reqId));
+      }
+    } catch (err) {
+      console.warn('Decline request error:', err);
+    } finally {
+      setActionLoadingId(null);
+    }
   };
 
   return (
@@ -179,7 +266,7 @@ export default function ChatterChatsView({
           <input
             type="text"
             placeholder={
-              activeSegment === 0 ? 'Search study partners...' : activeSegment === 1 ? 'Search study channels...' : 'Search study requests...'
+              activeSegment === 0 ? 'Search direct conversations...' : activeSegment === 1 ? 'Search study channels...' : 'Search study requests...'
             }
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -201,7 +288,7 @@ export default function ChatterChatsView({
         <div style={{ padding: '0 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <span style={{ fontSize: 13, color: 'var(--chatter-light-text)', fontWeight: 600 }}>
-              Recent Messages
+              Recent Messages ({filteredDMs.length})
             </span>
             <button
               type="button"
@@ -221,95 +308,154 @@ export default function ChatterChatsView({
             </button>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {filteredDMs.map((dm) => (
-              <div
-                key={dm.id}
-                onClick={() => onSelectChannel?.(null, dm.id, dm.user.name, 'dm')}
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '40px 10px', color: 'var(--chatter-light-text)' }}>
+              Loading conversations...
+            </div>
+          ) : filteredDMs.length === 0 ? (
+            <div
+              style={{
+                padding: '40px 20px',
+                textAlign: 'center',
+                background: 'var(--chatter-sheet)',
+                borderRadius: 18,
+                border: '1px solid rgba(255, 255, 255, 0.05)',
+              }}
+            >
+              <div style={{ fontSize: 32, marginBottom: 12 }}>💬</div>
+              <h4 style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginBottom: 6 }}>
+                No Direct Messages Yet
+              </h4>
+              <p style={{ fontSize: 13, color: 'var(--chatter-light-text)', margin: '0 0 16px 0' }}>
+                Start a private study conversation with any classmate or study partner.
+              </p>
+              <button
+                type="button"
+                onClick={onOpenDMsModal}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 14,
-                  padding: '12px 14px',
+                  padding: '8px 18px',
                   borderRadius: 16,
-                  background: 'var(--chatter-sheet)',
-                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  background: 'var(--chatter-primary)',
+                  border: 'none',
+                  color: '#0E0E0E',
+                  fontSize: 13,
+                  fontWeight: 700,
                   cursor: 'pointer',
-                  transition: 'background 0.15s ease',
                 }}
               >
-                <div style={{ position: 'relative' }}>
-                  <img
-                    src={dm.user.avatar_url}
-                    alt={dm.user.name}
-                    style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover' }}
-                  />
-                  {dm.user.online ? (
-                    <span
-                      style={{
-                        position: 'absolute',
-                        bottom: 1,
-                        right: 1,
-                        width: 11,
-                        height: 11,
-                        borderRadius: '50%',
-                        background: 'var(--chatter-primary)',
-                        border: '2px solid var(--chatter-sheet)',
-                      }}
-                      title="Online"
-                    />
-                  ) : (
-                    <span
-                      style={{
-                        position: 'absolute',
-                        bottom: 1,
-                        right: 1,
-                        width: 10,
-                        height: 10,
-                        borderRadius: '50%',
-                        background: 'rgba(255, 255, 255, 0.25)',
-                        border: '2px solid var(--chatter-sheet)',
-                      }}
-                      title="Offline"
-                    />
-                  )}
-                </div>
-
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <h4 style={{ fontSize: 15, fontWeight: 700, color: '#fff', margin: 0 }}>
-                        {dm.user.name}
-                      </h4>
-                      <TwitterVerifiedBadge />
-                    </div>
-                    <span style={{ fontSize: 11.5, color: 'var(--chatter-light-text)' }}>
-                      {dm.timestamp}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <p style={{ fontSize: 13, color: 'var(--chatter-light-text)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '85%' }}>
-                      {dm.lastMessage}
-                    </p>
-                    {dm.unread > 0 && (
-                      <span
+                + Start a Direct Chat
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {filteredDMs.map((dm) => (
+                <div
+                  key={dm.id}
+                  onClick={() => onSelectChannel?.(null, dm.id, dm.user.name, 'dm')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 14,
+                    padding: '12px 14px',
+                    borderRadius: 16,
+                    background: activeChannelId === dm.id ? 'rgba(64, 227, 120, 0.12)' : 'var(--chatter-sheet)',
+                    border: activeChannelId === dm.id ? '1px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.05)',
+                    cursor: 'pointer',
+                    transition: 'background 0.15s ease',
+                  }}
+                >
+                  <div style={{ position: 'relative' }}>
+                    {dm.user.avatar_url ? (
+                      <img
+                        src={dm.user.avatar_url}
+                        alt={dm.user.name}
+                        style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <div
                         style={{
-                          background: 'var(--chatter-red)',
-                          color: '#fff',
-                          fontSize: 11,
+                          width: 48,
+                          height: 48,
+                          borderRadius: '50%',
+                          background: '#242424',
+                          color: 'var(--chatter-primary)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
                           fontWeight: 700,
-                          borderRadius: 10,
-                          padding: '2px 7px',
+                          fontSize: 18,
                         }}
                       >
-                        {dm.unread}
-                      </span>
+                        {dm.user.name?.[0]?.toUpperCase() || 'U'}
+                      </div>
+                    )}
+                    {dm.user.online ? (
+                      <span
+                        style={{
+                          position: 'absolute',
+                          bottom: 1,
+                          right: 1,
+                          width: 11,
+                          height: 11,
+                          borderRadius: '50%',
+                          background: 'var(--chatter-primary)',
+                          border: '2px solid var(--chatter-sheet)',
+                        }}
+                        title="Online"
+                      />
+                    ) : (
+                      <span
+                        style={{
+                          position: 'absolute',
+                          bottom: 1,
+                          right: 1,
+                          width: 10,
+                          height: 10,
+                          borderRadius: '50%',
+                          background: 'rgba(255, 255, 255, 0.25)',
+                          border: '2px solid var(--chatter-sheet)',
+                        }}
+                        title="Offline"
+                      />
                     )}
                   </div>
+
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <h4 style={{ fontSize: 15, fontWeight: 700, color: '#fff', margin: 0 }}>
+                          {dm.user.name}
+                        </h4>
+                        <TwitterVerifiedBadge />
+                      </div>
+                      <span style={{ fontSize: 11.5, color: 'var(--chatter-light-text)' }}>
+                        {dm.timestamp}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <p style={{ fontSize: 13, color: 'var(--chatter-light-text)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '85%' }}>
+                        {dm.lastMessage}
+                      </p>
+                      {dm.unread > 0 && (
+                        <span
+                          style={{
+                            background: 'var(--chatter-red)',
+                            color: '#fff',
+                            fontSize: 11,
+                            fontWeight: 700,
+                            borderRadius: 10,
+                            padding: '2px 7px',
+                          }}
+                        >
+                          {dm.unread}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -399,7 +545,11 @@ export default function ChatterChatsView({
       {/* 3c. Segment 2: Study Requests */}
       {activeSegment === 2 && (
         <div style={{ padding: '0 16px' }}>
-          {filteredRequests.length === 0 ? (
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '40px 10px', color: 'var(--chatter-light-text)' }}>
+              Checking study requests...
+            </div>
+          ) : filteredRequests.length === 0 ? (
             <div
               style={{
                 padding: '40px 20px',
@@ -414,7 +564,7 @@ export default function ChatterChatsView({
                 No Pending Study Requests
               </h4>
               <p style={{ fontSize: 13, color: 'var(--chatter-light-text)', margin: 0 }}>
-                When classmates send you study partner invitations, they will appear here.
+                When classmates send you study partner invitations, they will appear here in real time.
               </p>
             </div>
           ) : (
@@ -432,11 +582,30 @@ export default function ChatterChatsView({
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{ position: 'relative' }}>
-                        <img
-                          src={req.user.avatar_url}
-                          alt={req.user.name}
-                          style={{ width: 42, height: 42, borderRadius: '50%', objectFit: 'cover' }}
-                        />
+                        {req.user.avatar_url ? (
+                          <img
+                            src={req.user.avatar_url}
+                            alt={req.user.name}
+                            style={{ width: 42, height: 42, borderRadius: '50%', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              width: 42,
+                              height: 42,
+                              borderRadius: '50%',
+                              background: '#242424',
+                              color: 'var(--chatter-primary)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontWeight: 700,
+                              fontSize: 16,
+                            }}
+                          >
+                            {req.user.name?.[0]?.toUpperCase() || 'U'}
+                          </div>
+                        )}
                         {req.user.online && (
                           <span
                             style={{
@@ -471,6 +640,7 @@ export default function ChatterChatsView({
                   <div style={{ display: 'flex', gap: 10 }}>
                     <button
                       type="button"
+                      disabled={actionLoadingId === req.id}
                       onClick={() => handleAcceptRequest(req)}
                       style={{
                         flex: 1,
@@ -481,13 +651,15 @@ export default function ChatterChatsView({
                         color: '#0E0E0E',
                         fontSize: 13,
                         fontWeight: 700,
-                        cursor: 'pointer',
+                        cursor: actionLoadingId === req.id ? 'not-allowed' : 'pointer',
+                        opacity: actionLoadingId === req.id ? 0.7 : 1,
                       }}
                     >
-                      Accept
+                      {actionLoadingId === req.id ? 'Accepting...' : 'Accept'}
                     </button>
                     <button
                       type="button"
+                      disabled={actionLoadingId === req.id}
                       onClick={() => handleDeclineRequest(req.id)}
                       style={{
                         flex: 1,
@@ -498,10 +670,11 @@ export default function ChatterChatsView({
                         color: 'var(--chatter-light-text)',
                         fontSize: 13,
                         fontWeight: 600,
-                        cursor: 'pointer',
+                        cursor: actionLoadingId === req.id ? 'not-allowed' : 'pointer',
+                        opacity: actionLoadingId === req.id ? 0.7 : 1,
                       }}
                     >
-                      Decline
+                      {actionLoadingId === req.id ? 'Declining...' : 'Decline'}
                     </button>
                   </div>
                 </div>
