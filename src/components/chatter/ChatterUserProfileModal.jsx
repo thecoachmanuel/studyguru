@@ -7,18 +7,17 @@ export default function ChatterUserProfileModal({
   currentUserId,
   onClose,
   onStartDM,
+  followingMap = {},
+  onToggleFollow,
 }) {
-  const [isFollowing, setIsFollowing] = useState(false);
-  const [followersCount, setFollowersCount] = useState(targetUser?.followersCount || 28);
-
   if (!targetUser) return null;
 
+  const isFollowing = !!followingMap[targetUser?.id];
+  const baseFollowers = targetUser?.followersCount || 28;
+  const followersCount = baseFollowers + (isFollowing ? 1 : 0);
+
   const handleToggleFollow = () => {
-    setIsFollowing((prev) => {
-      const next = !prev;
-      setFollowersCount((c) => (next ? c + 1 : Math.max(0, c - 1)));
-      return next;
-    });
+    onToggleFollow?.(targetUser.id);
   };
 
   return (
@@ -182,7 +181,7 @@ export default function ChatterUserProfileModal({
               type="button"
               onClick={() => {
                 onClose?.();
-                onStartDM?.(targetUser.id);
+                onStartDM?.(targetUser);
               }}
               style={{
                 width: '100%',

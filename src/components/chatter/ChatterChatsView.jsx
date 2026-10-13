@@ -71,7 +71,7 @@ export default function ChatterChatsView({
   );
 
   return (
-    <div style={{ paddingBottom: 80, maxWidth: 680, margin: '0 auto', width: '100%' }}>
+    <div style={{ paddingBottom: 'calc(84px + env(safe-area-inset-bottom))', maxWidth: 680, margin: '0 auto', width: '100%' }}>
       {/* ── 1. Cupertino-style Sliding Segmented Control ── */}
       <div className="chatter-segment-control">
         <button

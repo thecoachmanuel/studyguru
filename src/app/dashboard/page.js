@@ -127,6 +127,38 @@ export default function DashboardPage() {
   const [audioSpaceModalOpen, setAudioSpaceModalOpen] = useState(false);
   const [userProfileModalTarget, setUserProfileModalTarget] = useState(null);
 
+  // Shared following state synchronized across Feed, Profile Modal, and Profile View
+  const [followingMap, setFollowingMap] = useState({ 'u-sarah': true });
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('chatter_following_map');
+      if (saved) setFollowingMap(JSON.parse(saved));
+    } catch {}
+  }, []);
+
+  const handleToggleFollow = useCallback((authorId) => {
+    setFollowingMap((prev) => {
+      const nextState = !prev[authorId];
+      const updated = { ...prev, [authorId]: nextState };
+      try {
+        localStorage.setItem('chatter_following_map', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  }, []);
+
+  const handleStartDM = useCallback((targetUser) => {
+    const targetId = typeof targetUser === 'object' ? targetUser.id : targetUser;
+    const targetName = typeof targetUser === 'object' ? targetUser.name : 'Study Partner';
+
+    setUserProfileModalTarget(null);
+    setActiveServerId(null);
+    setActiveChannelId(targetId);
+    setActiveChannelName(targetName);
+    setActiveChannelType('dm');
+    setChatterTab('chats');
+  }, []);
+
   // Ensure mobile screens land on welcome panel
   useEffect(() => {
     if (typeof window !== 'undefined' && window.innerWidth <= 768) {
@@ -731,7 +763,9 @@ export default function DashboardPage() {
             profile={profile}
             userId={user?.id}
             onOpenLiveSpaces={() => setChatterTab('rooms')}
-            onStartDM={() => setDirectMessagesModalOpen(true)}
+            onStartDM={handleStartDM}
+            followingMap={followingMap}
+            onToggleFollow={handleToggleFollow}
           />
         </div>
       )}
@@ -770,7 +804,7 @@ export default function DashboardPage() {
 
       {/* If chatterTab === 'guru', render ChatterGuruView */}
       {chatterTab === 'guru' && (
-        <div style={{ flex: 1, overflowY: 'auto', background: 'var(--chatter-black)', minHeight: '100vh' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: 'var(--chatter-black)' }}>
           <ChatterTopBar
             onOpenNotifications={() => showToast('No new notifications')}
             onOpenSearch={handleOpenAdvancedSearch}
@@ -798,6 +832,7 @@ export default function DashboardPage() {
             onLogout={handleLogout}
             onOpenStatusModal={() => setUserStatusModalOpen(true)}
             onOpenSettings={() => setSettingsOpen(true)}
+            followingMap={followingMap}
           />
         </div>
       )}
@@ -806,17 +841,7 @@ export default function DashboardPage() {
       {chatterTab === 'chats' && (
         <div style={{ flex: 1, display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--chatter-black)' }}>
           {/* Left conversations list pane */}
-          <div
-            style={{
-              width: activeChannelId ? undefined : '100%',
-              maxWidth: activeChannelId ? 380 : undefined,
-              flex: activeChannelId ? '0 0 380px' : 1,
-              borderRight: activeChannelId ? '1px solid rgba(255, 255, 255, 0.08)' : 'none',
-              height: '100%',
-              overflowY: 'auto',
-              display: (activeChannelId && typeof window !== 'undefined' && window.innerWidth <= 768) ? 'none' : 'block',
-            }}
-          >
+          <div className={`chatter-chats-list-pane ${activeChannelId ? 'chatter-chats-list-pane--with-active' : ''}`}>
             <ChatterTopBar
               onOpenNotifications={() => showToast('No new notifications')}
               onOpenSearch={handleOpenAdvancedSearch}
@@ -841,7 +866,7 @@ export default function DashboardPage() {
 
           {/* Right active chat room pane (Desktop) or Full View (Mobile) */}
           {activeChannelId ? (
-            <div style={{ flex: 1, height: '100%', overflow: 'hidden' }}>
+            <div className="chatter-chat-room-pane">
               <ChatterChatRoom
                 channelId={activeChannelId}
                 channelName={activeChannelName}
@@ -924,22 +949,24 @@ export default function DashboardPage() {
           targetUser={userProfileModalTarget}
           currentUserId={user?.id}
           onClose={() => setUserProfileModalTarget(null)}
-          onStartDM={(targetId) => {
-            setUserProfileModalTarget(null);
-            setDirectMessagesModalOpen(true);
-          }}
+          onStartDM={handleStartDM}
+          followingMap={followingMap}
+          onToggleFollow={handleToggleFollow}
         />
       )}
 
       {/* ── Mobile 5-Tab Navigation Bar (Exact Chatter App TabBarScreen) ── */}
-      <ChatterBottomNav
-        activeTab={chatterTab}
-        onSelectTab={(tab) => {
-          setActiveChannelId(null);
-          setChatterTab(tab);
-        }}
-        unreadChatsCount={Object.values(unreadCounts).reduce((a, b) => a + b, 0)}
-      />
+      {/* Hide bottom navigation when inside active chat room so compose input is never obscured */}
+      {!(chatterTab === 'chats' && activeChannelId) && (
+        <ChatterBottomNav
+          activeTab={chatterTab}
+          onSelectTab={(tab) => {
+            setActiveChannelId(null);
+            setChatterTab(tab);
+          }}
+          unreadChatsCount={Object.values(unreadCounts).reduce((a, b) => a + b, 0)}
+        />
+      )}
 
       {/* ── Modals: Settings, DMs, User Status ── */}
       {settingsOpen && activeServer && (

@@ -28,10 +28,11 @@ export default function ChatterGuruView({
     },
   ]);
   const [uploadingDoc, setUploadingDoc] = useState(false);
-  const [uploadError, setUploadError] = useState('');
+  const [uploadFileName, setUploadFileName] = useState('');
   const [docsPanelOpen, setDocsPanelOpen] = useState(false);
   const docFileInputRef = useRef(null);
   const chatBottomRef = useRef(null);
+  const inputRef = useRef(null);
 
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -50,7 +51,7 @@ export default function ChatterGuruView({
     if (!file) return;
 
     setUploadingDoc(true);
-    setUploadError('');
+    setUploadFileName(file.name);
 
     const formData = new FormData();
     formData.append('file', file);
@@ -83,14 +84,13 @@ export default function ChatterGuruView({
         {
           id: `g-upload-${Date.now()}`,
           role: 'assistant',
-          content: `✅ Successfully indexed **${newDoc.filename}** (${newDoc.chunksCount} vectorized text chunks). You can now ask questions about this document or click the buttons below to generate a quiz!`,
+          content: `✅ Successfully indexed **${newDoc.filename}** (${newDoc.chunksCount} vectorized text chunks). You can now ask questions about this document or click below to generate an instant quiz!`,
           documentRef: newDoc,
           timestamp: 'Just now',
         },
       ]);
     } catch (err) {
-      console.warn('Doc upload notice:', err.message);
-      // Fallback local registration
+      console.warn('Doc upload fallback notice:', err.message);
       const newDoc = {
         doc_id: `doc-${Date.now()}`,
         filename: file.name,
@@ -110,6 +110,7 @@ export default function ChatterGuruView({
       ]);
     } finally {
       setUploadingDoc(false);
+      setUploadFileName('');
       if (docFileInputRef.current) docFileInputRef.current.value = '';
     }
   };
@@ -117,6 +118,7 @@ export default function ChatterGuruView({
   // Generate Interactive MCQ Quiz
   const handleGenerateMCQ = async (docId, docName) => {
     setLoading(true);
+    setDocsPanelOpen(false);
     setMessages((prev) => [
       ...prev,
       {
@@ -151,7 +153,7 @@ export default function ChatterGuruView({
         throw new Error('No questions synthesized');
       }
     } catch {
-      // Fallback sample interactive quiz
+      // High-quality sample interactive quiz fallback
       setMessages((prev) => [
         ...prev,
         {
@@ -192,6 +194,7 @@ export default function ChatterGuruView({
   // Generate Flashcards
   const handleGenerateFlashcards = async (docId, docName) => {
     setLoading(true);
+    setDocsPanelOpen(false);
     setMessages((prev) => [
       ...prev,
       {
@@ -233,7 +236,7 @@ export default function ChatterGuruView({
           flashcardsData: [
             { front: 'Stokes’ Theorem Formula', back: '∮_C F · dr = ∬_S (∇ × F) · dS' },
             { front: 'Pre-LN vs Post-LN benefit', back: 'Pre-LN yields well-behaved gradient norms, allowing training stability without warmup.' },
-            { front: 'Eigenvalue Condition', back: 'det(A - λI) = 0 defines the characteristic equation for eigenvalues λ.' },
+            { front: 'Eigenvalue Characteristic Equation', back: 'det(A - λI) = 0 defines the characteristic equation for eigenvalues λ.' },
           ],
           timestamp: 'Just now',
         },
@@ -304,24 +307,48 @@ export default function ChatterGuruView({
     }
   };
 
+  const handleClearSession = () => {
+    setMessages([
+      {
+        id: `g-intro-${Date.now()}`,
+        role: 'assistant',
+        content: 'New study session started! Ask any question, test yourself with a quiz, or upload notes.',
+        timestamp: 'Now',
+      },
+    ]);
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 124px)', maxWidth: 880, margin: '0 auto', width: '100%', color: '#fff' }}>
-      {/* ── 1. Top Guru Branding & Document Drawer Toggle ── */}
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        maxWidth: 880,
+        margin: '0 auto',
+        width: '100%',
+        color: '#fff',
+        overflow: 'hidden',
+        position: 'relative',
+      }}
+    >
+      {/* ── 1. Top Guru Header ── */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '12px 18px',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.07)',
           background: 'var(--chatter-sheet)',
+          flexShrink: 0,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div
             style={{
-              width: 42,
-              height: 42,
+              width: 40,
+              height: 40,
               borderRadius: 14,
               background: 'rgba(64, 227, 120, 0.16)',
               color: 'var(--chatter-primary)',
@@ -330,22 +357,23 @@ export default function ChatterGuruView({
               justifyContent: 'center',
             }}
           >
-            <ChatbotIcon size={24} />
+            <ChatbotIcon size={22} />
           </div>
           <div>
-            <h3 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 2px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <h3 style={{ fontSize: 15.5, fontWeight: 800, margin: '0 0 2px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
               <span>StudyGuru AI</span>
               <span style={{ fontSize: 11, background: 'rgba(64, 227, 120, 0.18)', color: 'var(--chatter-primary)', padding: '2px 7px', borderRadius: 10, fontWeight: 700 }}>
                 RAG 2.0
               </span>
             </h3>
-            <p style={{ fontSize: 12, color: 'var(--chatter-light-text)', margin: 0 }}>
-              Textbook Q&A · Vector Document Indexing · Automated Quizzes
+            <p style={{ fontSize: 11.5, color: 'var(--chatter-light-text)', margin: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--chatter-primary)' }} />
+              Active Partner · Vector Textbook Search
             </p>
           </div>
         </div>
 
-        {/* Upload / Document Drawer button */}
+        {/* Header Actions: Docs Tray + New Chat */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <input
             ref={docFileInputRef}
@@ -356,96 +384,111 @@ export default function ChatterGuruView({
           />
           <button
             type="button"
-            onClick={() => docFileInputRef.current?.click()}
-            disabled={uploadingDoc}
+            onClick={() => setDocsPanelOpen((p) => !p)}
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: 6,
-              padding: '8px 14px',
+              padding: '7px 13px',
               borderRadius: 18,
-              background: 'var(--chatter-primary)',
-              color: '#0E0E0E',
-              border: 'none',
+              background: docsPanelOpen ? 'rgba(64, 227, 120, 0.2)' : 'rgba(255, 255, 255, 0.08)',
+              border: docsPanelOpen ? '1px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
+              color: docsPanelOpen ? 'var(--chatter-primary)' : '#fff',
               fontSize: 12.5,
-              fontWeight: 700,
-              cursor: uploadingDoc ? 'not-allowed' : 'pointer',
-              opacity: uploadingDoc ? 0.7 : 1,
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
             }}
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="17 8 12 3 7 8" />
-              <line x1="12" y1="3" x2="12" y2="15" />
-            </svg>
-            <span>{uploadingDoc ? 'Uploading...' : '+ Upload Notes'}</span>
+            <span>📚 Notes ({uploadedDocs.length})</span>
           </button>
 
           <button
             type="button"
-            onClick={() => setDocsPanelOpen((p) => !p)}
+            onClick={handleClearSession}
             style={{
-              padding: '8px 12px',
+              padding: '7px 11px',
               borderRadius: 18,
-              background: docsPanelOpen ? 'rgba(255,255,255,0.15)' : 'rgba(255, 255, 255, 0.08)',
-              color: '#fff',
+              background: 'rgba(255, 255, 255, 0.06)',
               border: 'none',
-              fontSize: 12.5,
+              color: 'var(--chatter-light-text)',
+              fontSize: 12,
               fontWeight: 600,
               cursor: 'pointer',
             }}
+            title="Start New Session"
           >
-            📚 Docs ({uploadedDocs.length})
+            ↺ Reset
           </button>
         </div>
       </div>
 
-      {/* ── 2. Collapsible Loaded Documents Tray ── */}
+      {/* ── 2. Collapsible Document Manager Drawer ── */}
       {docsPanelOpen && (
         <div
           style={{
             background: 'var(--chatter-black)',
             borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-            padding: '12px 18px',
+            padding: '14px 18px',
             display: 'flex',
             flexDirection: 'column',
-            gap: 8,
+            gap: 10,
+            flexShrink: 0,
+            animation: 'fadeIn 0.18s ease',
           }}
         >
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--chatter-light-text)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            Indexed Course Documents ({uploadedDocs.length})
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--chatter-light-text)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Indexed Course Materials ({uploadedDocs.length})
+            </span>
+            <button
+              type="button"
+              onClick={() => docFileInputRef.current?.click()}
+              disabled={uploadingDoc}
+              style={{
+                padding: '5px 12px',
+                borderRadius: 14,
+                background: 'var(--chatter-primary)',
+                border: 'none',
+                color: '#0E0E0E',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: uploadingDoc ? 'not-allowed' : 'pointer',
+              }}
+            >
+              + Upload File (.pdf, .docx)
+            </button>
           </div>
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, maxHeight: 160, overflowY: 'auto' }}>
             {uploadedDocs.map((doc) => (
               <div
                 key={doc.doc_id}
                 style={{
                   background: 'var(--chatter-sheet)',
                   border: '1px solid rgba(255, 255, 255, 0.08)',
-                  borderRadius: 14,
-                  padding: '8px 12px',
+                  borderRadius: 12,
+                  padding: '7px 12px',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 10,
                 }}
               >
-                <span style={{ fontSize: 18 }}>📄</span>
+                <span style={{ fontSize: 16 }}>📄</span>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{doc.filename}</div>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: '#fff' }}>{doc.filename}</div>
                   <div style={{ fontSize: 11, color: 'var(--chatter-primary)' }}>
                     {doc.chunksCount} chunks · {doc.status}
                   </div>
                 </div>
 
-                {/* Instant Action Pills on Doc */}
-                <div style={{ display: 'flex', gap: 6, marginLeft: 8 }}>
+                <div style={{ display: 'flex', gap: 6, marginLeft: 6 }}>
                   <button
                     type="button"
                     onClick={() => handleGenerateMCQ(doc.doc_id, doc.filename)}
                     style={{
-                      padding: '4px 8px',
-                      borderRadius: 10,
+                      padding: '3px 8px',
+                      borderRadius: 8,
                       background: 'rgba(64, 227, 120, 0.15)',
                       border: 'none',
                       color: 'var(--chatter-primary)',
@@ -460,8 +503,8 @@ export default function ChatterGuruView({
                     type="button"
                     onClick={() => handleGenerateFlashcards(doc.doc_id, doc.filename)}
                     style={{
-                      padding: '4px 8px',
-                      borderRadius: 10,
+                      padding: '3px 8px',
+                      borderRadius: 8,
                       background: 'rgba(255, 255, 255, 0.08)',
                       border: 'none',
                       color: '#fff',
@@ -479,8 +522,17 @@ export default function ChatterGuruView({
         </div>
       )}
 
-      {/* ── 3. Conversational Message Stream & Interactive Tools ── */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* ── 3. Conversational Message Stream ── */}
+      <div
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '16px 18px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 14,
+        }}
+      >
         {messages.map((m) => {
           const isUser = m.role === 'user';
           return (
@@ -493,24 +545,24 @@ export default function ChatterGuruView({
             >
               <div
                 style={{
-                  maxWidth: '85%',
-                  padding: '14px 18px',
-                  borderRadius: 20,
+                  maxWidth: isUser ? '80%' : '88%',
+                  padding: isUser ? '12px 18px' : '14px 18px',
+                  borderRadius: isUser ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
                   background: isUser ? 'var(--chatter-primary)' : 'var(--chatter-sheet)',
                   color: isUser ? '#0E0E0E' : '#fff',
-                  border: isUser ? 'none' : '1px solid rgba(255, 255, 255, 0.07)',
+                  border: isUser ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
                   fontWeight: isUser ? 600 : 400,
                   fontSize: 14.5,
-                  lineHeight: 1.6,
+                  lineHeight: 1.55,
                   boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
                   whiteSpace: 'pre-wrap',
                 }}
               >
                 {m.content}
 
-                {/* Render Interactive Multiple Choice Quiz Component */}
+                {/* Interactive Quiz Component */}
                 {m.quizData && (
-                  <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--chatter-primary)' }}>
                       📝 Practice Knowledge Quiz ({m.quizData.length} Questions)
                     </div>
@@ -520,9 +572,9 @@ export default function ChatterGuruView({
                   </div>
                 )}
 
-                {/* Render Interactive Flashcards Component */}
+                {/* Interactive Flashcards Component */}
                 {m.flashcardsData && (
-                  <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--chatter-primary)' }}>
                       🃏 Study Flashcards for Active Recall
                     </div>
@@ -543,7 +595,7 @@ export default function ChatterGuruView({
             <div
               style={{
                 padding: '12px 18px',
-                borderRadius: 20,
+                borderRadius: '20px 20px 20px 4px',
                 background: 'var(--chatter-sheet)',
                 color: 'var(--chatter-primary)',
                 fontSize: 13.5,
@@ -551,30 +603,41 @@ export default function ChatterGuruView({
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8,
+                border: '1px solid rgba(255, 255, 255, 0.08)',
               }}
             >
-              <span>StudyGuru is analyzing documents...</span>
               <span className="chatter-audiospace-live-dot" />
+              <span>StudyGuru is analyzing notes & synthesizing response...</span>
             </div>
           </div>
         )}
+
         <div ref={chatBottomRef} />
       </div>
 
-      {/* ── 4. Quick Prompts Bar ── */}
-      <div style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: '4px 18px 10px', scrollbarWidth: 'none' }}>
-        {quickPrompts.map((p) => (
+      {/* ── 4. Quick Prompts Rail ── */}
+      <div
+        style={{
+          display: 'flex',
+          gap: 8,
+          overflowX: 'auto',
+          padding: '6px 18px',
+          scrollbarWidth: 'none',
+          flexShrink: 0,
+        }}
+      >
+        {quickPrompts.map((p, i) => (
           <button
-            key={p}
+            key={i}
             type="button"
             onClick={() => handleSend(p)}
             style={{
-              padding: '7px 14px',
-              borderRadius: 18,
+              padding: '6px 13px',
+              borderRadius: 16,
               background: 'rgba(255, 255, 255, 0.06)',
               border: '1px solid rgba(255, 255, 255, 0.08)',
               color: 'var(--chatter-light-text)',
-              fontSize: 12.5,
+              fontSize: 12,
               fontWeight: 600,
               whiteSpace: 'nowrap',
               cursor: 'pointer',
@@ -586,8 +649,27 @@ export default function ChatterGuruView({
         ))}
       </div>
 
-      {/* ── 5. Bottom Compose Input ── */}
-      <div style={{ padding: '0 18px 14px' }}>
+      {/* ── 5. Bottom Compose Input (Mobile Safe Padding Above Bottom Nav) ── */}
+      <div className="chatter-guru-compose">
+        {uploadingDoc && (
+          <div
+            style={{
+              padding: '6px 12px',
+              borderRadius: 10,
+              background: 'rgba(64, 227, 120, 0.15)',
+              color: 'var(--chatter-primary)',
+              fontSize: 12,
+              fontWeight: 600,
+              marginBottom: 8,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            <span>📄 Indexing <strong>{uploadFileName}</strong> into vector store...</span>
+          </div>
+        )}
+
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -598,14 +680,37 @@ export default function ChatterGuruView({
             alignItems: 'center',
             gap: 10,
             background: 'var(--chatter-sheet)',
-            borderRadius: 22,
-            padding: '6px 8px 6px 16px',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: 24,
+            padding: '6px 8px 6px 12px',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
           }}
         >
+          {/* Paperclip Document Upload shortcut */}
+          <button
+            type="button"
+            onClick={() => docFileInputRef.current?.click()}
+            disabled={uploadingDoc}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--chatter-light-text)',
+              cursor: uploadingDoc ? 'not-allowed' : 'pointer',
+              padding: 4,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            title="Upload Study Notes (.pdf, .docx, .txt)"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+            </svg>
+          </button>
+
           <input
+            ref={inputRef}
             type="text"
-            placeholder="Ask StudyGuru about formulas, concepts, or uploaded notes..."
+            placeholder="Ask StudyGuru or upload lecture notes..."
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             style={{
@@ -617,12 +722,13 @@ export default function ChatterGuruView({
               outline: 'none',
             }}
           />
+
           <button
             type="submit"
             disabled={!inputText.trim() || loading}
             style={{
-              width: 40,
-              height: 40,
+              width: 38,
+              height: 38,
               borderRadius: '50%',
               background: 'var(--chatter-primary)',
               border: 'none',
@@ -631,7 +737,8 @@ export default function ChatterGuruView({
               alignItems: 'center',
               justifyContent: 'center',
               cursor: inputText.trim() ? 'pointer' : 'not-allowed',
-              opacity: inputText.trim() ? 1 : 0.6,
+              opacity: inputText.trim() ? 1 : 0.5,
+              transition: 'all 0.15s ease',
             }}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -689,7 +796,7 @@ function QuizCard({ questionObj, index }) {
               onClick={() => setSelectedOption(opt)}
               style={{
                 textAlign: 'left',
-                padding: '8px 12px',
+                padding: '9px 12px',
                 borderRadius: 10,
                 background: btnBg,
                 border,

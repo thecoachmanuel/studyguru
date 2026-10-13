@@ -58,7 +58,7 @@ export default function ChatterRoomsView({
     : audioSpaces.filter((s) => s.category === selectedInterest || s.category === 'All');
 
   return (
-    <div style={{ paddingBottom: 80, maxWidth: 680, margin: '0 auto', width: '100%' }}>
+    <div style={{ paddingBottom: 'calc(84px + env(safe-area-inset-bottom))', maxWidth: 680, margin: '0 auto', width: '100%' }}>
       {/* ── 1. Top Interests Filter Carousel ── */}
       <div
         style={{

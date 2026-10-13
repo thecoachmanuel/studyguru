@@ -7,11 +7,13 @@ export default function ChatterProfileView({
   onLogout,
   onOpenStatusModal,
   onOpenSettings,
+  followingMap = {},
 }) {
   const [activeTab, setActiveTab] = useState('posts'); // 'posts' | 'notes' | 'rooms'
+  const followingCount = Object.values(followingMap).filter(Boolean).length;
 
   return (
-    <div style={{ paddingBottom: 80, maxWidth: 680, margin: '0 auto', width: '100%' }}>
+    <div style={{ paddingBottom: 'calc(84px + env(safe-area-inset-bottom))', maxWidth: 680, margin: '0 auto', width: '100%' }}>
       {/* ── 1. Cover Banner ── */}
       <div
         style={{
@@ -172,8 +174,8 @@ export default function ChatterProfileView({
             <div style={{ fontSize: 11, color: 'var(--chatter-light-text)' }}>Day Streak</div>
           </div>
           <div style={{ background: 'var(--chatter-sheet)', borderRadius: 12, padding: '12px 8px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--chatter-primary)' }}>26</div>
-            <div style={{ fontSize: 11, color: 'var(--chatter-light-text)' }}>Classmates</div>
+            <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--chatter-primary)' }}>{followingCount}</div>
+            <div style={{ fontSize: 11, color: 'var(--chatter-light-text)' }}>Following</div>
           </div>
         </div>
 

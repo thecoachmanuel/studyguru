@@ -257,11 +257,12 @@ export default function ChatterChatRoom({
           </div>
 
           <div>
-            <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 2px 0' }}>
-              #{channelName || 'study-room'}
+            <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 2px 0', color: '#fff' }}>
+              {channelName?.startsWith('#') ? channelName : channelName || 'Study Conversation'}
             </h3>
-            <div style={{ fontSize: 11.5, color: 'var(--chatter-light-text)' }}>
-              {serverName ? `${serverName} · Active discussion` : 'Online'}
+            <div style={{ fontSize: 11.5, color: 'var(--chatter-primary)', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--chatter-primary)' }} />
+              <span>{serverName ? `${serverName} · Discussion` : 'Active now'}</span>
             </div>
           </div>
         </div>
@@ -459,7 +460,7 @@ export default function ChatterChatRoom({
       {/* ── 3. Chatter Compose Bar ── */}
       <div
         style={{
-          padding: '12px 18px',
+          padding: '10px 16px calc(14px + env(safe-area-inset-bottom))',
           background: 'var(--chatter-sheet)',
           borderTop: '1px solid rgba(255, 255, 255, 0.08)',
         }}

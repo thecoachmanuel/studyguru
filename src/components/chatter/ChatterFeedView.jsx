@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import SnapshotRail from '@/components/SnapshotRail';
 import ChatterUserProfileModal from './ChatterUserProfileModal';
+import ChatterCommentsSheet from './ChatterCommentsSheet';
 
 export default function ChatterFeedView({
   serverId,
@@ -10,6 +11,8 @@ export default function ChatterFeedView({
   userId,
   onOpenLiveSpaces,
   onStartDM,
+  followingMap = {},
+  onToggleFollow,
 }) {
   const [posts, setPosts] = useState([
     {
@@ -66,8 +69,10 @@ export default function ChatterFeedView({
     },
   ]);
 
-  const [followingMap, setFollowingMap] = useState({});
+  const [localFollowing, setLocalFollowing] = useState({});
+  const activeFollowing = { ...localFollowing, ...followingMap };
   const [profileModalUser, setProfileModalUser] = useState(null);
+  const [activeCommentsPost, setActiveCommentsPost] = useState(null);
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [newPostText, setNewPostText] = useState('');
@@ -93,10 +98,30 @@ export default function ChatterFeedView({
   };
 
   const handleToggleFollow = (authorId) => {
-    setFollowingMap((prev) => ({
-      ...prev,
-      [authorId]: !prev[authorId],
-    }));
+    if (onToggleFollow) {
+      onToggleFollow(authorId);
+    } else {
+      setLocalFollowing((prev) => ({
+        ...prev,
+        [authorId]: !prev[authorId],
+      }));
+    }
+  };
+
+  const handleAddComment = (postId, newComment) => {
+    setPosts((prev) =>
+      prev.map((post) => {
+        if (post.id === postId) {
+          const list = post.commentsList || [];
+          return {
+            ...post,
+            comments: (post.comments || 0) + 1,
+            commentsList: [...list, newComment],
+          };
+        }
+        return post;
+      })
+    );
   };
 
   const handleImageFileChange = (e) => {
@@ -151,8 +176,8 @@ export default function ChatterFeedView({
       {/* ── 2. Chatter Social Posts Stream ── */}
       <div style={{ marginTop: 8 }}>
         {posts.map((post) => {
-          const isFollowing = Boolean(followingMap[post.author.id]);
           const isMe = post.author.id === userId || post.author.id === 'me';
+          const isFollowing = !!(activeFollowing[post.author.id]);
           return (
             <article key={post.id} className="chatter-post-card">
               {/* Header: Author + Follow Button + Tag */}
@@ -258,7 +283,12 @@ export default function ChatterFeedView({
                   <span>{post.likes}</span>
                 </button>
 
-                <button type="button" className="chatter-post-action-btn" aria-label="Comment">
+                <button
+                  type="button"
+                  className="chatter-post-action-btn"
+                  onClick={() => setActiveCommentsPost(post)}
+                  aria-label="Comment"
+                >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                   </svg>
@@ -480,6 +510,19 @@ export default function ChatterFeedView({
           currentUserId={userId}
           onClose={() => setProfileModalUser(null)}
           onStartDM={onStartDM}
+          followingMap={activeFollowing}
+          onToggleFollow={handleToggleFollow}
+        />
+      )}
+
+      {/* ── 6. Chatter Comments Bottom Sheet ── */}
+      {activeCommentsPost && (
+        <ChatterCommentsSheet
+          post={activeCommentsPost}
+          onClose={() => setActiveCommentsPost(null)}
+          onAddComment={handleAddComment}
+          profile={profile}
+          userId={userId}
         />
       )}
     </div>
