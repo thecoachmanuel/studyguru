@@ -1,0 +1,341 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import SnapshotRail from '@/components/SnapshotRail';
+
+export default function ChatterFeedView({
+  serverId,
+  profile,
+  userId,
+  onOpenLiveSpaces,
+}) {
+  const [posts, setPosts] = useState([
+    {
+      id: 'p1',
+      author: {
+        name: 'Sarah Chen',
+        username: 'schen_ai',
+        avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&auto=format&fit=crop&q=80',
+      },
+      tag: '#CalculusIII',
+      text: 'Just finished deriving Stokes’ Theorem with vector line integrals! 📐 Remember: boundary orientation must always match the surface normal by the right-hand rule.',
+      timestamp: '25m ago',
+      likes: 14,
+      liked: false,
+      comments: 3,
+      attachmentUrl: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=600&auto=format&fit=crop&q=80',
+    },
+    {
+      id: 'p2',
+      author: {
+        name: 'Alex Rivera',
+        username: 'arivera_cs',
+        avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
+      },
+      tag: '#DeepLearning',
+      text: 'Quick tip for training Transformers: Always normalize your layer inputs before Multi-Head Attention (Pre-LN) for smoother gradients and no warmup spikes! 🚀',
+      timestamp: '1h ago',
+      likes: 29,
+      liked: true,
+      comments: 7,
+    },
+    {
+      id: 'p3',
+      author: {
+        name: 'Emily Watson',
+        username: 'em_bio',
+        avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
+      },
+      tag: '#Biochemistry',
+      text: 'Citric Acid Cycle study group starting in 15 minutes in the Live Audio Space! Jump in if you need a quick review for tomorrow’s midterm. 🧬🔬',
+      timestamp: '2h ago',
+      likes: 18,
+      liked: false,
+      comments: 5,
+    },
+  ]);
+
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [newPostText, setNewPostText] = useState('');
+  const [newPostTag, setNewPostTag] = useState('#GeneralStudy');
+
+  const handleLike = (id) => {
+    setPosts((prev) =>
+      prev.map((post) => {
+        if (post.id === id) {
+          const newLiked = !post.liked;
+          return {
+            ...post,
+            liked: newLiked,
+            likes: newLiked ? post.likes + 1 : Math.max(0, post.likes - 1),
+          };
+        }
+        return post;
+      })
+    );
+  };
+
+  const handleCreatePost = (e) => {
+    e.preventDefault();
+    if (!newPostText.trim()) return;
+
+    const newPost = {
+      id: `p-${Date.now()}`,
+      author: {
+        name: profile?.name || 'You',
+        username: profile?.username || 'scholar',
+        avatar_url: profile?.avatar_url || null,
+      },
+      tag: newPostTag.startsWith('#') ? newPostTag : `#${newPostTag}`,
+      text: newPostText,
+      timestamp: 'Just now',
+      likes: 0,
+      liked: false,
+      comments: 0,
+    };
+
+    setPosts([newPost, ...posts]);
+    setNewPostText('');
+    setCreateModalOpen(false);
+  };
+
+  return (
+    <div style={{ paddingBottom: 80, maxWidth: 680, margin: '0 auto', width: '100%' }}>
+      {/* ── 1. Top Snapshots Story Rail (Chatter circular stories) ── */}
+      <div style={{ padding: '8px 12px 14px', borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+        <SnapshotRail serverId={serverId} currentUserId={userId} />
+      </div>
+
+      {/* ── 2. Chatter Social Posts Stream ── */}
+      <div style={{ marginTop: 8 }}>
+        {posts.map((post) => (
+          <article key={post.id} className="chatter-post-card">
+            {/* Header: Author + Meta */}
+            <div className="chatter-post-header">
+              <div className="chatter-post-author">
+                {post.author.avatar_url ? (
+                  <img
+                    src={post.author.avatar_url}
+                    alt={post.author.name}
+                    className="chatter-post-avatar"
+                  />
+                ) : (
+                  <div
+                    className="chatter-post-avatar"
+                    style={{
+                      background: '#2A2A2A',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 700,
+                      color: 'var(--chatter-primary)',
+                      fontSize: 16,
+                    }}
+                  >
+                    {post.author.name[0]}
+                  </div>
+                )}
+                <div>
+                  <div className="chatter-post-name">{post.author.name}</div>
+                  <div className="chatter-post-meta">
+                    @{post.author.username} · {post.timestamp}
+                  </div>
+                </div>
+              </div>
+
+              {/* Tag Pill */}
+              <span className="chatter-hashtag">{post.tag}</span>
+            </div>
+
+            {/* Post Content */}
+            <p className="chatter-post-body">{post.text}</p>
+
+            {/* Optional Media Attachment */}
+            {post.attachmentUrl && (
+              <div style={{ marginBottom: 12, borderRadius: 12, overflow: 'hidden', maxHeight: 340 }}>
+                <img
+                  src={post.attachmentUrl}
+                  alt="Post attachment"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              </div>
+            )}
+
+            {/* Bottom Actions Bar (Heart, Comment, Share) */}
+            <div className="chatter-post-actions">
+              <button
+                type="button"
+                className={`chatter-post-action-btn ${post.liked ? 'chatter-post-action-btn--liked' : ''}`}
+                onClick={() => handleLike(post.id)}
+                aria-label="Like post"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill={post.liked ? 'currentColor' : 'none'}
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                </svg>
+                <span>{post.likes}</span>
+              </button>
+
+              <button type="button" className="chatter-post-action-btn" aria-label="Comment">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+                <span>{post.comments}</span>
+              </button>
+
+              <button type="button" className="chatter-post-action-btn" aria-label="Share">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="18" cy="5" r="3" />
+                  <circle cx="6" cy="12" r="3" />
+                  <circle cx="18" cy="19" r="3" />
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                </svg>
+              </button>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      {/* ── 3. Chatter Floating Action Button (+) ── */}
+      <button
+        type="button"
+        className="chatter-fab"
+        onClick={() => setCreateModalOpen(true)}
+        aria-label="Create study post"
+        title="Create Study Post"
+      >
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+      </button>
+
+      {/* ── 4. Create Post Modal ── */}
+      {createModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(6px)',
+            zIndex: 100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          onClick={() => setCreateModalOpen(false)}
+        >
+          <div
+            style={{
+              background: 'var(--chatter-sheet)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: 20,
+              padding: 24,
+              maxWidth: 500,
+              width: '100%',
+              boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: '#fff', margin: 0 }}>
+                Share Study Notes & Thoughts
+              </h3>
+              <button
+                type="button"
+                onClick={() => setCreateModalOpen(false)}
+                style={{ background: 'transparent', border: 'none', color: '#979797', cursor: 'pointer', fontSize: 18 }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCreatePost}>
+              <div style={{ marginBottom: 12 }}>
+                <input
+                  type="text"
+                  placeholder="Subject Tag (e.g. #OrganicChemistry)"
+                  value={newPostTag}
+                  onChange={(e) => setNewPostTag(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: 10,
+                    background: '#141414',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    color: 'var(--chatter-primary)',
+                    fontWeight: 600,
+                    fontSize: 14,
+                    outline: 'none',
+                    marginBottom: 10,
+                  }}
+                />
+                <textarea
+                  rows={4}
+                  placeholder="What are you studying or discovering right now?"
+                  value={newPostText}
+                  onChange={(e) => setNewPostText(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    borderRadius: 10,
+                    background: '#141414',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    color: '#fff',
+                    fontSize: 14,
+                    outline: 'none',
+                    resize: 'none',
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setCreateModalOpen(false)}
+                  style={{
+                    padding: '10px 18px',
+                    borderRadius: 10,
+                    background: 'transparent',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    color: '#979797',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!newPostText.trim()}
+                  style={{
+                    padding: '10px 22px',
+                    borderRadius: 10,
+                    background: 'var(--chatter-primary)',
+                    border: 'none',
+                    color: '#0E0E0E',
+                    fontWeight: 700,
+                    cursor: newPostText.trim() ? 'pointer' : 'not-allowed',
+                    opacity: newPostText.trim() ? 1 : 0.6,
+                  }}
+                >
+                  Post to Feed
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

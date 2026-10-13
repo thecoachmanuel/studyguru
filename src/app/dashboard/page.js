@@ -20,6 +20,16 @@ import StudyGuruLogo from '@/components/StudyGuruLogo';
 import ChatbotIcon from '@/components/ChatbotIcon';
 import { getPusherClient } from '@/lib/pusherClient';
 import { clearStoredUnread, setStoredUnreadCount } from '@/lib/unreadMessages';
+import ChatterTopBar from '@/components/chatter/ChatterTopBar';
+import ChatterBottomNav from '@/components/chatter/ChatterBottomNav';
+import ChatterSidebarNav from '@/components/chatter/ChatterSidebarNav';
+import ChatterFeedView from '@/components/chatter/ChatterFeedView';
+import ChatterRoomsView from '@/components/chatter/ChatterRoomsView';
+import ChatterChatsView from '@/components/chatter/ChatterChatsView';
+import ChatterGuruView from '@/components/chatter/ChatterGuruView';
+import ChatterProfileView from '@/components/chatter/ChatterProfileView';
+import DirectMessagesModal from '@/components/DirectMessagesModal';
+import UserStatusModal from '@/components/UserStatusModal';
 
 function moveChannelLocally(channels, channelId, beforeChannelId, afterChannelId) {
   const movedChannel = channels.find((channel) => channel.id === channelId);
@@ -112,6 +122,12 @@ export default function DashboardPage() {
   const [channelCreateFormOpen, setChannelCreateFormOpen] = useState(false);
   const [toast, setToast] = useState('');
   const [unreadCounts, setUnreadCounts] = useState({});
+
+  // ---------- Chatter UI States ----------
+  const [chatterTab, setChatterTab] = useState('feed'); // 'feed' | 'rooms' | 'guru' | 'chats' | 'profile'
+  const [directMessagesModalOpen, setDirectMessagesModalOpen] = useState(false);
+  const [userStatusModalOpen, setUserStatusModalOpen] = useState(false);
+  const [userCurrentStatus, setUserCurrentStatus] = useState(null);
 
   // Ensure mobile screens land on welcome panel
   useEffect(() => {
@@ -661,6 +677,7 @@ export default function DashboardPage() {
     voiceSession.joinedChannelId === activeChannelId &&
     mobilePanelView === 'chat'
   );
+  const activeVoiceChannelName = voiceSession?.joinedChannelName || activeChannelName;
 
   // Responsive Layout Classes
   const shellClasses = [
@@ -684,94 +701,154 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ── 1. Server Sidebar (Far Left) ── */}
-      <ServerSidebar
-        servers={servers}
-        serversLoading={serversLoading}
-        activeServerId={activeServerId}
-        onSelectServer={handleSelectServer}
-        onCreateServer={handleCreateServer}
-        onJoinServer={handleJoinServer}
-        createModalOpen={serverActionModal === 'create'}
-        onCreateModalOpenChange={(open) => setServerActionModal(open ? 'create' : null)}
-        joinModalOpen={serverActionModal === 'join'}
-        onJoinModalOpenChange={(open) => setServerActionModal(open ? 'join' : null)}
-        currentUserId={user?.id}
-      />
-
-      {/* ── 2. Channel Sidebar (Middle Left) ── */}
-      <ChannelSidebar
-        serverId={activeServerId}
-        serverName={activeServerName}
-        serverDescription={activeServerDescription}
-        channels={channels}
-        channelsLoading={channelsLoading}
-        channelsError={channelsError}
-        activeChannelId={activeChannelId}
-        onSelectChannel={handleSelectChannel}
-        onCreateChannel={handleCreateChannel}
-        onReorderChannel={handleReorderChannel}
-        voiceSession={voiceSession}
-        currentRole={currentRole}
-        onOpenSettings={() => setSettingsOpen(true)}
-        onLeaveServer={handleLeaveServer}
-        workspace={workspace}
-        onOpenAdvancedSearch={handleOpenAdvancedSearch}
-        createFormOpen={channelCreateFormOpen}
-        onCreateFormOpenChange={setChannelCreateFormOpen}
-        unreadCounts={unreadCounts}
+      {/* ── Desktop Left Navigation Rail (Chatter 5-Tab Bar) ── */}
+      <ChatterSidebarNav
+        activeTab={chatterTab}
+        onSelectTab={(tab) => {
+          if (tab !== 'chats') {
+            setActiveChannelId(null);
+          }
+          setChatterTab(tab);
+        }}
         profile={profile}
+        unreadChatsCount={Object.values(unreadCounts).reduce((a, b) => a + b, 0)}
+        isJoinedInVoiceRoom={isJoinedInVoiceRoom}
+        activeVoiceChannelName={activeVoiceChannelName}
+        onLeaveVoice={leaveVoiceSession}
+        onOpenSettings={() => setSettingsOpen(true)}
       />
 
-      {/* ── 3. Central Workspace Panel ── */}
-      {advancedSearchVisible ? (
-        <AdvancedSearchPanel
-          key={activeServerId || 'search'}
-          serverId={activeServerId}
-          serverName={activeServerName}
-          userEmail={user?.email}
-          profile={profile}
-          onLogout={handleLogout}
-          channelSidebarOpen={channelSidebarOpen}
-          onToggleChannelSidebar={() => setChannelSidebarOpen((p) => !p)}
-          onMobileBack={() => {
-            setActiveChannelId(null);
-            setMobilePanelView('sidebar');
-          }}
-          workspace={workspace}
-          onOpenResource={handleOpenResource}
-          onBackToSearch={() => {
-            setWorkspace('advanced-search');
-            setResourceOrigin(null);
-          }}
-          onRag1Activated={handleRag1Activated}
-          onToggleRightPanel={() => setRightPanelOpen((p) => !p)}
-          rightPanelOpen={rightPanelOpen}
-        />
-      ) : activeChannelType === 'voice' ? (
-        <VoicePanel
-          channelId={activeChannelId}
-          channelName={activeChannelName}
-          serverName={activeServerName}
-          activeServerId={activeServerId}
-          userId={user?.id}
-          profile={profile}
-          onMobileBack={() => {
-            setActiveChannelId(null);
-            setMobilePanelView('sidebar');
-          }}
-          voiceSession={voiceSession}
-          onToggleRightPanel={() => setRightPanelOpen((p) => !p)}
-          rightPanelOpen={rightPanelOpen}
-          onRag1Activated={handleRag1Activated}
-          onOpenAiTab={handleOpenAiTab}
-        />
-      ) : (
+      {/* ── Content View ── */}
+      {/* If chatterTab === 'feed', render ChatterFeedView */}
+      {chatterTab === 'feed' && (
+        <div style={{ flex: 1, overflowY: 'auto', background: 'var(--chatter-black)', minHeight: '100vh' }}>
+          <ChatterTopBar
+            onOpenNotifications={() => showToast('No new notifications')}
+            onOpenSearch={handleOpenAdvancedSearch}
+            onOpenLiveSpaces={() => setChatterTab('rooms')}
+            onRandomTopic={() => setChatterTab('rooms')}
+          />
+          <ChatterFeedView
+            serverId={activeServerId}
+            profile={profile}
+            userId={user?.id}
+            onOpenLiveSpaces={() => setChatterTab('rooms')}
+          />
+        </div>
+      )}
+
+      {/* If chatterTab === 'rooms', render ChatterRoomsView */}
+      {chatterTab === 'rooms' && (
+        <div style={{ flex: 1, overflowY: 'auto', background: 'var(--chatter-black)', minHeight: '100vh' }}>
+          <ChatterTopBar
+            onOpenNotifications={() => showToast('No new notifications')}
+            onOpenSearch={handleOpenAdvancedSearch}
+            onOpenLiveSpaces={() => setChatterTab('rooms')}
+            onRandomTopic={() => setChatterTab('rooms')}
+          />
+          <ChatterRoomsView
+            servers={servers}
+            activeServerId={activeServerId}
+            onSelectServer={(sId) => {
+              handleSelectServer(sId);
+              setChatterTab('chats');
+            }}
+            onCreateServer={() => setServerActionModal('create')}
+            onJoinServer={() => setServerActionModal('join')}
+            onJoinVoiceChannel={(sId, cId, cName) => {
+              setActiveServerId(sId);
+              setActiveChannelId(cId);
+              setActiveChannelName(cName);
+              setActiveChannelType('voice');
+              setChatterTab('chats');
+            }}
+            isJoinedInVoiceRoom={isJoinedInVoiceRoom}
+            activeVoiceChannelName={activeVoiceChannelName}
+          />
+        </div>
+      )}
+
+      {/* If chatterTab === 'guru', render ChatterGuruView */}
+      {chatterTab === 'guru' && (
+        <div style={{ flex: 1, overflowY: 'auto', background: 'var(--chatter-black)', minHeight: '100vh' }}>
+          <ChatterTopBar
+            onOpenNotifications={() => showToast('No new notifications')}
+            onOpenSearch={handleOpenAdvancedSearch}
+            onOpenLiveSpaces={() => setChatterTab('rooms')}
+            onRandomTopic={() => setChatterTab('rooms')}
+          />
+          <ChatterGuruView
+            channelName={activeChannelName}
+            serverId={activeServerId}
+          />
+        </div>
+      )}
+
+      {/* If chatterTab === 'profile', render ChatterProfileView */}
+      {chatterTab === 'profile' && (
+        <div style={{ flex: 1, overflowY: 'auto', background: 'var(--chatter-black)', minHeight: '100vh' }}>
+          <ChatterTopBar
+            onOpenNotifications={() => showToast('No new notifications')}
+            onOpenSearch={handleOpenAdvancedSearch}
+            onOpenLiveSpaces={() => setChatterTab('rooms')}
+            onRandomTopic={() => setChatterTab('rooms')}
+          />
+          <ChatterProfileView
+            profile={profile}
+            onLogout={handleLogout}
+            onOpenStatusModal={() => setUserStatusModalOpen(true)}
+            onOpenSettings={() => setSettingsOpen(true)}
+          />
+        </div>
+      )}
+
+      {/* If chatterTab === 'chats' */}
+      {chatterTab === 'chats' && (
         <>
-          {channelResourceVisible && (
-            <ResourceWorkspacePanel
-              key="channel-resource-workspace"
-              resource={channelResource}
+          {/* Server Sidebar (Far Left in Chats view) */}
+          <ServerSidebar
+            servers={servers}
+            serversLoading={serversLoading}
+            activeServerId={activeServerId}
+            onSelectServer={handleSelectServer}
+            onCreateServer={handleCreateServer}
+            onJoinServer={handleJoinServer}
+            createModalOpen={serverActionModal === 'create'}
+            onCreateModalOpenChange={(open) => setServerActionModal(open ? 'create' : null)}
+            joinModalOpen={serverActionModal === 'join'}
+            onJoinModalOpenChange={(open) => setServerActionModal(open ? 'join' : null)}
+            currentUserId={user?.id}
+          />
+
+          {/* Channel Sidebar (Middle Left) */}
+          <ChannelSidebar
+            serverId={activeServerId}
+            serverName={activeServerName}
+            serverDescription={activeServerDescription}
+            channels={channels}
+            channelsLoading={channelsLoading}
+            channelsError={channelsError}
+            activeChannelId={activeChannelId}
+            onSelectChannel={handleSelectChannel}
+            onCreateChannel={handleCreateChannel}
+            onReorderChannel={handleReorderChannel}
+            voiceSession={voiceSession}
+            currentRole={currentRole}
+            onOpenSettings={() => setSettingsOpen(true)}
+            onLeaveServer={handleLeaveServer}
+            workspace={workspace}
+            onOpenAdvancedSearch={handleOpenAdvancedSearch}
+            createFormOpen={channelCreateFormOpen}
+            onCreateFormOpenChange={setChannelCreateFormOpen}
+            unreadCounts={unreadCounts}
+            profile={profile}
+          />
+
+          {/* Central Workspace Panel */}
+          {advancedSearchVisible ? (
+            <AdvancedSearchPanel
+              key={activeServerId || 'search'}
+              serverId={activeServerId}
               serverName={activeServerName}
               userEmail={user?.email}
               profile={profile}
@@ -782,148 +859,136 @@ export default function DashboardPage() {
                 setActiveChannelId(null);
                 setMobilePanelView('sidebar');
               }}
-              onBack={handleBackToChannel}
-              backLabel={`Back to #${activeChannelName || 'channel'}`}
-              onRatingSummary={handleChannelRatingSummary}
+              workspace={workspace}
+              onOpenResource={handleOpenResource}
+              onBackToSearch={() => {
+                setWorkspace('advanced-search');
+                setResourceOrigin(null);
+              }}
               onRag1Activated={handleRag1Activated}
+              onToggleRightPanel={() => setRightPanelOpen((p) => !p)}
+              rightPanelOpen={rightPanelOpen}
             />
-          )}
-          <div
-            key="channel-main-panel"
-            className={[
-              'dashboard-preserved-channel',
-              channelResourceVisible ? 'dashboard-preserved-channel--hidden' : '',
-            ].filter(Boolean).join(' ')}
-          >
-            <MainPanel
-              serverName={activeServerName}
-              server={activeServer}
-              channelName={activeChannelName}
-              channelType={activeChannelType}
+          ) : activeChannelType === 'voice' ? (
+            <VoicePanel
               channelId={activeChannelId}
-              userEmail={user?.email}
-              profile={profile}
-              onLogout={handleLogout}
-              channelSidebarOpen={channelSidebarOpen}
-              onToggleChannelSidebar={() => setChannelSidebarOpen((p) => !p)}
-              onMobileBack={() => {
-                setActiveChannelId(null);
-                setMobilePanelView('sidebar');
-              }}
+              channelName={activeChannelName}
+              serverName={activeServerName}
               activeServerId={activeServerId}
               userId={user?.id}
-              currentRole={currentRole}
-              onOpenResource={handleOpenChannelResource}
-              resourceRatingOverrides={channelRatingOverrides}
-              onCreateServerRequest={() => setServerActionModal('create')}
-              onJoinServerRequest={() => setServerActionModal('join')}
-              onCreateChannelRequest={() => setChannelCreateFormOpen(true)}
+              profile={profile}
+              onMobileBack={() => {
+                setActiveChannelId(null);
+                setMobilePanelView('sidebar');
+              }}
+              voiceSession={voiceSession}
               onToggleRightPanel={() => setRightPanelOpen((p) => !p)}
               rightPanelOpen={rightPanelOpen}
               onRag1Activated={handleRag1Activated}
               onOpenAiTab={handleOpenAiTab}
-              onMarkAsRead={handleMarkChannelRead}
             />
-          </div>
+          ) : (
+            <>
+              {channelResourceVisible && (
+                <ResourceWorkspacePanel
+                  key="channel-resource-workspace"
+                  resource={channelResource}
+                  serverName={activeServerName}
+                  userEmail={user?.email}
+                  profile={profile}
+                  onLogout={handleLogout}
+                  channelSidebarOpen={channelSidebarOpen}
+                  onToggleChannelSidebar={() => setChannelSidebarOpen((p) => !p)}
+                  onMobileBack={() => {
+                    setActiveChannelId(null);
+                    setMobilePanelView('sidebar');
+                  }}
+                  onBack={handleBackToChannel}
+                  backLabel={`Back to #${activeChannelName || 'channel'}`}
+                  onRatingSummary={handleChannelRatingSummary}
+                  onRag1Activated={handleRag1Activated}
+                />
+              )}
+              <div
+                key="channel-main-panel"
+                className={[
+                  'dashboard-preserved-channel',
+                  channelResourceVisible ? 'dashboard-preserved-channel--hidden' : '',
+                ].filter(Boolean).join(' ')}
+              >
+                <MainPanel
+                  serverName={activeServerName}
+                  server={activeServer}
+                  channelName={activeChannelName}
+                  channelType={activeChannelType}
+                  channelId={activeChannelId}
+                  userEmail={user?.email}
+                  profile={profile}
+                  onLogout={handleLogout}
+                  channelSidebarOpen={channelSidebarOpen}
+                  onToggleChannelSidebar={() => setChannelSidebarOpen((p) => !p)}
+                  onMobileBack={() => {
+                    setActiveChannelId(null);
+                    setMobilePanelView('sidebar');
+                  }}
+                  activeServerId={activeServerId}
+                  userId={user?.id}
+                  currentRole={currentRole}
+                  onOpenResource={handleOpenChannelResource}
+                  resourceRatingOverrides={channelRatingOverrides}
+                  onCreateServerRequest={() => setServerActionModal('create')}
+                  onJoinServerRequest={() => setServerActionModal('join')}
+                  onCreateChannelRequest={() => setChannelCreateFormOpen(true)}
+                  onToggleRightPanel={() => setRightPanelOpen((p) => !p)}
+                  rightPanelOpen={rightPanelOpen}
+                  onRag1Activated={handleRag1Activated}
+                  onOpenAiTab={handleOpenAiTab}
+                  onMarkAsRead={handleMarkChannelRead}
+                />
+              </div>
+            </>
+          )}
+
+          {/* Right Panel Backdrop */}
+          {rightPanelOpen && (
+            <div
+              className="right-panel-backdrop"
+              onClick={() => setRightPanelOpen(false)}
+              aria-label="Close AI Study Panel"
+            />
+          )}
+
+          {/* Right Panel */}
+          <RightPanel
+            key={user?.id || 'anonymous'}
+            activeServerId={activeServerId}
+            activeChannelId={activeChannelId}
+            activeChannelName={activeChannelName}
+            serverInviteCode={activeServerInviteCode}
+            userId={user?.id}
+            members={members}
+            membersLoading={membersLoading}
+            profile={profile}
+            currentRole={currentRole}
+            onOpenSettings={() => setSettingsOpen(true)}
+            rag1ActivationRequest={rag1ActivationRequest}
+            onClose={() => setRightPanelOpen(false)}
+            onShareToChannel={handleShareAiToChannel}
+          />
         </>
       )}
 
-      {/* ── 4. Right Panel Backdrop (Tablet & Mobile Slide-Over) ── */}
-      {rightPanelOpen && (
-        <div
-          className="right-panel-backdrop"
-          onClick={() => setRightPanelOpen(false)}
-          aria-label="Close AI Study Panel"
-        />
-      )}
-
-      {/* ── 5. Right Panel (AI Study Guru & Server Members) ── */}
-      <RightPanel
-        key={user?.id || 'anonymous'}
-        activeServerId={activeServerId}
-        activeChannelId={activeChannelId}
-        activeChannelName={activeChannelName}
-        serverInviteCode={activeServerInviteCode}
-        userId={user?.id}
-        members={members}
-        membersLoading={membersLoading}
-        profile={profile}
-        currentRole={currentRole}
-        onOpenSettings={() => setSettingsOpen(true)}
-        rag1ActivationRequest={rag1ActivationRequest}
-        onClose={() => setRightPanelOpen(false)}
-        onShareToChannel={handleShareAiToChannel}
+      {/* ── Mobile 5-Tab Navigation Bar (Exact Chatter App TabBarScreen) ── */}
+      <ChatterBottomNav
+        activeTab={chatterTab}
+        onSelectTab={(tab) => {
+          setActiveChannelId(null);
+          setChatterTab(tab);
+        }}
+        unreadChatsCount={Object.values(unreadCounts).reduce((a, b) => a + b, 0)}
       />
 
-      {/* ── 6. Cogni-style Mobile Bottom Navigation Bar (≤ 768px, hidden when channel is opened or AI assistant is open) ── */}
-      {!isJoinedInVoiceRoom && !activeChannelId && !rightPanelOpen && (
-        <nav className="cogni-mobile-nav" aria-label="StudyGuru Mobile Navigation" suppressHydrationWarning>
-          <button
-            type="button"
-            className={`cogni-mobile-nav__item ${mobilePanelView === 'sidebar' && !rightPanelOpen ? 'cogni-mobile-nav__item--active' : ''}`}
-            onClick={() => {
-              setActiveChannelId(null);
-              setMobilePanelView('sidebar');
-              setRightPanelOpen(false);
-            }}
-            aria-label="Study Groups"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="2" y="3" width="20" height="14" rx="2" />
-              <line x1="8" y1="21" x2="16" y2="21" />
-              <line x1="12" y1="17" x2="12" y2="21" />
-            </svg>
-            <span>Groups</span>
-          </button>
-
-          <button
-            type="button"
-            className={`cogni-mobile-nav__item ${mobilePanelView === 'chat' && !rightPanelOpen ? 'cogni-mobile-nav__item--active' : ''}`}
-            onClick={() => {
-              setMobilePanelView('chat');
-              setRightPanelOpen(false);
-            }}
-            aria-label={activeServerId ? 'Current Channel Chat' : 'Home'}
-          >
-            {activeServerId ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-            ) : (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                <polyline points="9 22 9 12 15 12 15 22" />
-              </svg>
-            )}
-            <span>{activeServerId ? 'Chat' : 'Home'}</span>
-          </button>
-
-          <button
-            type="button"
-            className={`cogni-mobile-nav__item cogni-mobile-nav__item--ai ${rightPanelOpen ? 'cogni-mobile-nav__item--active' : ''}`}
-            onClick={() => setRightPanelOpen((prev) => !prev)}
-            aria-label="AI Study Guru Assistant"
-          >
-            <ChatbotIcon size={20} />
-            <span>AI Guru</span>
-          </button>
-
-          <button
-            type="button"
-            className="cogni-mobile-nav__item"
-            onClick={() => router.push('/profile')}
-            aria-label="Profile Settings"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
-            </svg>
-            <span>Profile</span>
-          </button>
-        </nav>
-      )}
-
-      {/* ── 7. Server Settings Modal ── */}
+      {/* ── Modals: Settings, DMs, User Status ── */}
       {settingsOpen && activeServer && (
         <ServerSettingsModal
           server={activeServer}
@@ -934,6 +999,24 @@ export default function DashboardPage() {
           onRefresh={refreshActiveServerData}
           onServerRemoved={handleServerRemoved}
           notify={showToast}
+        />
+      )}
+
+      {directMessagesModalOpen && (
+        <DirectMessagesModal
+          currentUserId={user?.id}
+          onClose={() => setDirectMessagesModalOpen(false)}
+        />
+      )}
+
+      {userStatusModalOpen && (
+        <UserStatusModal
+          currentStatus={userCurrentStatus}
+          onClose={() => setUserStatusModalOpen(false)}
+          onStatusUpdated={(newStatus) => {
+            setUserCurrentStatus(newStatus);
+            showToast('Study status updated!');
+          }}
         />
       )}
     </div>

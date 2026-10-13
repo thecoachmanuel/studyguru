@@ -1,55 +1,75 @@
 /* StudyGuru — Theme System (Light mode default, Cogni-inspired palette, Dark mode toggleable) */
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
 
-:root,
-[data-theme="light"] {
-  /* LIGHT MODE (DEFAULT PRIMARY THEME - COGNI COLOR PALETTE) */
-  --primary: #1D4ED8;
-  --primary-hover: #1E40AF;
-  --primary-foreground: #FFFFFF;
-  --brand-blue: #1D4ED8;
+:root {
+  /* CHATTER DESIGN SYSTEM TOKENS */
+  --chatter-primary: #40E378;
+  --chatter-pulsing: #A1E5B3;
+  --chatter-hashtag: #25CC5F;
+  --chatter-green: #2CA757;
+  --chatter-darkgreen: #183321;
+  --chatter-black: #0E0E0E;
+  --chatter-sheet: #1F1F1F;
+  --chatter-darkbg: #212121;
+  --chatter-audiospace: #272727;
+  --chatter-audiospace-dark: #222222;
+  --chatter-audiospace-light: #3B3B3B;
+  --chatter-audiospace-text: #D4D4D4;
+  --chatter-red: #FF3939;
+  --chatter-bluetick: #1D9BF0;
+  --chatter-white: #FFFFFF;
+  --chatter-light-text: #979797;
+  --chatter-light-icon: #AEAEAE;
+  --chatter-dark-text: #585858;
+  --chatter-light-bg: #1A1A1A;
+
+  /* DEFAULT THEME (CHATTER DARK-FIRST ARCHITECTURE) */
+  --primary: #40E378;
+  --primary-hover: #25CC5F;
+  --primary-foreground: #0E0E0E;
+  --brand-blue: #40E378;
   --accent-amber: #F59E0B;
 
-  --bg-darkest: #F1F5F9;
-  --bg-dark: #F8FAFC;
-  --bg-surface: #FFFFFF;
-  --bg-elevated: #F1F5F9;
-  --bg-panel1: #E2E8F0;
-  --bg-panel2: #F8FAFC;
-  --bg-hover: #E2E8F0;
-  --border: #E2E8F0;
-  --border-subtle: #CBD5E1;
-  --text-primary: #0F172A;
-  --text-secondary: #475569;
-  --text-muted: #64748B;
-  --text-dark: #94A3B8;
-  --accent: #F59E0B;
-  --accent-hover: #D97706;
-  --accent-subtle: rgba(29, 78, 216, 0.08);
-  --accent-border: rgba(29, 78, 216, 0.2);
-  --error-color: #DC2626;
-  --success: #16A34A;
-  --warning: #D97706;
-  --online: #16A34A;
+  --bg-darkest: #0E0E0E;
+  --bg-dark: #141414;
+  --bg-surface: #1F1F1F;
+  --bg-elevated: #272727;
+  --bg-panel1: #181818;
+  --bg-panel2: #121212;
+  --bg-hover: #2A2A2A;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-subtle: rgba(255, 255, 255, 0.12);
+  --text-primary: #FFFFFF;
+  --text-secondary: #D4D4D4;
+  --text-muted: #979797;
+  --text-dark: #707070;
+  --accent: #40E378;
+  --accent-hover: #25CC5F;
+  --accent-subtle: rgba(64, 227, 120, 0.12);
+  --accent-border: rgba(64, 227, 120, 0.25);
+  --error-color: #FF3939;
+  --success: #40E378;
+  --warning: #F59E0B;
+  --online: #40E378;
   --idle: #888888;
-  --offline: #94A3B8;
-  --btn-primary-bg: #1D4ED8;
-  --btn-primary-text: #FFFFFF;
-  --btn-primary-hover: #1E40AF;
-  --input-bg: #FFFFFF;
-  --input-border: #E2E8F0;
-  --card-bg: #FFFFFF;
-  --card-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
-  --server-w: 64px;
-  --channel-w: 240px;
-  --right-w: 350px;
+  --offline: #666666;
+  --btn-primary-bg: #40E378;
+  --btn-primary-text: #0E0E0E;
+  --btn-primary-hover: #25CC5F;
+  --input-bg: #1F1F1F;
+  --input-border: rgba(255, 255, 255, 0.1);
+  --card-bg: #1F1F1F;
+  --card-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --server-w: 68px;
+  --channel-w: 260px;
+  --right-w: 360px;
   --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-heading: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --radius-xs: 4px;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --transition: 0.15s ease;
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --transition: 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 [data-theme="dark"] {
@@ -8926,6 +8946,503 @@ body {
   font-size: 11.5px;
   color: var(--text-muted);
 }
+
+/* ============================================================
+   CHATTER REFERENCE APP EXACT UI SYSTEM & COMPONENTS
+   Palette: cPrimary (#40E378), cBlack (#0E0E0E), cBlackSheetBG (#1F1F1F),
+            cAudioSpaceBG (#272727), cHashtag (#25CC5F), cRed (#FF3939)
+   ============================================================ */
+
+.chatter-shell {
+  min-height: 100vh;
+  width: 100%;
+  background: var(--chatter-black);
+  color: var(--chatter-white);
+  font-family: var(--font-family);
+  overflow-x: hidden;
+}
+
+/* --- Top Bar --- */
+.chatter-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 60px;
+  padding: 0 16px;
+  background: var(--chatter-black);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.chatter-topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.chatter-topbar__btn {
+  background: transparent;
+  border: none;
+  color: var(--chatter-white);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 50%;
+  transition: background 0.15s ease, color 0.15s ease;
+  position: relative;
+}
+
+.chatter-topbar__btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--chatter-primary);
+}
+
+.chatter-topbar__badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--chatter-red);
+}
+
+.chatter-logo-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 20px;
+  color: var(--chatter-white);
+  letter-spacing: -0.02em;
+}
+
+.chatter-logo-tag__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--chatter-primary);
+  box-shadow: 0 0 10px var(--chatter-primary);
+}
+
+/* --- Mobile 5-Tab Navigation Bar --- */
+.chatter-tabbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: var(--chatter-black);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  z-index: 60;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.chatter-tabbar__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex: 1;
+  height: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--chatter-light-text);
+  transition: color 0.15s ease, transform 0.12s ease;
+  position: relative;
+  text-decoration: none;
+}
+
+.chatter-tabbar__item:active {
+  transform: scale(0.95);
+}
+
+.chatter-tabbar__item--active {
+  color: var(--chatter-primary) !important;
+}
+
+.chatter-tabbar__icon {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chatter-tabbar__label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.chatter-tabbar__badge {
+  position: absolute;
+  top: 8px;
+  right: calc(50% - 15px);
+  min-width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--chatter-red);
+}
+
+/* --- Desktop Left Sidebar Navigation --- */
+.chatter-desktop-layout {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--chatter-black);
+}
+
+.chatter-desktop-sidebar {
+  width: 260px;
+  min-width: 260px;
+  background: var(--chatter-black);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 24px 16px;
+  z-index: 40;
+}
+
+.chatter-desktop-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px 24px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.chatter-desktop-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+  flex: 1;
+}
+
+.chatter-desktop-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--chatter-light-text);
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.16s ease;
+  position: relative;
+  text-align: left;
+}
+
+.chatter-desktop-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--chatter-white);
+}
+
+.chatter-desktop-nav-btn--active {
+  background: rgba(64, 227, 120, 0.12) !important;
+  color: var(--chatter-primary) !important;
+}
+
+.chatter-desktop-nav-btn--active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3.5px;
+  background: var(--chatter-primary);
+  border-radius: 0 4px 4px 0;
+}
+
+.chatter-desktop-footer {
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* --- Cupertino-style Sliding Segmented Control --- */
+.chatter-segment-control {
+  display: flex;
+  background: rgba(151, 151, 151, 0.18);
+  border-radius: 28px;
+  padding: 3px;
+  margin: 12px 16px;
+  position: relative;
+}
+
+.chatter-segment-btn {
+  flex: 1;
+  padding: 9px 12px;
+  border-radius: 24px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  background: transparent;
+  border: none;
+  color: var(--chatter-light-text);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.chatter-segment-btn:hover {
+  color: var(--chatter-white);
+}
+
+.chatter-segment-btn--active {
+  background: var(--chatter-black) !important;
+  color: var(--chatter-primary) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+/* --- Social Feed Post Card --- */
+.chatter-post-card {
+  background: var(--chatter-sheet);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  padding: 16px;
+  margin: 12px 16px;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.chatter-post-card:hover {
+  border-color: rgba(64, 227, 120, 0.2);
+}
+
+.chatter-post-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.chatter-post-author {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.chatter-post-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(64, 227, 120, 0.4);
+}
+
+.chatter-post-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--chatter-white);
+}
+
+.chatter-post-meta {
+  font-size: 12px;
+  color: var(--chatter-light-text);
+}
+
+.chatter-post-body {
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--chatter-white);
+  margin-bottom: 12px;
+}
+
+.chatter-hashtag {
+  color: var(--chatter-hashtag);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chatter-hashtag:hover {
+  text-decoration: underline;
+}
+
+.chatter-post-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--chatter-light-text);
+}
+
+.chatter-post-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: var(--chatter-light-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s ease, transform 0.12s ease;
+}
+
+.chatter-post-action-btn:hover {
+  color: var(--chatter-primary);
+}
+
+.chatter-post-action-btn--liked {
+  color: var(--chatter-red) !important;
+}
+
+/* --- Chatter Audio Space / Room Card --- */
+.chatter-audiospace-card {
+  background: var(--chatter-audiospace);
+  border-radius: 16px;
+  padding: 16px;
+  margin: 12px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.chatter-audiospace-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.chatter-audiospace-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 57, 57, 0.16);
+  color: var(--chatter-red);
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.chatter-audiospace-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--chatter-red);
+  box-shadow: 0 0 6px var(--chatter-red);
+}
+
+.chatter-speaker-stack {
+  display: flex;
+  align-items: center;
+  margin: 12px 0;
+}
+
+.chatter-speaker-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--chatter-audiospace);
+  margin-left: -8px;
+  object-fit: cover;
+  background: #333;
+}
+
+.chatter-speaker-avatar:first-child {
+  margin-left: 0;
+}
+
+/* --- Floating Action Button (+) --- */
+.chatter-fab {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: var(--chatter-primary);
+  color: var(--chatter-black);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 24px rgba(64, 227, 120, 0.4);
+  border: none;
+  cursor: pointer;
+  z-index: 55;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+}
+
+.chatter-fab:hover {
+  transform: scale(1.08);
+  box-shadow: 0 10px 28px rgba(64, 227, 120, 0.55);
+}
+
+.chatter-fab:active {
+  transform: scale(0.95);
+}
+
+/* --- Story Snapshot Circular Avatar --- */
+.chatter-story-ring {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  padding: 2.5px;
+  background: linear-gradient(135deg, var(--chatter-primary), #25CC5F, #A1E5B3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.16s ease;
+}
+
+.chatter-story-ring:hover {
+  transform: scale(1.06);
+}
+
+.chatter-story-ring--viewed {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.chatter-story-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--chatter-black);
+  background: #222;
+}
+
+/* Responsive Overrides */
+@media (min-width: 769px) {
+  .chatter-tabbar {
+    display: none !important;
+  }
+  .chatter-fab {
+    bottom: 30px;
+    right: 30px;
+  }
+}
+
+@media (max-width: 768px) {
+  .chatter-desktop-sidebar {
+    display: none !important;
+  }
+}
+
 
 
 
