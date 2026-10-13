@@ -132,31 +132,77 @@ export default function ChatterAudioSpaceModal({
 
       {/* ── 2. Stage Area: Speakers & Video Tiles ── */}
       <main style={{ flex: 1, overflowY: 'auto', padding: '24px 20px', maxWidth: 840, width: '100%', margin: '0 auto' }}>
-        {/* Video stream container if camera or screen sharing is active */}
-        {(cameraEnabled || isScreenSharing) && (
-          <div style={{ marginBottom: 24, borderRadius: 18, overflow: 'hidden', background: '#111', border: '1px solid rgba(64, 227, 120, 0.4)', position: 'relative', maxHeight: 360 }}>
-            <video
-              ref={localVideoRef}
-              autoPlay
-              playsInline
-              muted
-              style={{ width: '100%', maxHeight: 360, objectFit: 'contain', display: 'block' }}
-            />
+        {/* Live Video Grid Area when Camera, Screen, or Remote Streams are active */}
+        {(cameraEnabled || isScreenSharing || Object.keys(remoteStreams).length > 0) && (
+          <div style={{ marginBottom: 26 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--chatter-primary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+              Live Video Stage
+            </div>
             <div
               style={{
-                position: 'absolute',
-                bottom: 12,
-                left: 12,
-                background: 'rgba(0,0,0,0.6)',
-                backdropFilter: 'blur(4px)',
-                padding: '4px 10px',
-                borderRadius: 12,
-                fontSize: 12,
-                fontWeight: 600,
-                color: '#fff',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                gap: 14,
               }}
             >
-              {profile?.name || 'You'} {isScreenSharing ? '(Screen)' : '(Camera)'}
+              {/* Local Video Tile */}
+              {(cameraEnabled || isScreenSharing) && (
+                <div
+                  style={{
+                    position: 'relative',
+                    borderRadius: 18,
+                    overflow: 'hidden',
+                    background: '#111',
+                    border: micConnected ? '2px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.1)',
+                    boxShadow: micConnected ? '0 0 16px rgba(64, 227, 120, 0.4)' : 'none',
+                    aspectRatio: '16/9',
+                    minHeight: 180,
+                  }}
+                >
+                  <video
+                    ref={localVideoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  />
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: 10,
+                      left: 10,
+                      background: 'rgba(0,0,0,0.65)',
+                      backdropFilter: 'blur(4px)',
+                      padding: '3px 10px',
+                      borderRadius: 10,
+                      fontSize: 11.5,
+                      fontWeight: 600,
+                      color: '#fff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <span>{profile?.name || 'You'} (You)</span>
+                    {isScreenSharing && <span style={{ fontSize: 10, color: 'var(--chatter-primary)' }}>· Screen</span>}
+                  </div>
+                </div>
+              )}
+
+              {/* Remote Video Tiles */}
+              {Object.entries(remoteStreams).map(([remoteId, stream]) => {
+                const p = participants.find((part) => String(part.userId || part.user_id) === String(remoteId));
+                const isSpeaking = p?.speaking;
+                return (
+                  <RemoteVideoTile
+                    key={remoteId}
+                    remoteUserId={remoteId}
+                    stream={stream}
+                    participant={p}
+                    isSpeaking={isSpeaking}
+                  />
+                );
+              })}
             </div>
           </div>
         )}
@@ -460,6 +506,105 @@ export default function ChatterAudioSpaceModal({
           Leave Quietly
         </button>
       </footer>
+    </div>
+  );
+}
+
+function RemoteVideoTile({ remoteUserId, stream, participant, isSpeaking }) {
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [stream]);
+
+  const hasVideoTrack = stream?.getVideoTracks?.()?.some((t) => t.enabled && t.readyState === 'live');
+
+  return (
+    <div
+      style={{
+        position: 'relative',
+        borderRadius: 18,
+        overflow: 'hidden',
+        background: '#141414',
+        border: isSpeaking ? '2px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
+        boxShadow: isSpeaking ? '0 0 16px rgba(64, 227, 120, 0.4)' : 'none',
+        minHeight: 180,
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        aspectRatio: '16/9',
+      }}
+    >
+      {hasVideoTrack ? (
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        />
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+          {participant?.avatar_url ? (
+            <img
+              src={participant.avatar_url}
+              alt={participant.name}
+              style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover' }}
+            />
+          ) : (
+            <div
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: '50%',
+                background: '#252525',
+                color: 'var(--chatter-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 24,
+                fontWeight: 700,
+              }}
+            >
+              {participant?.name?.[0]?.toUpperCase() || 'P'}
+            </div>
+          )}
+          <span style={{ fontSize: 13, color: '#fff', fontWeight: 600 }}>{participant?.name || 'Scholar'}</span>
+        </div>
+      )}
+
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 10,
+          left: 10,
+          background: 'rgba(0,0,0,0.65)',
+          backdropFilter: 'blur(4px)',
+          padding: '3px 10px',
+          borderRadius: 10,
+          fontSize: 11.5,
+          fontWeight: 600,
+          color: '#fff',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+        }}
+      >
+        <span>{participant?.name || 'Scholar'}</span>
+        {isSpeaking && (
+          <span
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: '50%',
+              background: 'var(--chatter-primary)',
+              display: 'inline-block',
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 }

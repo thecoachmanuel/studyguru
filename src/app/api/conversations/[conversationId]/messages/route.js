@@ -231,6 +231,15 @@ export async function POST(req, { params }) {
         if (conversationId !== actualConversationId) {
           await pusher.trigger(`conversation-${conversationId}`, 'new-message', payload);
         }
+
+        const recipientId = conv.participants?.find((p) => String(p) !== String(userId));
+        if (recipientId) {
+          await pusher.trigger(`user-${recipientId}`, 'new-direct-message', {
+            ...payload,
+            conversation_id: actualConversationId,
+          });
+          await pusher.trigger(`user-${recipientId}`, 'new-message', payload);
+        }
       }
     } catch (e) {
       console.warn('Pusher DM broadcast warning:', e.message);

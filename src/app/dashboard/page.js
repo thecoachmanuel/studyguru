@@ -165,54 +165,101 @@ export default function DashboardPage() {
       const saved = localStorage.getItem('chatter_following_map');
       if (saved) setFollowingMap(JSON.parse(saved));
     } catch {}
-  }, []);
-
-  const handleToggleFollow = useCallback((authorId) => {
-    setFollowingMap((prev) => {
-      const nextState = !prev[authorId];
-      const updated = { ...prev, [authorId]: nextState };
-      try {
-        localStorage.setItem('chatter_following_map', JSON.stringify(updated));
-      } catch {}
-      return updated;
-    });
-  }, []);
-
-  const handleStartDM = useCallback(async (targetUser) => {
-    const targetId = typeof targetUser === 'object' ? (targetUser.user_id || targetUser.id) : targetUser;
-    const targetName = typeof targetUser === 'object' ? (targetUser.name || targetUser.username || 'Study Partner') : 'Study Partner';
-
-    setUserProfileModalTarget(null);
-    setActiveServerId(null);
-    setActiveChannelType('dm');
-    setActiveChannelName(targetName);
-    setChatterTab('chats');
-
-    // If targetUser already provided a conversation id
-    if (typeof targetUser === 'object' && targetUser.conversation_id) {
-      setActiveChannelId(targetUser.conversation_id);
-      return;
+    if (user?.id) {
+      fetch('/api/user/follow')
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data?.following && Array.isArray(data.following)) {
+            const map = {};
+            data.following.forEach((fId) => {
+              map[fId] = true;
+            });
+            setFollowingMap((prev) => ({ ...prev, ...map }));
+          }
+        })
+        .catch(() => {});
     }
+  }, [user?.id]);
 
-    // Initialize or fetch conversation with recipient
-    try {
-      const res = await apiRequest('/api/conversations', {
-        method: 'POST',
-        body: JSON.stringify({ recipient_id: targetId }),
+  const handleToggleFollow = useCallback(
+    async (authorId) => {
+      if (!authorId || !user?.id) return;
+      setFollowingMap((prev) => {
+        const nextState = !prev[authorId];
+        const updated = { ...prev, [authorId]: nextState };
+        try {
+          localStorage.setItem('chatter_following_map', JSON.stringify(updated));
+        } catch {}
+        return updated;
       });
-      if (res?.id) {
-        setActiveChannelId(res.id);
-        if (res.other_user?.name) {
-          setActiveChannelName(res.other_user.name);
+
+      try {
+        const res = await fetch('/api/user/follow', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ target_user_id: authorId }),
+        });
+        const data = await res.json();
+        if (data && typeof data.is_following === 'boolean') {
+          setFollowingMap((prev) => ({
+            ...prev,
+            [authorId]: data.is_following,
+          }));
         }
+      } catch (err) {
+        console.warn('Failed to sync follow state:', err);
+      }
+    },
+    [user?.id]
+  );
+
+  const handleStartDM = useCallback(
+    async (targetUser) => {
+      const targetId = typeof targetUser === 'object' ? (targetUser.user_id || targetUser.id) : targetUser;
+      const targetName = typeof targetUser === 'object' ? (targetUser.name || targetUser.username || 'Study Partner') : 'Study Partner';
+
+      setUserProfileModalTarget(null);
+      setActiveServerId(null);
+      setActiveChannelType('dm');
+      setActiveChannelName(targetName);
+      setChatterTab('chats');
+
+      // Clear unread count for this user/channel immediately
+      setUnreadCounts((prev) => {
+        const next = { ...prev };
+        delete next[targetId];
+        return next;
+      });
+
+      // If targetUser already provided a conversation id
+      if (typeof targetUser === 'object' && targetUser.conversation_id) {
+        setActiveChannelId(targetUser.conversation_id);
+        fetch(`/api/conversations/${encodeURIComponent(targetUser.conversation_id)}/read`, { method: 'POST' }).catch(() => {});
         return;
       }
-    } catch (err) {
-      console.warn('Conversation init fallback:', err);
-    }
 
-    setActiveChannelId(targetId);
-  }, []);
+      // Initialize or fetch conversation with recipient
+      try {
+        const res = await apiRequest('/api/conversations', {
+          method: 'POST',
+          body: JSON.stringify({ recipient_id: targetId }),
+        });
+        if (res?.id) {
+          setActiveChannelId(res.id);
+          if (res.other_user?.name) {
+            setActiveChannelName(res.other_user.name);
+          }
+          fetch(`/api/conversations/${encodeURIComponent(res.id)}/read`, { method: 'POST' }).catch(() => {});
+          return;
+        }
+      } catch (err) {
+        console.warn('Conversation init fallback:', err);
+      }
+
+      setActiveChannelId(targetId);
+    },
+    []
+  );
 
   // Ensure mobile screens land on welcome panel
   useEffect(() => {
@@ -510,44 +557,144 @@ export default function DashboardPage() {
     });
     clearStoredUnread(user.id, channelId);
 
-    // Persist to backend per-user channel_reads
+    // Persist to backend
     try {
-      await apiRequest(`/api/channels/${encodeURIComponent(channelId)}/read`, {
-        method: 'POST',
-      });
+      if (activeChannelType === 'dm') {
+        await fetch(`/api/conversations/${encodeURIComponent(channelId)}/read`, {
+          method: 'POST',
+        });
+      } else {
+        await apiRequest(`/api/channels/${encodeURIComponent(channelId)}/read`, {
+          method: 'POST',
+        });
+      }
     } catch (e) {
-      console.debug('Failed to sync channel read status:', e);
+      console.debug('Failed to sync read status:', e);
     }
-  }, [user?.id]);
+  }, [user?.id, activeChannelType]);
 
-  // Load unread counts when server or active channel changes
+  // Load unread counts across channels and direct messages
   useEffect(() => {
-    if (!activeServerId || !user?.id) {
-      setUnreadCounts({});
-      return;
-    }
+    if (!user?.id) return;
     let isMounted = true;
 
-    const loadUnreadCounts = async () => {
+    const loadAllUnreadCounts = async () => {
       try {
-        const data = await apiRequest(`/api/channels/unread-counts?serverId=${encodeURIComponent(activeServerId)}`);
-        if (!isMounted) return;
-        const counts = data?.unreadCounts || {};
-        if (activeChannelId) {
-          counts[activeChannelId] = 0;
-          clearStoredUnread(user.id, activeChannelId);
+        const nextCounts = {};
+
+        // 1. Fetch conversations unread counts
+        try {
+          const convRes = await fetch('/api/conversations');
+          if (convRes.ok) {
+            const convs = await convRes.json();
+            if (Array.isArray(convs)) {
+              convs.forEach((c) => {
+                if (c.unread_count > 0 && c.id !== activeChannelId) {
+                  nextCounts[c.id] = c.unread_count;
+                }
+              });
+            }
+          }
+        } catch {}
+
+        // 2. Fetch server channel unread counts if a server is active
+        if (activeServerId) {
+          try {
+            const data = await apiRequest(`/api/channels/unread-counts?serverId=${encodeURIComponent(activeServerId)}`);
+            const serverCounts = data?.unreadCounts || {};
+            Object.entries(serverCounts).forEach(([cId, count]) => {
+              if (cId !== activeChannelId && count > 0) {
+                nextCounts[cId] = count;
+              }
+            });
+          } catch {}
         }
-        setUnreadCounts(counts);
+
+        if (isMounted) {
+          setUnreadCounts((prev) => {
+            const merged = { ...prev, ...nextCounts };
+            if (activeChannelId) {
+              merged[activeChannelId] = 0;
+              clearStoredUnread(user.id, activeChannelId);
+            }
+            return merged;
+          });
+        }
       } catch (err) {
         console.debug('Failed to load unread counts:', err);
       }
     };
 
-    loadUnreadCounts();
+    loadAllUnreadCounts();
     return () => {
       isMounted = false;
     };
   }, [activeServerId, activeChannelId, user?.id]);
+
+  // User-specific Pusher subscription for incoming direct messages, notifications, and real-time follow updates
+  useEffect(() => {
+    if (!user?.id) return;
+    const pusher = getPusherClient();
+    if (!pusher) return;
+
+    const userChannelName = `user-${user.id}`;
+    let uChan = null;
+    try {
+      uChan = pusher.subscribe(userChannelName);
+    } catch {
+      return;
+    }
+
+    const handleNewDirectMessage = (payload) => {
+      const convId = payload?.conversation_id || payload?.id;
+      if (!convId) return;
+
+      // If user is currently in this conversation, auto-mark as read
+      if (convId === activeChannelId && typeof document !== 'undefined' && !document.hidden) {
+        handleMarkChannelRead(convId);
+        return;
+      }
+
+      // Otherwise increment unread count
+      setUnreadCounts((prev) => {
+        const nextVal = (prev[convId] || 0) + 1;
+        return { ...prev, [convId]: nextVal };
+      });
+
+      const senderName = payload.profiles?.name || payload.sender_name || 'Study Partner';
+      showToast(`💬 New message from ${senderName}`);
+    };
+
+    const handleFollowChanged = (payload) => {
+      if (!payload) return;
+      if (String(payload.following_id) === String(user.id)) {
+        showToast(payload.is_following ? `🌟 ${payload.follower_name || 'A scholar'} followed you!` : `👤 ${payload.follower_name || 'A scholar'} unfollowed you.`);
+        // Refresh db profile to sync real-time followers_count
+        fetch('/api/user/profile')
+          .then((r) => (r.ok ? r.json() : null))
+          .then((d) => {
+            if (d && !d.error) setDbProfile(d);
+          })
+          .catch(() => {});
+      } else if (String(payload.follower_id) === String(user.id)) {
+        setFollowingMap((prev) => ({
+          ...prev,
+          [payload.following_id]: payload.is_following,
+        }));
+      }
+    };
+
+    uChan.bind('new-direct-message', handleNewDirectMessage);
+    uChan.bind('follow-changed', handleFollowChanged);
+
+    return () => {
+      try {
+        uChan.unbind('new-direct-message', handleNewDirectMessage);
+        uChan.unbind('follow-changed', handleFollowChanged);
+        pusher.unsubscribe(userChannelName);
+      } catch {}
+    };
+  }, [user?.id, activeChannelId, handleMarkChannelRead, showToast]);
 
   // Pusher Realtime subscription to server-wide messages for instant unread badge updates
   useEffect(() => {
@@ -989,18 +1136,24 @@ export default function DashboardPage() {
                 userId={user?.id}
                 profile={profile}
                 onBack={() => setActiveChannelId(null)}
+                onStartDM={handleStartDM}
+                onLeaveRoom={(leftServerId) => {
+                  setServers((prev) => prev.filter((s) => s.id !== leftServerId));
+                  setActiveServerId(null);
+                  setActiveChannelId(null);
+                  setChatterTab('rooms');
+                  showToast('Left study room');
+                }}
                 onStartAudioCall={() => {
                   setAudioSpaceModalOpen(true);
-                  if (activeChannelType === 'voice') {
-                    voiceSession?.handleJoin?.(activeServerId, activeChannelId, activeChannelName);
-                  }
+                  voiceSession?.handleJoin?.(activeServerId || 'direct-space', activeChannelId, activeChannelName || 'Study Room');
                 }}
                 onStartVideoCall={() => {
                   setAudioSpaceModalOpen(true);
-                  if (activeChannelType === 'voice') {
-                    voiceSession?.handleJoin?.(activeServerId, activeChannelId, activeChannelName);
+                  voiceSession?.handleJoin?.(activeServerId || 'direct-space', activeChannelId, activeChannelName || 'Study Room');
+                  if (!voiceSession?.cameraEnabled) {
+                    voiceSession?.toggleCamera?.();
                   }
-                  voiceSession?.toggleCamera?.();
                 }}
               />
             </div>

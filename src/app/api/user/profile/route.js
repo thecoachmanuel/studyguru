@@ -20,22 +20,105 @@ export async function GET(req) {
     });
 
     if (!userDoc) {
-      const fallbackName = isSelf ? (session.user.name || 'Scholar') : 'Scholar';
-      return NextResponse.json({
-        id: targetUserId,
-        name: fallbackName,
-        username: fallbackName.toLowerCase().replace(/\s+/g, '_'),
-        email: isSelf ? session.user.email : null,
-        avatar_url: isSelf ? (session.user.image || null) : null,
-        banner_url: null,
-        bio: '📚 Studying & collaborating on StudyCord · Always open to join study rooms & exam drills!',
-        major: 'Computer Science & AI',
-        school: 'University',
-        followers_count: 0,
-        following_count: 0,
-        study_hours: 0,
-        day_streak: 1,
+      if (isSelf) {
+        const fallbackName = session.user.name || 'Scholar';
+        return NextResponse.json({
+          id: targetUserId,
+          name: fallbackName,
+          username: fallbackName.toLowerCase().replace(/\s+/g, '_'),
+          email: session.user.email,
+          avatar_url: session.user.image || null,
+          banner_url: null,
+          bio: '📚 Studying & collaborating on StudyCord · Always open to join study rooms & exam drills!',
+          major: 'Computer Science & AI',
+          school: 'University',
+          followers_count: 0,
+          following_count: 0,
+          study_hours: 0,
+          day_streak: 1,
+        });
+      }
+
+      // Check if this user authored any posts in the posts collection
+      const postWithAuthor = await db.collection('posts').findOne({
+        $or: [
+          { 'author.id': targetUserId },
+          { author_id: targetUserId },
+          { 'author.username': targetUserId },
+        ],
       });
+
+      if (postWithAuthor?.author) {
+        const authInfo = postWithAuthor.author;
+        return NextResponse.json({
+          id: targetUserId,
+          name: authInfo.name || 'Study Scholar',
+          username: authInfo.username || authInfo.name?.toLowerCase().replace(/\s+/g, '_') || 'scholar',
+          email: null,
+          avatar_url: authInfo.avatar_url || authInfo.avatar || null,
+          banner_url: null,
+          bio: authInfo.bio || '📚 Studying and collaborating on StudyCord.',
+          major: 'Computer Science & AI',
+          school: 'University',
+          followers_count: typeof authInfo.followersCount === 'number' ? authInfo.followersCount : 12,
+          following_count: 8,
+          study_hours: 14,
+          day_streak: 3,
+        });
+      }
+
+      // Demo/seed authors fallback
+      const demoUsers = {
+        'u-sarah': {
+          name: 'Sarah Chen',
+          username: 'schen_ai',
+          avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&auto=format&fit=crop&q=80',
+          bio: 'Senior studying AI & Computational Neuroscience · Passionate about vector calculus & transformers.',
+          followers_count: 42,
+        },
+        'u-alex': {
+          name: 'Alex Rivera',
+          username: 'arivera_cs',
+          avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
+          bio: 'Computer Science Major · Building open-source machine learning tooling.',
+          followers_count: 31,
+        },
+        'u-jordan': {
+          name: 'Jordan Lee',
+          username: 'jlee_stats',
+          avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
+          bio: 'Applied Statistics & Data Science Scholar · Analyzing stochastic calculus.',
+          followers_count: 27,
+        },
+        'u-maya': {
+          name: 'Maya Patel',
+          username: 'mpatel_math',
+          avatar_url: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&auto=format&fit=crop&q=80',
+          bio: 'Pure Mathematics & Algebra Specialist.',
+          followers_count: 38,
+        },
+      };
+
+      if (demoUsers[targetUserId]) {
+        const d = demoUsers[targetUserId];
+        return NextResponse.json({
+          id: targetUserId,
+          name: d.name,
+          username: d.username,
+          email: null,
+          avatar_url: d.avatar_url,
+          banner_url: null,
+          bio: d.bio,
+          major: 'Computer Science & AI',
+          school: 'University',
+          followers_count: d.followers_count,
+          following_count: 15,
+          study_hours: 22,
+          day_streak: 6,
+        });
+      }
+
+      return NextResponse.json({ found: false, error: 'User not found' }, { status: 404 });
     }
 
     return NextResponse.json({

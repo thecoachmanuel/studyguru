@@ -32,3 +32,5 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: error.message || 'Failed to leave server' }, { status: 500 });
   }
 }
+
+export const DELETE = POST;

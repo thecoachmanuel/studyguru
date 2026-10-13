@@ -41,6 +41,8 @@ export default function ChatterChatRoom({
   onBack,
   onStartAudioCall,
   onStartVideoCall,
+  onStartDM,
+  onLeaveRoom,
 }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,11 +53,56 @@ export default function ChatterChatRoom({
   const [dmRequestStatus, setDmRequestStatus] = useState('accepted'); // 'pending' | 'accepted' | 'declined'
   const [requestedBy, setRequestedBy] = useState(null);
   const [requestActionLoading, setRequestActionLoading] = useState(false);
+  const [membersDrawerOpen, setMembersDrawerOpen] = useState(false);
+  const [roomMembers, setRoomMembers] = useState([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [confirmLeaveOpen, setConfirmLeaveOpen] = useState(false);
+  const [leavingRoom, setLeavingRoom] = useState(false);
 
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   // Track IDs of messages we sent ourselves so we can ignore their Pusher echo
   const sentMessageIdsRef = useRef(new Set());
+  const sendingRef = useRef(false);
+
+  // Fetch room members when inside a server/room
+  useEffect(() => {
+    if (!serverId || channelType === 'dm') return;
+    let mounted = true;
+    setLoadingMembers(true);
+    fetch(`/api/servers/${encodeURIComponent(serverId)}/members`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => {
+        if (mounted && Array.isArray(data)) {
+          setRoomMembers(data);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (mounted) setLoadingMembers(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [serverId, channelType]);
+
+  const handleExitRoom = async () => {
+    if (!serverId || leavingRoom) return;
+    setLeavingRoom(true);
+    try {
+      const res = await fetch(`/api/servers/${encodeURIComponent(serverId)}/leave`, {
+        method: 'POST',
+      });
+      if (res.ok) {
+        setConfirmLeaveOpen(false);
+        onLeaveRoom?.(serverId);
+      }
+    } catch (err) {
+      console.warn('Failed to leave room:', err);
+    } finally {
+      setLeavingRoom(false);
+    }
+  };
 
   // Fetch messages from channel or conversation
   useEffect(() => {
@@ -135,15 +182,30 @@ export default function ChatterChatRoom({
           if (!newMsg) return;
 
           setMessages((prev) => {
-            // 1. Already in state (exact ID match) — skip
+            // 1. Exact ID already exists
             if (prev.some((m) => m.id === newMsg.id)) return prev;
 
-            // 2. This is the Pusher echo of a message WE just sent — the
-            //    optimistic message is already in state (as tempId). Skip the
-            //    echo; the handleSendMessage callback will swap tempId → real ID.
+            // 2. Already tracked as sent by this client
             if (sentMessageIdsRef.current.has(newMsg.id)) return prev;
 
-            // 3. Peer message — append normally
+            // 3. If from current user, swap the pending optimistic temp message in place
+            const isFromCurrent = String(newMsg.sender_id) === String(userId);
+            if (isFromCurrent) {
+              const tempIndex = prev.findIndex(
+                (m) =>
+                  m.id.startsWith('temp-') &&
+                  m.content === newMsg.content &&
+                  (String(m.sender_id) === String(newMsg.sender_id) || String(m.sender_id) === String(userId))
+              );
+              if (tempIndex !== -1) {
+                sentMessageIdsRef.current.add(newMsg.id);
+                const next = [...prev];
+                next[tempIndex] = newMsg;
+                return next;
+              }
+            }
+
+            // 4. Otherwise append peer message
             return [...prev, newMsg];
           });
         };
@@ -212,8 +274,9 @@ export default function ChatterChatRoom({
   // Send message
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if ((!inputText.trim() && !attachedImage) || sending) return;
+    if ((!inputText.trim() && !attachedImage) || sendingRef.current) return;
 
+    sendingRef.current = true;
     setSending(true);
     const content = inputText.trim();
     const capturedImage = attachedImage;
@@ -251,15 +314,11 @@ export default function ChatterChatRoom({
 
       if (sentMsg) {
         const normalized = normalizeMessage(sentMsg, userId);
-        // Register this real ID so the Pusher echo is ignored
         sentMessageIdsRef.current.add(normalized.id);
-        // Clean up after a few seconds so the Set doesn't grow forever
         setTimeout(() => sentMessageIdsRef.current.delete(normalized.id), 10000);
 
         setMessages((prev) => {
-          // Swap tempId → real message (idempotent if Pusher somehow beat us)
           if (prev.some((m) => m.id === normalized.id)) {
-            // Real message is already in state — just remove the temp
             return prev.filter((m) => m.id !== tempId);
           }
           return prev.map((m) => (m.id === tempId ? normalized : m));
@@ -267,9 +326,9 @@ export default function ChatterChatRoom({
       }
     } catch (err) {
       console.warn('Message send error:', err?.message);
-      // Remove the optimistic message on hard failure
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
     } finally {
+      sendingRef.current = false;
       setSending(false);
     }
   };
@@ -420,15 +479,73 @@ export default function ChatterChatRoom({
           </div>
         </div>
 
-        {/* Audio Call & Video Call shortcuts matching Chatter */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* Header Actions: Room Members, Leave Room, Audio Call & Video Call */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {channelType !== 'dm' && serverId && (
+            <>
+              <button
+                type="button"
+                onClick={() => setMembersDrawerOpen((prev) => !prev)}
+                title="Room Members"
+                style={{
+                  height: 36,
+                  padding: '0 12px',
+                  borderRadius: 18,
+                  background: membersDrawerOpen ? 'rgba(64, 227, 120, 0.2)' : 'rgba(255, 255, 255, 0.08)',
+                  border: membersDrawerOpen ? '1px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
+                  color: membersDrawerOpen ? 'var(--chatter-primary)' : '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  cursor: 'pointer',
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+                <span>{roomMembers.length || 'Members'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setConfirmLeaveOpen(true)}
+                title="Exit Study Room"
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                  color: '#f87171',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+              </button>
+            </>
+          )}
+
           <button
             type="button"
             onClick={onStartAudioCall}
             title="Start Audio Room"
             style={{
-              width: 38,
-              height: 38,
+              width: 36,
+              height: 36,
               borderRadius: '50%',
               background: 'rgba(255, 255, 255, 0.08)',
               border: 'none',
@@ -440,7 +557,7 @@ export default function ChatterChatRoom({
               transition: 'background 0.15s ease',
             }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
               <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
               <line x1="12" y1="19" x2="12" y2="23" />
@@ -453,8 +570,8 @@ export default function ChatterChatRoom({
             onClick={onStartVideoCall}
             title="Start Video Session"
             style={{
-              width: 38,
-              height: 38,
+              width: 36,
+              height: 36,
               borderRadius: '50%',
               background: 'rgba(255, 255, 255, 0.08)',
               border: 'none',
@@ -466,7 +583,7 @@ export default function ChatterChatRoom({
               transition: 'background 0.15s ease',
             }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polygon points="23 7 16 12 23 17 23 7" />
               <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
             </svg>
@@ -843,6 +960,374 @@ export default function ChatterChatRoom({
           </button>
         </form>
       </div>
+
+      {/* ── 4. Room Members Slide-over Drawer / Sheet ── */}
+      {membersDrawerOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 150,
+            background: 'rgba(0,0,0,0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            justifyContent: 'flex-end',
+          }}
+          onClick={() => setMembersDrawerOpen(false)}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 380,
+              height: '100%',
+              background: 'var(--chatter-sheet)',
+              borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '-8px 0 32px rgba(0,0,0,0.6)',
+              animation: 'slideInRight 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Drawer Header */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '16px 20px',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+              }}
+            >
+              <div>
+                <h3 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 2px 0', color: '#fff' }}>
+                  Room Members
+                </h3>
+                <div style={{ fontSize: 12, color: 'var(--chatter-light-text)' }}>
+                  {roomMembers.length} {roomMembers.length === 1 ? 'scholar' : 'scholars'} in {serverName || 'room'}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMembersDrawerOpen(false)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: 'none',
+                  color: '#fff',
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  fontSize: 14,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Members List */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {loadingMembers ? (
+                <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--chatter-light-text)', fontSize: 13 }}>
+                  Loading room members...
+                </div>
+              ) : roomMembers.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--chatter-light-text)', fontSize: 13 }}>
+                  No other members found in this room.
+                </div>
+              ) : (
+                roomMembers.map((member) => {
+                  const mUser = member.profiles || {};
+                  const mId = String(member.user_id || mUser.id || '');
+                  const isCurrent = mId === String(userId);
+                  const mName = mUser.name || mUser.username || 'Scholar';
+                  const mUsername = mUser.username || mName.toLowerCase().replace(/\s+/g, '_');
+                  const roleName = member.role || 'member';
+
+                  return (
+                    <div
+                      key={mId || Math.random()}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '10px 12px',
+                        borderRadius: 14,
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        border: '1px solid rgba(255, 255, 255, 0.05)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                        <div style={{ position: 'relative', flexShrink: 0 }}>
+                          {mUser.avatar_url ? (
+                            <img
+                              src={mUser.avatar_url}
+                              alt={mName}
+                              style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }}
+                            />
+                          ) : (
+                            <div
+                              style={{
+                                width: 40,
+                                height: 40,
+                                borderRadius: '50%',
+                                background: '#242424',
+                                color: 'var(--chatter-primary)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontWeight: 700,
+                                fontSize: 15,
+                              }}
+                            >
+                              {mName[0]?.toUpperCase() || 'S'}
+                            </div>
+                          )}
+                          <span
+                            style={{
+                              position: 'absolute',
+                              bottom: 0,
+                              right: 0,
+                              width: 10,
+                              height: 10,
+                              borderRadius: '50%',
+                              background: 'var(--chatter-primary)',
+                              border: '2px solid var(--chatter-sheet)',
+                            }}
+                            title="Online"
+                          />
+                        </div>
+
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span
+                              style={{
+                                fontSize: 13.5,
+                                fontWeight: 700,
+                                color: '#fff',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                              }}
+                            >
+                              {mName}
+                            </span>
+                            {isCurrent && (
+                              <span style={{ fontSize: 10.5, color: 'var(--chatter-primary)', fontWeight: 600 }}>
+                                (You)
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ fontSize: 11.5, color: 'var(--chatter-light-text)' }}>
+                              @{mUsername}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: 9.5,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.04em',
+                                padding: '1px 6px',
+                                borderRadius: 8,
+                                fontWeight: 700,
+                                background:
+                                  roleName === 'owner'
+                                    ? 'rgba(64, 227, 120, 0.2)'
+                                    : roleName === 'admin'
+                                    ? 'rgba(168, 85, 247, 0.2)'
+                                    : 'rgba(255, 255, 255, 0.08)',
+                                color:
+                                  roleName === 'owner'
+                                    ? 'var(--chatter-primary)'
+                                    : roleName === 'admin'
+                                    ? '#c084fc'
+                                    : 'var(--chatter-light-text)',
+                              }}
+                            >
+                              {roleName}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Chat / Message Button */}
+                      {!isCurrent && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMembersDrawerOpen(false);
+                            onStartDM?.({
+                              user_id: mId,
+                              id: mId,
+                              name: mName,
+                              username: mUsername,
+                              avatar_url: mUser.avatar_url,
+                            });
+                          }}
+                          style={{
+                            padding: '6px 14px',
+                            borderRadius: 14,
+                            background: 'rgba(64, 227, 120, 0.14)',
+                            border: '1px solid rgba(64, 227, 120, 0.35)',
+                            color: 'var(--chatter-primary)',
+                            fontSize: 12,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 5,
+                            flexShrink: 0,
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                          </svg>
+                          <span>Chat</span>
+                        </button>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Bottom drawer action: Leave room */}
+            <div style={{ padding: '16px 20px', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setMembersDrawerOpen(false);
+                  setConfirmLeaveOpen(true);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '11px',
+                  borderRadius: 14,
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                  color: '#f87171',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+                <span>Leave Study Room</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 5. Confirm Exit Room Modal ── */}
+      {confirmLeaveOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 220,
+            background: 'rgba(0,0,0,0.75)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          onClick={() => setConfirmLeaveOpen(false)}
+        >
+          <div
+            style={{
+              background: 'var(--chatter-sheet)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: 22,
+              padding: '24px 22px',
+              maxWidth: 420,
+              width: '100%',
+              boxShadow: '0 20px 48px rgba(0,0,0,0.7)',
+              textAlign: 'center',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: '50%',
+                background: 'rgba(239, 68, 68, 0.14)',
+                color: '#f87171',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 16px auto',
+              }}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+            </div>
+
+            <h3 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: '0 0 8px 0' }}>
+              Exit &quot;{serverName || 'Study Room'}&quot;?
+            </h3>
+            <p style={{ fontSize: 13.5, color: '#D4D4D4', lineHeight: 1.5, margin: '0 0 22px 0' }}>
+              You will leave this study room and its channels. You can rejoin anytime using the room invite code or shared link.
+            </p>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => setConfirmLeaveOpen(false)}
+                style={{
+                  flex: 1,
+                  padding: '11px',
+                  borderRadius: 14,
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: 'none',
+                  color: '#fff',
+                  fontWeight: 600,
+                  fontSize: 13.5,
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleExitRoom}
+                disabled={leavingRoom}
+                style={{
+                  flex: 1,
+                  padding: '11px',
+                  borderRadius: 14,
+                  background: '#ef4444',
+                  border: 'none',
+                  color: '#fff',
+                  fontWeight: 700,
+                  fontSize: 13.5,
+                  cursor: leavingRoom ? 'not-allowed' : 'pointer',
+                  opacity: leavingRoom ? 0.6 : 1,
+                }}
+              >
+                {leavingRoom ? 'Exiting...' : 'Exit Room'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import ChatbotIcon from '@/components/ChatbotIcon';
 import ChatMarkdownMessage from '@/components/ChatMarkdownMessage';
+import { TwitterVerifiedBadge } from './ChatterFeedView';
 
 export default function ChatterGuruView({
   channelName,
@@ -848,55 +849,107 @@ export default function ChatterGuruView({
               key={m.id}
               style={{
                 display: 'flex',
-                justifyContent: isUser ? 'flex-end' : 'flex-start',
+                gap: 10,
+                alignSelf: isUser ? 'flex-end' : 'flex-start',
+                maxWidth: isUser ? '85%' : '90%',
+                flexDirection: isUser ? 'row-reverse' : 'row',
+                alignItems: 'flex-start',
               }}
             >
-              <div
-                style={{
-                  maxWidth: isUser ? '80%' : '88%',
-                  padding: isUser ? '12px 18px' : '14px 18px',
-                  borderRadius: isUser ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
-                  background: isUser ? 'var(--chatter-primary)' : 'var(--chatter-sheet)',
-                  color: isUser ? '#0E0E0E' : '#fff',
-                  border: isUser ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
-                  fontWeight: isUser ? 600 : 400,
-                  fontSize: 14.5,
-                  lineHeight: 1.55,
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
-                  whiteSpace: isUser ? 'pre-wrap' : undefined,
-                }}
-              >
-                {isUser ? (
-                  m.content
-                ) : (
-                  <ChatMarkdownMessage content={m.content} />
-                )}
+              {/* Bot Avatar */}
+              {!isUser && (
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 12,
+                    background: 'rgba(64, 227, 120, 0.15)',
+                    color: 'var(--chatter-primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    boxShadow: '0 0 12px rgba(64, 227, 120, 0.25)',
+                    marginTop: 2,
+                  }}
+                >
+                  <ChatbotIcon size={18} />
+                </div>
+              )}
 
-                {/* Interactive Quiz Component */}
-                {m.quizData && (
-                  <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--chatter-primary)' }}>
-                      📝 Practice Knowledge Quiz ({m.quizData.length} Questions)
-                    </div>
-                    {m.quizData.map((q, qIndex) => (
-                      <QuizCard key={qIndex} questionObj={q} index={qIndex} />
-                    ))}
-                  </div>
-                )}
+              <div style={{ maxWidth: '100%' }}>
+                {/* Message Header */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    marginBottom: 4,
+                    justifyContent: isUser ? 'flex-end' : 'flex-start',
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 12.5,
+                      fontWeight: 700,
+                      color: isUser ? '#fff' : 'var(--chatter-primary)',
+                    }}
+                  >
+                    {isUser ? 'You' : 'StudyGuru AI'}
+                  </span>
+                  {!isUser && <TwitterVerifiedBadge />}
+                  <span style={{ fontSize: 11, color: 'var(--chatter-light-text)' }}>
+                    {m.timestamp || 'Just now'}
+                  </span>
+                </div>
 
-                {/* Interactive Flashcards Component */}
-                {m.flashcardsData && (
-                  <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--chatter-primary)' }}>
-                      🃏 Study Flashcards for Active Recall
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
-                      {m.flashcardsData.map((card, cIndex) => (
-                        <FlashCard key={cIndex} card={card} />
+                {/* Message Bubble */}
+                <div
+                  style={{
+                    padding: isUser ? '11px 16px' : '13px 18px',
+                    borderRadius: isUser ? '18px 18px 4px 18px' : '4px 18px 18px 18px',
+                    background: isUser ? 'var(--chatter-primary)' : 'var(--chatter-sheet)',
+                    color: isUser ? '#0E0E0E' : '#fff',
+                    border: isUser ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
+                    fontWeight: isUser ? 600 : 400,
+                    fontSize: 14,
+                    lineHeight: 1.55,
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
+                    whiteSpace: isUser ? 'pre-wrap' : undefined,
+                  }}
+                >
+                  {isUser ? (
+                    m.content
+                  ) : (
+                    <ChatMarkdownMessage content={m.content} />
+                  )}
+
+                  {/* Interactive Quiz Component */}
+                  {m.quizData && (
+                    <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--chatter-primary)' }}>
+                        📝 Practice Knowledge Quiz ({m.quizData.length} Questions)
+                      </div>
+                      {m.quizData.map((q, qIndex) => (
+                        <QuizCard key={qIndex} questionObj={q} index={qIndex} />
                       ))}
                     </div>
-                  </div>
-                )}
+                  )}
+
+                  {/* Interactive Flashcards Component */}
+                  {m.flashcardsData && (
+                    <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--chatter-primary)' }}>
+                        🃏 Study Flashcards for Active Recall
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+                        {m.flashcardsData.map((card, cIndex) => (
+                          <FlashCard key={cIndex} card={card} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           );

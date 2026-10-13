@@ -22,16 +22,16 @@ export default function ChatterUserProfileModal({
     fetch(`/api/user/profile?userId=${encodeURIComponent(targetUser.id)}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (active && data && !data.error) {
+        if (active && data && !data.error && data.found !== false) {
           setLiveUser((prev) => ({
             ...prev,
             ...data,
-            name: data.name || prev.name,
-            username: data.username || prev.username,
+            name: (data.name && data.name !== 'Scholar') ? data.name : (prev.name || data.name),
+            username: (data.username && data.username !== 'scholar') ? data.username : (prev.username || data.username),
             avatar_url: data.avatar_url || prev.avatar_url,
             banner_url: data.banner_url || prev.banner_url,
-            bio: data.bio !== undefined ? data.bio : prev.bio,
-            followers_count: typeof data.followers_count === 'number' ? data.followers_count : (prev.followersCount || 0),
+            bio: (data.bio && !data.bio.startsWith('📚 Studying & collaborating on StudyCord · Always open')) ? data.bio : (prev.bio || data.bio),
+            followers_count: typeof data.followers_count === 'number' ? data.followers_count : (prev.followersCount || prev.followers_count || 0),
             study_hours: typeof data.study_hours === 'number' ? data.study_hours : (prev.study_hours || 0),
             day_streak: typeof data.day_streak === 'number' ? data.day_streak : (prev.day_streak || 1),
           }));

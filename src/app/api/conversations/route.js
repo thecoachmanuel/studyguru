@@ -39,15 +39,40 @@ export async function GET(req) {
       if (u.id) userMap.set(String(u.id), u);
     });
 
+    // Calculate unread count for each conversation
+    const convIds = conversations.map((c) => c._id.toString());
+    let unreadMap = new Map();
+    try {
+      const unreadAgg = await db.collection('messages').aggregate([
+        {
+          $match: {
+            conversation_id: { $in: convIds },
+            user_id: { $ne: userId },
+            $or: [{ is_read: { $ne: true } }, { is_read: null }],
+            deleted_at: null,
+          },
+        },
+        {
+          $group: {
+            _id: '$conversation_id',
+            count: { $sum: 1 },
+          },
+        },
+      ]).toArray();
+      unreadAgg.forEach((item) => unreadMap.set(String(item._id), item.count));
+    } catch {}
+
     const formatted = conversations.map((c) => {
       const otherId = c.participants.find((p) => p !== userId);
       const otherUser = userMap.get(otherId);
+      const convId = c._id.toString();
       return {
-        id: c._id.toString(),
+        id: convId,
         participants: c.participants,
         status: c.status || 'accepted',
         requested_by: c.requested_by || null,
         last_message: c.last_message || null,
+        unread_count: unreadMap.get(convId) || 0,
         updated_at: c.updated_at,
         other_user: {
           id: otherId,
