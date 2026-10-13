@@ -87,6 +87,7 @@ export async function GET(req, { params }) {
         user_id: msg.user_id,
         content: msg.content,
         attachments: msg.attachments || [],
+        reactions: msg.reactions || [],
         is_pinned: !!msg.is_pinned,
         created_at: msg.created_at,
         profiles: {
@@ -150,6 +151,7 @@ export async function POST(req, { params }) {
       user_id: userId,
       content: content ? content.trim() : '',
       attachments: formattedAttachments,
+      reactions: [],
       is_pinned: false,
       deleted_at: null,
       created_at: now,
@@ -176,6 +178,7 @@ export async function POST(req, { params }) {
       user_id: userId,
       content: newMessage.content,
       attachments: newMessage.attachments,
+      reactions: [],
       is_pinned: false,
       created_at: now,
       profiles: {

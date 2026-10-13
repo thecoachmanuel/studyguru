@@ -30,6 +30,7 @@ import SelectedServerHomeState from './SelectedServerHomeState';
 import DismissableMenu from './DismissableMenu';
 import ChatbotIcon from './ChatbotIcon';
 import ChatMarkdownMessage from './ChatMarkdownMessage';
+import SnapshotRail from './SnapshotRail';
 
 // ---------- icons & helpers ----------
 function CopyIcon({ size = 13 }) {
@@ -59,7 +60,6 @@ function ReplyIcon({ size = 13 }) {
   );
 }
 
-// Curated avatar palette for multi-user channels & groups
 const AVATAR_PALETTE = [
   '#2563EB', '#7C3AED', '#DB2777', '#059669',
   '#D97706', '#0891B2', '#4F46E5', '#E11D48',
@@ -71,6 +71,30 @@ function getAvatarColor(name) {
     hash = name.charCodeAt(i) + ((hash << 5) - hash);
   }
   return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
+}
+
+function groupReactions(reactions, currentUserId) {
+  if (!Array.isArray(reactions) || reactions.length === 0) return [];
+  const map = new Map();
+  reactions.forEach((r) => {
+    if (!r?.emoji) return;
+    const entry = map.get(r.emoji) || {
+      emoji: r.emoji,
+      count: 0,
+      usernames: [],
+      hasReacted: false,
+    };
+    entry.count += 1;
+    if (r.username) entry.usernames.push(r.username);
+    if (String(r.user_id || r.userId) === String(currentUserId)) {
+      entry.hasReacted = true;
+    }
+    map.set(r.emoji, entry);
+  });
+  return Array.from(map.values()).map((e) => ({
+    ...e,
+    tooltip: `${e.usernames.join(', ')} reacted with ${e.emoji}`,
+  }));
 }
 
 // Dropdown menu that auto-clamps to stay completely within the visible screen
@@ -86,6 +110,7 @@ function MessageActionsMenu({
   onPin,
   onDelete,
   onReply,
+  onReact,
 }) {
   const menuRef = useRef(null);
 
@@ -122,6 +147,21 @@ function MessageActionsMenu({
       className={`message-actions__menu ${isOwnMessage ? 'message-actions__menu--own' : 'message-actions__menu--other'}`}
       role="menu"
     >
+      {/* Quick Reaction Bar */}
+      <div className="reaction-picker-strip">
+        {['👍', '❤️', '🔥', '💡', '❓', '✅'].map((emoji) => (
+          <button
+            key={emoji}
+            type="button"
+            className="reaction-picker-emoji-btn"
+            onClick={() => onReact?.(msg.id, emoji)}
+            title={`React with ${emoji}`}
+          >
+            {emoji}
+          </button>
+        ))}
+      </div>
+
       {onReply && (
         <button
           type="button"
@@ -502,10 +542,22 @@ export default function MainPanel({
       refreshPinnedMessages(false);
     };
 
+    const handleMessageReacted = (payload) => {
+      if (!payload?.messageId) return;
+      setMessages((current) =>
+        current.map((m) =>
+          m.id === payload.messageId
+            ? { ...m, reactions: payload.reactions || [] }
+            : m
+        )
+      );
+    };
+
     chan.bind('new-message', handleNewMessage);
     chan.bind('message-deleted', handleDeletedMessage);
     chan.bind('message-pinned', handlePinnedChange);
     chan.bind('message-unpinned', handlePinnedChange);
+    chan.bind('message-reacted', handleMessageReacted);
 
     return () => {
       try {
@@ -513,6 +565,7 @@ export default function MainPanel({
         chan.unbind('message-deleted', handleDeletedMessage);
         chan.unbind('message-pinned', handlePinnedChange);
         chan.unbind('message-unpinned', handlePinnedChange);
+        chan.unbind('message-reacted', handleMessageReacted);
         pusher.unsubscribe(pusherChannelName);
       } catch {}
     };
@@ -797,6 +850,52 @@ export default function MainPanel({
     setOpenMessageMenuId(null);
   };
 
+  // ---------- toggle reaction on a message ----------
+  const handleToggleReaction = async (messageId, emoji) => {
+    if (!messageId || !emoji) return;
+    setOpenMessageMenuId(null);
+    const myId = String(userId || profile?.id || '');
+    const myName = profile?.username || profile?.name || 'You';
+
+    // Optimistic update
+    setMessages((current) =>
+      current.map((m) => {
+        if (m.id !== messageId) return m;
+        const currentReactions = Array.isArray(m.reactions) ? [...m.reactions] : [];
+        const existingIdx = currentReactions.findIndex(
+          (r) => r.emoji === emoji && String(r.user_id || r.userId) === myId
+        );
+        let nextReactions;
+        if (existingIdx >= 0) {
+          nextReactions = currentReactions.filter((_, idx) => idx !== existingIdx);
+        } else {
+          nextReactions = [
+            ...currentReactions,
+            { emoji, user_id: myId, username: myName, created_at: new Date().toISOString() },
+          ];
+        }
+        return { ...m, reactions: nextReactions };
+      })
+    );
+
+    try {
+      const res = await apiRequest(`/api/messages/${messageId}/react`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emoji }),
+      });
+      if (res?.reactions) {
+        setMessages((current) =>
+          current.map((m) =>
+            m.id === messageId ? { ...m, reactions: res.reactions } : m
+          )
+        );
+      }
+    } catch (err) {
+      console.warn('Failed to toggle reaction:', err);
+    }
+  };
+
   // ---------- format timestamp ----------
   const formatTime = (dateString) => {
     if (!dateString) return '';
@@ -1013,6 +1112,7 @@ export default function MainPanel({
                     setOpenMessageMenuId(null);
                   }}
                   onReply={handleStartReply}
+                  onReact={handleToggleReaction}
                 />
               )}
             </DismissableMenu>
@@ -1135,6 +1235,24 @@ export default function MainPanel({
                 )}
               </div>
             </div>
+
+            {/* Reaction Pills Container */}
+            {Array.isArray(msg.reactions) && msg.reactions.length > 0 && (
+              <div className={`message-reactions-container ${isOwnMessage ? 'message-reactions-container--own' : 'message-reactions-container--other'}`}>
+                {groupReactions(msg.reactions, userId || profile?.id).map((group) => (
+                  <button
+                    key={group.emoji}
+                    type="button"
+                    className={`message-reaction-pill ${group.hasReacted ? 'message-reaction-pill--active' : ''}`}
+                    onClick={() => handleToggleReaction(msg.id, group.emoji)}
+                    title={group.tooltip}
+                  >
+                    <span className="message-reaction-pill__emoji">{group.emoji}</span>
+                    <span className="message-reaction-pill__count">{group.count}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Action Trigger for Others (Placed to the right of their bubble) */}
@@ -1172,6 +1290,7 @@ export default function MainPanel({
                     setOpenMessageMenuId(null);
                   }}
                   onReply={handleStartReply}
+                  onReact={handleToggleReaction}
                 />
               )}
             </DismissableMenu>
@@ -1292,6 +1411,15 @@ export default function MainPanel({
           </button>
         </div>
       </header>
+
+      {/* 24-hour Ephemeral Study Snapshots Rail */}
+      {hasChannel && activeServerId && (
+        <SnapshotRail
+          serverId={activeServerId}
+          currentUserId={userId || profile?.id}
+          currentUserName={profile?.username}
+        />
+      )}
 
       {/* Body */}
       <div className="main-panel__body">

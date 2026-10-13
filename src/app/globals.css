@@ -8530,4 +8530,402 @@ body {
   border: 1px solid var(--border-subtle);
 }
 
+/* ============================================================
+   STUDYCORD SOCIAL FEATURES & UI POLISH
+   ============================================================ */
+
+/* ── 1. Message Reactions ── */
+.message-reactions-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+  width: 100%;
+}
+.message-reactions-container--own {
+  justify-content: flex-end;
+}
+.message-reactions-container--other {
+  justify-content: flex-start;
+}
+
+.message-reaction-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  font-size: 11.5px;
+  font-family: inherit;
+  font-weight: 500;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+.message-reaction-pill:hover {
+  background: var(--bg-hover);
+  border-color: var(--primary);
+  transform: translateY(-1px);
+}
+.message-reaction-pill--active {
+  background: var(--accent-subtle);
+  border-color: var(--primary);
+  color: var(--primary);
+  font-weight: 600;
+}
+.message-reaction-pill__emoji {
+  font-size: 12px;
+  line-height: 1;
+}
+.message-reaction-pill__count {
+  font-size: 11px;
+  line-height: 1;
+}
+
+/* Quick Floating Reaction Bar (Desktop Hover & Mobile Trigger) */
+.reaction-picker-strip {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);
+  margin-bottom: 6px;
+}
+.reaction-picker-emoji-btn {
+  border: none;
+  background: transparent;
+  font-size: 15px;
+  padding: 3px 6px;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: transform 0.12s ease, background-color 0.12s ease;
+  line-height: 1;
+}
+.reaction-picker-emoji-btn:hover {
+  transform: scale(1.3);
+  background-color: var(--bg-hover);
+}
+
+/* Hover action trigger on message row */
+.message-quick-react-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.message-quick-react-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--primary);
+  background: var(--bg-hover);
+  transform: scale(1.08);
+}
+
+/* ── 2. User Study Status ── */
+.user-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.user-status-dot--online {
+  background: #22c55e;
+}
+.user-status-dot--studying {
+  background: #3b82f6;
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.7);
+}
+.user-status-dot--busy {
+  background: #ef4444;
+}
+.user-status-dot--idle {
+  background: #f59e0b;
+}
+.user-status-dot--offline {
+  background: #94a3b8;
+}
+
+.user-status-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  padding: 1px 7px;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+/* Status Select Modal */
+.status-modal-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  transition: all 0.15s ease;
+  margin-bottom: 8px;
+}
+.status-modal-option:hover {
+  border-color: var(--primary);
+  background: var(--bg-hover);
+}
+.status-modal-option--selected {
+  border-color: var(--primary);
+  background: var(--accent-subtle);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* ── 3. Study Snapshots (Stories) Rail ── */
+.snapshot-rail-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.snapshot-rail-container::-webkit-scrollbar {
+  display: none;
+}
+
+.snapshot-card-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  width: 60px;
+  font: inherit;
+}
+.snapshot-ring {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5px;
+  transition: transform 0.15s ease;
+}
+.snapshot-card-btn:hover .snapshot-ring {
+  transform: scale(1.06);
+}
+.snapshot-ring--unviewed {
+  background: linear-gradient(135deg, #3b82f6 0%, #a855f7 50%, #ec4899 100%);
+}
+.snapshot-ring--viewed {
+  background: var(--border-subtle);
+}
+.snapshot-ring--add {
+  border: 1.5px dashed var(--border-subtle);
+  background: var(--bg-elevated);
+}
+.snapshot-inner-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  border: 2px solid var(--bg-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  overflow: hidden;
+}
+.snapshot-inner-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.snapshot-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  max-width: 58px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Snapshot Full Viewer Modal */
+.snapshot-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  backdrop-filter: blur(6px);
+}
+.snapshot-viewer-card {
+  width: 100%;
+  max-width: 420px;
+  max-height: 85vh;
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+}
+.snapshot-viewer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.snapshot-viewer-image-wrap {
+  width: 100%;
+  max-height: 400px;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.snapshot-viewer-image-wrap img {
+  width: 100%;
+  max-height: 400px;
+  object-fit: contain;
+}
+.snapshot-viewer-body {
+  padding: 14px 16px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+/* ── 4. Direct Messages UI ── */
+.dm-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.dm-convo-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: calc(100% - 16px);
+  margin: 2px 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition: all 0.15s ease;
+}
+.dm-convo-item:hover {
+  background: var(--bg-hover);
+}
+.dm-convo-item--active {
+  background: var(--accent-subtle);
+  border-left: 3px solid var(--primary);
+}
+.dm-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+.dm-status-indicator {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.5px solid var(--bg-surface);
+}
+
+/* ── 5. Profile Page Polish (Cover & Stats) ── */
+.profile-cover-banner {
+  height: 110px;
+  margin: -32px -28px 20px -28px;
+  background: linear-gradient(135deg, #1d4ed8 0%, #6366f1 50%, #8b5cf6 100%);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  position: relative;
+}
+.profile-avatar-overlay {
+  position: absolute;
+  bottom: -32px;
+  left: 24px;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  border: 3px solid var(--bg-surface);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--primary);
+}
+.profile-stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 18px 0;
+}
+.profile-stat-box {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 8px;
+  text-align: center;
+}
+.profile-stat-box__num {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 2px;
+}
+.profile-stat-box__label {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+
 

@@ -1,0 +1,131 @@
+import { NextResponse } from 'next/server';
+import { auth } from '@/auth';
+import { getDatabase, safeObjectId } from '@/lib/mongodb';
+
+export async function GET(req) {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const userId = session.user.id;
+    const db = await getDatabase();
+
+    const conversations = await db.collection('conversations')
+      .find({ participants: userId })
+      .sort({ updated_at: -1 })
+      .limit(50)
+      .toArray();
+
+    // Collect all recipient user IDs
+    const otherUserIds = [];
+    conversations.forEach((c) => {
+      const other = c.participants.find((p) => p !== userId);
+      if (other) otherUserIds.push(other);
+    });
+
+    const userObjIds = otherUserIds.map((id) => safeObjectId(id));
+    const users = await db.collection('users')
+      .find({
+        $or: [{ _id: { $in: userObjIds } }, { id: { $in: otherUserIds } }],
+      })
+      .toArray();
+
+    const userMap = new Map();
+    users.forEach((u) => {
+      userMap.set(u._id.toString(), u);
+      if (u.id) userMap.set(String(u.id), u);
+    });
+
+    const formatted = conversations.map((c) => {
+      const otherId = c.participants.find((p) => p !== userId);
+      const otherUser = userMap.get(otherId);
+      return {
+        id: c._id.toString(),
+        participants: c.participants,
+        last_message: c.last_message || null,
+        updated_at: c.updated_at,
+        other_user: {
+          id: otherId,
+          username: otherUser?.username || otherUser?.name || 'Study Partner',
+          name: otherUser?.name || otherUser?.username || 'Study Partner',
+          avatar_url: otherUser?.avatar_url || otherUser?.image || null,
+          status: otherUser?.status || { state: 'offline' },
+        },
+      };
+    });
+
+    return NextResponse.json(formatted);
+  } catch (error) {
+    console.error('Error fetching conversations:', error);
+    return NextResponse.json({ error: error.message || 'Failed to fetch conversations' }, { status: 500 });
+  }
+}
+
+export async function POST(req) {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const userId = session.user.id;
+    let body = {};
+    try {
+      body = await req.json();
+    } catch {
+      try {
+        const text = await req.text();
+        if (text) body = JSON.parse(text);
+      } catch {}
+    }
+
+    const { recipient_id } = body || {};
+    if (!recipient_id || recipient_id === userId) {
+      return NextResponse.json({ error: 'Valid recipient ID is required' }, { status: 400 });
+    }
+
+    const db = await getDatabase();
+
+    // Check if conversation already exists between these 2 users
+    let conv = await db.collection('conversations').findOne({
+      participants: { $all: [userId, recipient_id], $size: 2 },
+    });
+
+    const now = new Date();
+    if (!conv) {
+      const newConv = {
+        participants: [userId, recipient_id],
+        type: 'direct',
+        last_message: null,
+        created_at: now,
+        updated_at: now,
+      };
+      const res = await db.collection('conversations').insertOne(newConv);
+      conv = { ...newConv, _id: res.insertedId };
+    }
+
+    // Get recipient info
+    const recipient = await db.collection('users').findOne({
+      $or: [{ _id: safeObjectId(recipient_id) }, { id: recipient_id }],
+    });
+
+    return NextResponse.json({
+      id: conv._id.toString(),
+      participants: conv.participants,
+      last_message: conv.last_message,
+      updated_at: conv.updated_at,
+      other_user: {
+        id: recipient_id,
+        username: recipient?.username || recipient?.name || 'Study Partner',
+        name: recipient?.name || recipient?.username || 'Study Partner',
+        avatar_url: recipient?.avatar_url || recipient?.image || null,
+        status: recipient?.status || { state: 'offline' },
+      },
+    });
+  } catch (error) {
+    console.error('Error creating/getting conversation:', error);
+    return NextResponse.json({ error: error.message || 'Failed to initialize chat' }, { status: 500 });
+  }
+}

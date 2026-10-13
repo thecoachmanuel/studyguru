@@ -7,6 +7,7 @@ import {
   validateServerIcon,
 } from '../lib/serverIcons';
 import { canManageTargetMember, hasServerPermission } from '../lib/permissions';
+import DirectMessagesModal from './DirectMessagesModal';
 
 function displayProfile(profile) {
   return profile?.full_name || profile?.username || profile?.email || 'Unknown user';
@@ -67,6 +68,7 @@ export default function ServerSettingsModal({
   const [transferTarget, setTransferTarget] = useState('');
   const [transferPhrase, setTransferPhrase] = useState('');
   const [deletePhrase, setDeletePhrase] = useState('');
+  const [dmRecipientId, setDmRecipientId] = useState(null);
   const iconInputRef = useRef(null);
 
   const canManageServer = hasServerPermission(currentRole, 'manage_server');
@@ -365,14 +367,22 @@ export default function ServerSettingsModal({
                       <span className="settings-muted">{profile.username || profile.email || member.user_id}</span>
                     </div>
                     <span className="settings-role">{member.role}</span>
-                    {(canRole || canKick || canBan) && (
-                      <div className="settings-actions">
-                        {canRole && member.role === 'member' && <button className="settings-link-btn" disabled={busyKey === `role:${member.user_id}`} onClick={() => changeRole(member, 'admin')}>Promote</button>}
-                        {canRole && member.role === 'admin' && <button className="settings-link-btn" disabled={busyKey === `role:${member.user_id}`} onClick={() => changeRole(member, 'member')}>Demote</button>}
-                        {canKick && <button className="settings-link-btn" disabled={busyKey === `kick:${member.user_id}`} onClick={() => kick(member)}>Kick</button>}
-                        {canBan && <button className="settings-link-btn settings-link-btn--danger" disabled={busyKey === `ban:${member.user_id}`} onClick={() => ban(member)}>Ban</button>}
-                      </div>
-                    )}
+                    <div className="settings-actions">
+                      {member.user_id !== currentUserId && (
+                        <button
+                          type="button"
+                          className="settings-link-btn"
+                          onClick={() => setDmRecipientId(member.user_id)}
+                          title="Send Direct Message"
+                        >
+                          💬 Message
+                        </button>
+                      )}
+                      {canRole && member.role === 'member' && <button className="settings-link-btn" disabled={busyKey === `role:${member.user_id}`} onClick={() => changeRole(member, 'admin')}>Promote</button>}
+                      {canRole && member.role === 'admin' && <button className="settings-link-btn" disabled={busyKey === `role:${member.user_id}`} onClick={() => changeRole(member, 'member')}>Demote</button>}
+                      {canKick && <button className="settings-link-btn" disabled={busyKey === `kick:${member.user_id}`} onClick={() => kick(member)}>Kick</button>}
+                      {canBan && <button className="settings-link-btn settings-link-btn--danger" disabled={busyKey === `ban:${member.user_id}`} onClick={() => ban(member)}>Ban</button>}
+                    </div>
                     {(canKick || canBan) && (
                       <input
                         className="form-input settings-reason"
@@ -437,6 +447,14 @@ export default function ServerSettingsModal({
           )}
         </section>
       </div>
+
+      {dmRecipientId && (
+        <DirectMessagesModal
+          currentUserId={currentUserId}
+          initialRecipientId={dmRecipientId}
+          onClose={() => setDmRecipientId(null)}
+        />
+      )}
     </div>
   );
 }

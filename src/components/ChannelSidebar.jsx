@@ -22,6 +22,7 @@ import { getPusherClient } from '../lib/pusherClient';
 import VoiceSessionBar from './VoiceSessionBar';
 import { hasServerPermission } from '../lib/permissions';
 import DismissableMenu from './DismissableMenu';
+import UserStatusModal from './UserStatusModal';
 
 function HashIcon() {
   return <span className="channel-item__hash">#</span>;
@@ -191,6 +192,7 @@ export default function ChannelSidebar({
   createFormOpen,
   onCreateFormOpenChange,
   unreadCounts = {},
+  profile,
 }) {
   const [localCreateFormOpen, setLocalCreateFormOpen] = useState(false);
   const [name, setName] = useState('');
@@ -203,6 +205,16 @@ export default function ChannelSidebar({
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [leaveError, setLeaveError] = useState('');
+  const [textCollapsed, setTextCollapsed] = useState(false);
+  const [voiceCollapsed, setVoiceCollapsed] = useState(false);
+  const [statusModalOpen, setStatusModalOpen] = useState(false);
+  const [userStatus, setUserStatus] = useState({ state: 'online', emoji: '🟢', text: '' });
+
+  useEffect(() => {
+    apiRequest('/api/user/status')
+      .then((res) => { if (res?.status) setUserStatus(res.status); })
+      .catch(() => {});
+  }, []);
 
   const showForm = createFormOpen ?? localCreateFormOpen;
   const setShowForm = onCreateFormOpenChange ?? setLocalCreateFormOpen;
@@ -412,60 +424,96 @@ export default function ChannelSidebar({
 
         {!channelsLoading && textCh.length > 0 && (
           <div className="channel-category">
-            <div className="channel-category__header">
-              <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z" /></svg>
-              <span>Text Channels</span>
+            <div
+              className="channel-category__header"
+              onClick={() => setTextCollapsed((prev) => !prev)}
+              style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+              title="Click to collapse/expand"
+            >
+              <svg
+                width="8"
+                height="8"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                style={{
+                  transform: textCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.15s ease',
+                }}
+              >
+                <path d="M7 10l5 5 5-5z" />
+              </svg>
+              <span>Text Channels ({textCh.length})</span>
             </div>
-            {canManageChannels ? (
-              <SortableChannelList
-                channels={textCh}
-                activeChannelId={activeChannelId}
-                onSelectChannel={onSelectChannel}
-                voiceCounts={voiceCounts}
-                unreadCounts={unreadCounts}
-                onReorderChannel={handleReorder}
-                reorderBusy={reorderBusy}
-              />
-            ) : (
-              textCh.map((channel) => (
-                <StaticChannelItem
-                  key={channel.id}
-                  channel={channel}
+            {!textCollapsed && (
+              canManageChannels ? (
+                <SortableChannelList
+                  channels={textCh}
                   activeChannelId={activeChannelId}
                   onSelectChannel={onSelectChannel}
-                  voiceCount={0}
-                  unreadCount={unreadCounts[channel.id] || 0}
+                  voiceCounts={voiceCounts}
+                  unreadCounts={unreadCounts}
+                  onReorderChannel={handleReorder}
+                  reorderBusy={reorderBusy}
                 />
-              ))
+              ) : (
+                textCh.map((channel) => (
+                  <StaticChannelItem
+                    key={channel.id}
+                    channel={channel}
+                    activeChannelId={activeChannelId}
+                    onSelectChannel={onSelectChannel}
+                    voiceCount={0}
+                    unreadCount={unreadCounts[channel.id] || 0}
+                  />
+                ))
+              )
             )}
           </div>
         )}
 
         {!channelsLoading && voiceCh.length > 0 && (
           <div className="channel-category">
-            <div className="channel-category__header">
-              <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z" /></svg>
-              <span>Voice Channels</span>
+            <div
+              className="channel-category__header"
+              onClick={() => setVoiceCollapsed((prev) => !prev)}
+              style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+              title="Click to collapse/expand"
+            >
+              <svg
+                width="8"
+                height="8"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                style={{
+                  transform: voiceCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.15s ease',
+                }}
+              >
+                <path d="M7 10l5 5 5-5z" />
+              </svg>
+              <span>Voice Channels ({voiceCh.length})</span>
             </div>
-            {canManageChannels ? (
-              <SortableChannelList
-                channels={voiceCh}
-                activeChannelId={activeChannelId}
-                onSelectChannel={onSelectChannel}
-                voiceCounts={voiceCounts}
-                onReorderChannel={handleReorder}
-                reorderBusy={reorderBusy}
-              />
-            ) : (
-              voiceCh.map((channel) => (
-                <StaticChannelItem
-                  key={channel.id}
-                  channel={channel}
+            {!voiceCollapsed && (
+              canManageChannels ? (
+                <SortableChannelList
+                  channels={voiceCh}
                   activeChannelId={activeChannelId}
                   onSelectChannel={onSelectChannel}
-                  voiceCount={voiceCounts[channel.id] || 0}
+                  voiceCounts={voiceCounts}
+                  onReorderChannel={handleReorder}
+                  reorderBusy={reorderBusy}
                 />
-              ))
+              ) : (
+                voiceCh.map((channel) => (
+                  <StaticChannelItem
+                    key={channel.id}
+                    channel={channel}
+                    activeChannelId={activeChannelId}
+                    onSelectChannel={onSelectChannel}
+                    voiceCount={voiceCounts[channel.id] || 0}
+                  />
+                ))
+              )
             )}
           </div>
         )}
@@ -618,6 +666,97 @@ export default function ChannelSidebar({
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── User Profile & Study Status Card ── */}
+      {profile && (
+        <div
+          style={{
+            padding: '10px 14px',
+            borderTop: '1px solid var(--border)',
+            background: 'var(--bg-elevated)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            flexShrink: 0,
+          }}
+        >
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <div
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                backgroundColor: 'var(--primary)',
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 700,
+                fontSize: '12px',
+                overflow: 'hidden',
+              }}
+            >
+              {profile.avatar_url ? (
+                <img src={profile.avatar_url} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                profile.username?.[0]?.toUpperCase() || 'S'
+              )}
+            </div>
+            <span
+              className={`user-status-dot user-status-dot--${userStatus.state || 'online'}`}
+              style={{
+                position: 'absolute',
+                bottom: '-1px',
+                right: '-1px',
+                border: '1.5px solid var(--bg-surface)',
+              }}
+            />
+          </div>
+
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {profile.username || 'Scholar'}
+            </div>
+            <div
+              style={{
+                fontSize: '11px',
+                color: 'var(--text-muted)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+              title={userStatus.text || userStatus.state}
+            >
+              <span>{userStatus.emoji || '🟢'}</span>
+              <span>{userStatus.text || (userStatus.state === 'studying' ? 'Studying' : 'Online')}</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className="settings-mini-btn"
+            title="Set Study Status"
+            aria-label="Set Study Status"
+            onClick={() => setStatusModalOpen(true)}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {statusModalOpen && (
+        <UserStatusModal
+          currentStatus={userStatus}
+          onClose={() => setStatusModalOpen(false)}
+          onStatusUpdated={(newStatus) => setUserStatus(newStatus)}
+        />
       )}
     </aside>
   );

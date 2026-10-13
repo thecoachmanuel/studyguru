@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import ServerIconContents from './ServerIconContents';
 import ThemeToggle from './ThemeToggle';
+import DirectMessagesModal from './DirectMessagesModal';
 
 export default function ServerSidebar({
   servers,
@@ -15,7 +16,9 @@ export default function ServerSidebar({
   onCreateModalOpenChange,
   joinModalOpen,
   onJoinModalOpenChange,
+  currentUserId,
 }) {
+  const [dmModalOpen, setDmModalOpen] = useState(false);
   const [localCreateModalOpen, setLocalCreateModalOpen] = useState(false);
   const [newServerName, setNewServerName] = useState('');
   const [creating, setCreating] = useState(false);
@@ -84,13 +87,29 @@ export default function ServerSidebar({
       <aside className="server-sidebar" id="server-sidebar">
         {/* Home button */}
         <div
-          className={`server-icon server-icon--home ${activeServerId === null ? 'server-icon--active' : ''}`}
+          className={`server-icon server-icon--home ${activeServerId === null && !dmModalOpen ? 'server-icon--active' : ''}`}
           title="Home"
-          onClick={() => onSelectServer(null)}
+          onClick={() => {
+            setDmModalOpen(false);
+            onSelectServer(null);
+          }}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
             <polyline points="9 22 9 12 15 12 15 22" />
+          </svg>
+        </div>
+
+        {/* Direct Messages button */}
+        <div
+          className={`server-icon server-icon--home ${dmModalOpen ? 'server-icon--active' : ''}`}
+          title="Direct Messages"
+          aria-label="Direct Messages"
+          onClick={() => setDmModalOpen(true)}
+          style={{ marginTop: 4 }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
           </svg>
         </div>
 
@@ -269,6 +288,14 @@ export default function ServerSidebar({
             </form>
           </div>
         </div>
+      )}
+
+      {/* ── Direct Messages Modal ── */}
+      {dmModalOpen && (
+        <DirectMessagesModal
+          currentUserId={currentUserId}
+          onClose={() => setDmModalOpen(false)}
+        />
       )}
     </>
   );

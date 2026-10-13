@@ -696,6 +696,7 @@ export default function DashboardPage() {
         onCreateModalOpenChange={(open) => setServerActionModal(open ? 'create' : null)}
         joinModalOpen={serverActionModal === 'join'}
         onJoinModalOpenChange={(open) => setServerActionModal(open ? 'join' : null)}
+        currentUserId={user?.id}
       />
 
       {/* ── 2. Channel Sidebar (Middle Left) ── */}
@@ -719,6 +720,7 @@ export default function DashboardPage() {
         createFormOpen={channelCreateFormOpen}
         onCreateFormOpenChange={setChannelCreateFormOpen}
         unreadCounts={unreadCounts}
+        profile={profile}
       />
 
       {/* ── 3. Central Workspace Panel ── */}
