@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { TwitterVerifiedBadge } from './ChatterFeedView';
 
 export default function ChatterUserProfileModal({
@@ -11,11 +11,48 @@ export default function ChatterUserProfileModal({
   followingMap = {},
   onToggleFollow,
 }) {
+  const [liveUser, setLiveUser] = useState(targetUser || {});
+
+  // Fetch real-time profile data for targetUser so bio, avatar, and stats match their profile exactly
+  useEffect(() => {
+    if (!targetUser?.id) return;
+    setLiveUser(targetUser);
+
+    let active = true;
+    fetch(`/api/user/profile?userId=${encodeURIComponent(targetUser.id)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (active && data && !data.error) {
+          setLiveUser((prev) => ({
+            ...prev,
+            ...data,
+            name: data.name || prev.name,
+            username: data.username || prev.username,
+            avatar_url: data.avatar_url || prev.avatar_url,
+            banner_url: data.banner_url || prev.banner_url,
+            bio: data.bio !== undefined ? data.bio : prev.bio,
+            followers_count: typeof data.followers_count === 'number' ? data.followers_count : (prev.followersCount || 0),
+            study_hours: typeof data.study_hours === 'number' ? data.study_hours : (prev.study_hours || 0),
+            day_streak: typeof data.day_streak === 'number' ? data.day_streak : (prev.day_streak || 1),
+          }));
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [targetUser?.id]);
+
   if (!targetUser) return null;
 
   const isFollowing = !!followingMap[targetUser?.id];
-  const baseFollowers = targetUser?.followersCount || 28;
-  const followersCount = baseFollowers + (isFollowing ? 1 : 0);
+  const rawFollowers = typeof liveUser?.followers_count === 'number'
+    ? liveUser.followers_count
+    : (typeof liveUser?.followersCount === 'number' ? liveUser.followersCount : 0);
+  const displayFollowers = Math.max(0, rawFollowers + (isFollowing ? 1 : 0));
+  const studyHours = liveUser.study_hours ? `${liveUser.study_hours}h` : '0h';
+  const dayStreak = liveUser.day_streak ? `${liveUser.day_streak}🔥` : '1🔥';
 
   const handleToggleFollow = () => {
     onToggleFollow?.(targetUser.id);
@@ -52,7 +89,9 @@ export default function ChatterUserProfileModal({
         <div
           style={{
             height: 110,
-            background: 'linear-gradient(135deg, #183321 0%, #0E0E0E 100%)',
+            background: liveUser.banner_url
+              ? `url(${liveUser.banner_url}) center/cover no-repeat`
+              : 'linear-gradient(135deg, #183321 0%, #0E0E0E 100%)',
             position: 'relative',
           }}
         >
@@ -84,10 +123,10 @@ export default function ChatterUserProfileModal({
           {/* Avatar + Follow Action */}
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 14 }}>
             <div style={{ position: 'relative' }}>
-              {targetUser.avatar_url ? (
+              {liveUser.avatar_url ? (
                 <img
-                  src={targetUser.avatar_url}
-                  alt={targetUser.name}
+                  src={liveUser.avatar_url}
+                  alt={liveUser.name}
                   style={{
                     width: 72,
                     height: 72,
@@ -114,7 +153,7 @@ export default function ChatterUserProfileModal({
                     boxShadow: '0 0 0 2px var(--chatter-primary)',
                   }}
                 >
-                  {targetUser.name?.[0]?.toUpperCase() || 'S'}
+                  {liveUser.name?.[0]?.toUpperCase() || 'S'}
                 </div>
               )}
             </div>
@@ -144,16 +183,16 @@ export default function ChatterUserProfileModal({
           {/* Name & Bio */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
             <h3 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 }}>
-              {targetUser.name}
+              {liveUser.name}
             </h3>
             <TwitterVerifiedBadge />
           </div>
           <div style={{ fontSize: 12.5, color: 'var(--chatter-light-text)', marginBottom: 8 }}>
-            @{targetUser.username || targetUser.name?.toLowerCase().replace(/\s+/g, '_')}
+            @{liveUser.username || liveUser.name?.toLowerCase().replace(/\s+/g, '_')}
           </div>
 
           <p style={{ fontSize: 13.5, color: '#D4D4D4', lineHeight: 1.5, margin: '0 0 16px 0' }}>
-            {targetUser.bio || '🎓 Studying and preparing for upcoming semester exams · Sharing notes on mathematics & computer science.'}
+            {liveUser.bio || '🎓 Studying and preparing for upcoming semester exams · Sharing notes on mathematics & computer science.'}
           </p>
 
           {/* Stats Bar */}
@@ -166,15 +205,15 @@ export default function ChatterUserProfileModal({
             }}
           >
             <div style={{ background: '#141414', borderRadius: 12, padding: '10px 8px', textAlign: 'center' }}>
-              <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--chatter-primary)' }}>{followersCount}</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--chatter-primary)' }}>{displayFollowers}</div>
               <div style={{ fontSize: 11, color: 'var(--chatter-light-text)' }}>Followers</div>
             </div>
             <div style={{ background: '#141414', borderRadius: 12, padding: '10px 8px', textAlign: 'center' }}>
-              <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--chatter-primary)' }}>34h</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--chatter-primary)' }}>{studyHours}</div>
               <div style={{ fontSize: 11, color: 'var(--chatter-light-text)' }}>Study Hours</div>
             </div>
             <div style={{ background: '#141414', borderRadius: 12, padding: '10px 8px', textAlign: 'center' }}>
-              <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--chatter-primary)' }}>5🔥</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--chatter-primary)' }}>{dayStreak}</div>
               <div style={{ fontSize: 11, color: 'var(--chatter-light-text)' }}>Day Streak</div>
             </div>
           </div>

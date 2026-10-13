@@ -130,12 +130,18 @@ export async function POST(req) {
       ? `${message} ${docTitle} overview introduction core concepts summary`
       : `${message} ${docTitle}`;
 
-    const contextChunks = await retrieveRelevantChunks({
-      query: chunkSearchQuery,
-      documentId: doc?._id?.toString() || documentId,
-      userId,
-      limit: isTeachingQuery ? 7 : 5,
-    });
+    let contextChunks = [];
+    try {
+      contextChunks = await Promise.race([
+        retrieveRelevantChunks({
+          query: chunkSearchQuery,
+          documentId: doc?._id?.toString() || documentId,
+          userId,
+          limit: isTeachingQuery ? 6 : 4,
+        }),
+        new Promise((resolve) => setTimeout(() => resolve([]), 800)),
+      ]);
+    } catch {}
 
     // 3. Assemble whole-document context
     let contextText = '';

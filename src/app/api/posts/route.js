@@ -120,8 +120,33 @@ export async function GET(req) {
 
     const posts = await postsCol.find({}).sort({ created_at: -1 }).limit(50).toArray();
 
+    // Fetch author users to ensure latest avatar, name, bio, and stats are applied
+    const authorIds = posts.map((p) => p.author?.id || p.author_id).filter(Boolean);
+    const userObjIds = authorIds.map((id) => safeObjectId(id)).filter(Boolean);
+    const authorDocs = await db.collection('users')
+      .find({
+        $or: [{ _id: { $in: userObjIds } }, { id: { $in: authorIds } }],
+      })
+      .toArray();
+
+    const authorMap = new Map();
+    authorDocs.forEach((u) => {
+      const idStr = u._id ? u._id.toString() : u.id;
+      authorMap.set(idStr, u);
+      if (u.id) authorMap.set(String(u.id), u);
+    });
+
     const formatted = posts.map((p) => {
       const postId = p._id ? p._id.toString() : p.id;
+      const authorId = p.author?.id || p.author_id;
+      const authorDoc = authorMap.get(String(authorId));
+
+      const authorName = authorDoc?.name || p.author?.name || p.author_name || 'Scholar';
+      const authorUsername = authorDoc?.username || p.author?.username || p.author_username || authorName.toLowerCase().replace(/\s+/g, '_');
+      const authorAvatar = authorDoc?.avatar_url || authorDoc?.image || p.author?.avatar_url || p.author_avatar || null;
+      const authorBio = authorDoc?.bio || p.author?.bio || p.author_bio || '';
+      const authorFollowers = typeof authorDoc?.followers_count === 'number' ? authorDoc.followers_count : (p.author?.followersCount || 0);
+
       const likedBy = Array.isArray(p.liked_by) ? p.liked_by.map(String) : [];
       const isLiked = Boolean(currentUserId && likedBy.includes(currentUserId));
       const commentsList = (p.comments || []).map((c) => ({
@@ -139,13 +164,15 @@ export async function GET(req) {
 
       return {
         id: postId,
-        author: p.author || {
-          id: p.author_id,
-          name: p.author_name || 'Scholar',
-          username: p.author_username || 'scholar',
-          avatar_url: p.author_avatar || null,
-          followersCount: p.author_followers_count || 12,
-          bio: p.author_bio || 'Study enthusiast',
+        author: {
+          id: authorId,
+          name: authorName,
+          username: authorUsername,
+          avatar_url: authorAvatar,
+          followersCount: authorFollowers,
+          bio: authorBio,
+          study_hours: authorDoc?.study_hours || 0,
+          day_streak: authorDoc?.day_streak || 1,
         },
         tag: p.tag || '#StudyNotes',
         text: p.text,

@@ -124,6 +124,7 @@ export default function ChatterGuruView({
       };
 
       setUploadedDocs((prev) => [newDoc, ...prev]);
+      setSelectedDocId(newDoc.doc_id);
 
       // Add assistant confirmation message in chat
       setMessages((prev) => [
@@ -131,7 +132,7 @@ export default function ChatterGuruView({
         {
           id: `g-upload-${Date.now()}`,
           role: 'assistant',
-          content: `✅ Successfully indexed **${newDoc.filename}** (${newDoc.chunksCount} vectorized text chunks). You can now ask questions about this document or click below to generate an instant quiz!`,
+          content: `✅ Successfully indexed **${newDoc.filename}** (${newDoc.chunksCount} vectorized text chunks). It is now your **active study target**! You can ask questions about this document or click below to generate an instant quiz or flashcards!`,
           documentRef: newDoc,
           timestamp: 'Just now',
         },
@@ -146,12 +147,13 @@ export default function ChatterGuruView({
         status: 'Parsed (Local)',
       };
       setUploadedDocs((prev) => [newDoc, ...prev]);
+      setSelectedDocId(newDoc.doc_id);
       setMessages((prev) => [
         ...prev,
         {
           id: `g-upload-${Date.now()}`,
           role: 'assistant',
-          content: `📄 Loaded **${file.name}**. Vector index initialized for study sessions!`,
+          content: `📄 Loaded **${file.name}** as your active study target. Vector index initialized for instant tutoring!`,
           documentRef: newDoc,
           timestamp: 'Just now',
         },
@@ -167,12 +169,16 @@ export default function ChatterGuruView({
   const handleGenerateMCQ = async (docId, docName) => {
     setLoading(true);
     setDocsPanelOpen(false);
+    const activeDoc = uploadedDocs.find((d) => (d.doc_id || d.id) === (docId || selectedDocId)) || uploadedDocs[0];
+    const targetDocId = docId || selectedDocId || activeDoc?.doc_id || activeDoc?.id;
+    const targetDocName = docName || activeDoc?.filename || 'the active study document';
+
     setMessages((prev) => [
       ...prev,
       {
         id: `u-quiz-${Date.now()}`,
         role: 'user',
-        content: `Generate a 5-question multiple choice quiz on ${docName || 'the study document'}.`,
+        content: `Generate a 5-question multiple choice quiz on ${targetDocName}.`,
         timestamp: 'Now',
       },
     ]);
@@ -181,7 +187,7 @@ export default function ChatterGuruView({
       const res = await fetch('/api/rag/mcq', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ documentId: docId || uploadedDocs[0]?.doc_id, count: 5 }),
+        body: JSON.stringify({ documentId: targetDocId, count: 5 }),
       });
 
       const data = await res.json();
@@ -209,26 +215,26 @@ export default function ChatterGuruView({
           role: 'assistant',
           quizData: [
             {
-              question: '1. What is the fundamental requirement for Stokes Theorem to hold across a surface?',
+              question: `1. Key takeaway from ${targetDocName}: What is the primary foundational principle?`,
               options: [
-                'The boundary orientation must match the surface normal via the right-hand rule',
-                'The vector field must have zero divergence everywhere',
-                'The surface must be closed with no boundary',
-                'The curl must evaluate to zero',
+                'Fundamental definitions and boundary invariants must be consistently verified',
+                'The system operates with zero divergence everywhere',
+                'Only final outputs are evaluated without considering components',
+                'No mathematical constraints are required',
               ],
-              correct_answer: 'The boundary orientation must match the surface normal via the right-hand rule',
-              explanation: 'Stokes Theorem equates the line integral of a vector field over boundary C with the surface integral of its curl, requiring consistent orientation.',
+              correct_answer: 'Fundamental definitions and boundary invariants must be consistently verified',
+              explanation: 'Strong foundational understanding begins by confirming all core constraints and definitions from the study material.',
             },
             {
-              question: '2. In Pre-Layer Normalization (Pre-LN) Transformers, where is normalization applied?',
+              question: '2. In neural network optimization, why is normalization applied across layer inputs?',
               options: [
-                'Before each multi-head attention and feed-forward sublayer',
-                'Exclusively after the residual addition',
-                'Only at the final output classification head',
-                'Inside the softmax activation step',
+                'To stabilize gradient variance and accelerate training convergence',
+                'To permanently fix all weight parameters',
+                'To bypass backpropagation completely',
+                'To remove residual connections',
               ],
-              correct_answer: 'Before each multi-head attention and feed-forward sublayer',
-              explanation: 'Pre-LN normalizes the inputs before attention and MLP layers, preventing gradient explosion without requiring extensive learning rate warmup.',
+              correct_answer: 'To stabilize gradient variance and accelerate training convergence',
+              explanation: 'Input normalization maintains well-behaved activations and gradients across deep layers.',
             },
           ],
           timestamp: 'Just now',
@@ -243,12 +249,16 @@ export default function ChatterGuruView({
   const handleGenerateFlashcards = async (docId, docName) => {
     setLoading(true);
     setDocsPanelOpen(false);
+    const activeDoc = uploadedDocs.find((d) => (d.doc_id || d.id) === (docId || selectedDocId)) || uploadedDocs[0];
+    const targetDocId = docId || selectedDocId || activeDoc?.doc_id || activeDoc?.id;
+    const targetDocName = docName || activeDoc?.filename || 'the active study document';
+
     setMessages((prev) => [
       ...prev,
       {
         id: `u-cards-${Date.now()}`,
         role: 'user',
-        content: `Create flashcards for active recall from ${docName || 'the study document'}.`,
+        content: `Create flashcards for active recall from ${targetDocName}.`,
         timestamp: 'Now',
       },
     ]);
@@ -257,7 +267,7 @@ export default function ChatterGuruView({
       const res = await fetch('/api/rag/flashcards', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ documentId: docId || uploadedDocs[0]?.doc_id }),
+        body: JSON.stringify({ documentId: targetDocId }),
       });
       const data = await res.json();
       const cards = data.flashcards || data.cards || [];
@@ -294,7 +304,7 @@ export default function ChatterGuruView({
     }
   };
 
-  // Chat message sending
+  // Chat message sending with real-time text streaming
   const handleSend = async (textToSend) => {
     const text = textToSend || inputText;
     if (!text.trim() || loading) return;
@@ -317,7 +327,15 @@ export default function ChatterGuruView({
       timestamp: 'Now',
     };
 
-    setMessages((prev) => [...prev, userMsg]);
+    const aiMsgId = `g-${Date.now()}`;
+    const initialAiMsg = {
+      id: aiMsgId,
+      role: 'assistant',
+      content: '',
+      timestamp: 'Just now',
+    };
+
+    setMessages((prev) => [...prev, userMsg, initialAiMsg]);
     setInputText('');
     setLoading(true);
 
@@ -328,11 +346,13 @@ export default function ChatterGuruView({
 
       const res = await fetch('/api/rag/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream, application/json',
+        },
         body: JSON.stringify({
           message: text,
-          query: text,
-          question: text,
+          stream: true,
           serverId,
           channelName,
           documentId: selectedDocId || activeDoc?.doc_id || activeDoc?.id || null,
@@ -343,23 +363,49 @@ export default function ChatterGuruView({
       });
 
       if (!res.ok) throw new Error('AI assistant response error');
-      const data = await res.json();
 
-      const aiMsg = {
-        id: `g-${Date.now()}`,
-        role: 'assistant',
-        content: data.reply || data.answer || 'I parsed the study materials for your query. Let me know if you would like me to drill down on any specific sub-topic!',
-        timestamp: 'Just now',
-      };
-      setMessages((prev) => [...prev, aiMsg]);
+      if (res.body) {
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let accumulated = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          accumulated += chunk;
+          setMessages((prev) =>
+            prev.map((m) => (m.id === aiMsgId ? { ...m, content: accumulated } : m))
+          );
+        }
+
+        if (!accumulated.trim()) {
+          throw new Error('Empty stream response');
+        }
+      } else {
+        const data = await res.json();
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === aiMsgId
+              ? {
+                  ...m,
+                  content: data.reply || data.answer || 'Tutoring session active. Ask any specific question!',
+                }
+              : m
+          )
+        );
+      }
     } catch {
-      const aiMsg = {
-        id: `g-${Date.now()}`,
-        role: 'assistant',
-        content: `Here is the study breakdown for **"${text}"**:\n\n1. **Core Concept**: Break the problem down into first principles and define given parameters.\n2. **Key Theorems / Equations**: Check that all boundary conditions and invariants hold.\n3. **Active Practice**: Try explaining the solution steps aloud to test your mastery!`,
-        timestamp: 'Just now',
-      };
-      setMessages((prev) => [...prev, aiMsg]);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === aiMsgId
+            ? {
+                ...m,
+                content: `Here is the study breakdown for **"${text}"**:\n\n1. **Core Concept**: Break the problem down into first principles and define given parameters.\n2. **Key Theorems / Equations**: Check that all boundary conditions and invariants hold.\n3. **Active Practice**: Try explaining the solution steps aloud to test your mastery!`,
+              }
+            : m
+        )
+      );
     } finally {
       setLoading(false);
     }
@@ -832,7 +878,17 @@ export default function ChatterGuruView({
           <button
             key={i}
             type="button"
-            onClick={() => handleSend(p)}
+            onClick={() => {
+              if (p.includes('Quiz')) {
+                handleGenerateMCQ();
+                return;
+              }
+              if (p.includes('Flashcards')) {
+                handleGenerateFlashcards();
+                return;
+              }
+              handleSend(p);
+            }}
             style={{
               padding: '6px 13px',
               borderRadius: 16,
@@ -851,8 +907,15 @@ export default function ChatterGuruView({
         ))}
       </div>
 
-      {/* ── 5. Bottom Compose Input (Mobile Safe Padding Above Bottom Nav) ── */}
-      <div className="chatter-guru-compose">
+      {/* ── 5. Bottom Compose Input (Flush directly over bottom nav) ── */}
+      <div
+        className="chatter-guru-compose"
+        style={{
+          padding: '8px 16px 10px',
+          background: 'var(--chatter-black)',
+          flexShrink: 0,
+        }}
+      >
         {uploadingDoc && (
           <div
             style={{

@@ -22,6 +22,9 @@ export default function ChatterProfileView({
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [editName, setEditName] = useState(profile?.name || '');
+  const [displayName, setDisplayName] = useState(profile?.name || '');
+  const [editUsername, setEditUsername] = useState(profile?.username || '');
+  const [displayUsername, setDisplayUsername] = useState(profile?.username || '');
   const [editBio, setEditBio] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
 
@@ -30,15 +33,15 @@ export default function ChatterProfileView({
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [savedNotes, setSavedNotes] = useState([]);
   const [loadingNotes, setLoadingNotes] = useState(true);
-  const [followersCount, setFollowersCount] = useState(14);
-  const [dayStreak, setDayStreak] = useState(3);
-  const [studyHours, setStudyHours] = useState(12);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [dayStreak, setDayStreak] = useState(1);
+  const [studyHours, setStudyHours] = useState(0);
 
   const avatarInputRef = useRef(null);
   const bannerInputRef = useRef(null);
 
   const followingCount = useMemo(() => {
-    return Object.values(followingMap).filter(Boolean).length || 5;
+    return Object.values(followingMap).filter(Boolean).length;
   }, [followingMap]);
 
   const showToast = (msg) => {
@@ -61,7 +64,14 @@ export default function ChatterProfileView({
               setBioText(data.bio);
               setEditBio(data.bio);
             }
-            if (data.name) setEditName(data.name);
+            if (data.name) {
+              setEditName(data.name);
+              setDisplayName(data.name);
+            }
+            if (data.username) {
+              setEditUsername(data.username);
+              setDisplayUsername(data.username);
+            }
             if (typeof data.followers_count === 'number') setFollowersCount(data.followers_count);
             if (typeof data.day_streak === 'number') setDayStreak(data.day_streak);
             if (typeof data.study_hours === 'number') setStudyHours(data.study_hours);
@@ -232,17 +242,24 @@ export default function ChatterProfileView({
     e.preventDefault();
     setSavingProfile(true);
     try {
-      await fetch('/api/user/profile', {
+      const res = await fetch('/api/user/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: editName.trim(),
+          username: editUsername.trim().toLowerCase().replace(/[^a-z0-9_]/g, ''),
           bio: editBio.trim(),
         }),
       });
-      setBioText(editBio.trim());
-      showToast('Profile updated successfully!');
-      setEditProfileOpen(false);
+      if (res.ok) {
+        setDisplayName(editName.trim());
+        if (editUsername) setDisplayUsername(editUsername.trim().toLowerCase().replace(/[^a-z0-9_]/g, ''));
+        setBioText(editBio.trim());
+        showToast('Profile updated successfully!');
+        setEditProfileOpen(false);
+      } else {
+        throw new Error('Update failed');
+      }
     } catch {
       showToast('Failed to update profile');
     } finally {
@@ -338,7 +355,8 @@ export default function ChatterProfileView({
           type="button"
           onClick={() => {
             setEditBio(bioText);
-            setEditName(profile?.name || '');
+            setEditName(displayName || profile?.name || '');
+            setEditUsername(displayUsername || profile?.username || '');
             setEditProfileOpen(true);
           }}
           style={{
@@ -441,7 +459,8 @@ export default function ChatterProfileView({
               type="button"
               onClick={() => {
                 setEditBio(bioText);
-                setEditName(profile?.name || '');
+                setEditName(displayName || profile?.name || '');
+                setEditUsername(displayUsername || profile?.username || '');
                 setEditProfileOpen(true);
               }}
               style={{
@@ -495,12 +514,12 @@ export default function ChatterProfileView({
         {/* User Info with Verified Badge */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2 }}>
           <h2 style={{ fontSize: 20, fontWeight: 800, color: '#fff', margin: 0 }}>
-            {profile?.name || 'Scholar'}
+            {displayName || profile?.name || 'Scholar'}
           </h2>
           <TwitterVerifiedBadge />
         </div>
         <div style={{ fontSize: 13, color: 'var(--chatter-light-text)', marginBottom: 8 }}>
-          @{profile?.username || 'scholar'} · {profile?.email}
+          @{displayUsername || profile?.username || 'scholar'} · {profile?.email}
         </div>
 
         {/* Bio Section (Clean text display without inline edit button) */}
@@ -905,6 +924,32 @@ export default function ChatterProfileView({
                   }}
                   placeholder="Your Name"
                 />
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--chatter-light-text)', marginBottom: 6 }}>
+                  Username (@handle)
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: 14, top: 10, color: 'var(--chatter-light-text)', fontSize: 14, fontWeight: 600 }}>@</span>
+                  <input
+                    type="text"
+                    value={editUsername}
+                    onChange={(e) => setEditUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                    style={{
+                      width: '100%',
+                      background: 'var(--chatter-black)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: 12,
+                      color: '#fff',
+                      padding: '10px 14px 10px 32px',
+                      fontSize: 14,
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                    placeholder="username"
+                  />
+                </div>
               </div>
 
               <div style={{ marginBottom: 20 }}>

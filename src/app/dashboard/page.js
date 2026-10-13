@@ -70,18 +70,43 @@ export default function DashboardPage() {
   const { data: session, status } = useSession();
   const user = session?.user;
 
+  // ---------- live db profile to prevent flickering ----------
+  const [dbProfile, setDbProfile] = useState(null);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let active = true;
+    fetch('/api/user/profile')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (active && data && !data.error) {
+          setDbProfile(data);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
+
   // ---------- profile ----------
   const profile = useMemo(() => {
     if (!user) return null;
     return {
       id: user.id,
-      name: user.name || user.email?.split('@')[0] || 'Scholar',
-      username: user.name || user.email?.split('@')[0] || 'Scholar',
-      full_name: user.name || user.email?.split('@')[0] || 'Scholar',
-      email: user.email,
-      avatar_url: user.image || null,
+      name: dbProfile?.name || user.name || user.email?.split('@')[0] || 'Scholar',
+      username: dbProfile?.username || user.name || user.email?.split('@')[0] || 'Scholar',
+      full_name: dbProfile?.name || user.name || user.email?.split('@')[0] || 'Scholar',
+      email: dbProfile?.email || user.email,
+      avatar_url: dbProfile?.avatar_url || user.image || null,
+      banner_url: dbProfile?.banner_url || null,
+      bio: dbProfile?.bio || '',
+      followers_count: typeof dbProfile?.followers_count === 'number' ? dbProfile.followers_count : 0,
+      following_count: typeof dbProfile?.following_count === 'number' ? dbProfile.following_count : 0,
+      study_hours: typeof dbProfile?.study_hours === 'number' ? dbProfile.study_hours : 0,
+      day_streak: typeof dbProfile?.day_streak === 'number' ? dbProfile.day_streak : 1,
     };
-  }, [user]);
+  }, [user, dbProfile]);
 
   const voiceSession = useVoiceSession(user?.id, profile);
   const { handleLeave: leaveVoiceSession } = voiceSession;
@@ -133,7 +158,7 @@ export default function DashboardPage() {
   const [userProfileModalTarget, setUserProfileModalTarget] = useState(null);
 
   // Shared following state synchronized across Feed, Profile Modal, and Profile View
-  const [followingMap, setFollowingMap] = useState({ 'u-sarah': true });
+  const [followingMap, setFollowingMap] = useState({});
   useEffect(() => {
     try {
       const saved = localStorage.getItem('chatter_following_map');
@@ -884,9 +909,9 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* If chatterTab === 'guru', render ChatterGuruView with full breathing space */}
+      {/* If chatterTab === 'guru', render ChatterGuruView with full breathing space and flush bottom input */}
       {chatterTab === 'guru' && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden', background: 'var(--chatter-black)', paddingBottom: 'calc(62px + env(safe-area-inset-bottom))' }}>
+        <div className="chatter-guru-wrapper">
           <ChatterGuruView
             channelName={activeChannelName}
             serverId={activeServerId}

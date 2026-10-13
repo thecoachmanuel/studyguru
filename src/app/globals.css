@@ -9531,3 +9531,19 @@ body {
     display: none !important;
   }
 }
+
+.chatter-guru-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--chatter-black);
+  padding-bottom: 0;
+}
+
+@media (max-width: 768px) {
+  .chatter-guru-wrapper {
+    padding-bottom: calc(62px + env(safe-area-inset-bottom));
+  }
+}

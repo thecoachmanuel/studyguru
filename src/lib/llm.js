@@ -16,13 +16,13 @@ function parseKeyPool(...envNames) {
 
 const geminiKeys = parseKeyPool('GEMINI_API_KEYS', 'GEMINI_API_KEY', 'GOOGLE_API_KEY');
 const openrouterKeys = parseKeyPool('OPENROUTER_API_KEYS', 'OPENROUTER_API_KEY');
-// Configured models with automatic multi-tier failover
+// Configured models with automatic multi-tier failover (fastest ultra-low latency models first)
 const GEMINI_MODELS = Array.from(
   new Set([
-    process.env.GEMINI_MODEL || 'gemini-2.5-flash',
-    'gemini-2.5-flash',
+    process.env.GEMINI_MODEL || 'gemini-2.0-flash',
     'gemini-2.0-flash',
     'gemini-1.5-flash',
+    'gemini-2.0-flash-lite',
   ])
 );
 
