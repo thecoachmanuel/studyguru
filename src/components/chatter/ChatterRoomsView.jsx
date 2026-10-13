@@ -269,98 +269,119 @@ export default function ChatterRoomsView({
                   }}
                   style={{
                     background: 'var(--chatter-sheet)',
-                    border: isCurrent ? '1.5px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.06)',
-                    borderRadius: 16,
-                    padding: 14,
+                    border: isCurrent ? '1.5px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: 18,
+                    padding: '16px 18px',
                     display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
+                    flexDirection: 'column',
+                    gap: 10,
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-                    {server.icon_url ? (
-                      <img
-                        src={server.icon_url}
-                        alt={server.name}
-                        style={{ width: 46, height: 46, borderRadius: 14, objectFit: 'cover', flexShrink: 0 }}
-                      />
-                    ) : (
-                      <div
-                        style={{
-                          width: 46,
-                          height: 46,
-                          borderRadius: 14,
-                          background: '#242424',
-                          color: 'var(--chatter-primary)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontWeight: 800,
-                          fontSize: 18,
-                          flexShrink: 0,
-                        }}
-                      >
-                        {server.name?.[0]?.toUpperCase() || 'S'}
-                      </div>
-                    )}
-
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <h4 style={{ fontSize: 15, fontWeight: 700, color: '#fff', margin: '0 0 4px 0', lineHeight: 1.35, wordBreak: 'break-word', whiteSpace: 'normal' }}>
-                        {server.name}
-                      </h4>
-                      <div style={{ fontSize: 12, color: 'var(--chatter-light-text)', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        <span>{channelsCount} study channels · {server.member_count || 1} members</span>
-                      </div>
-
-                      {/* Channels Pills within Study Room */}
-                      {server.channels && server.channels.length > 0 && (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-                          {server.channels.map((ch) => (
-                            <button
-                              key={ch.id}
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onSelectServer(server.id, ch.id, ch.name);
-                              }}
-                              style={{
-                                padding: '3px 8px',
-                                borderRadius: 8,
-                                background: ch.type === 'voice' ? 'rgba(64, 227, 120, 0.12)' : 'rgba(255, 255, 255, 0.06)',
-                                border: '1px solid rgba(255, 255, 255, 0.06)',
-                                color: ch.type === 'voice' ? 'var(--chatter-primary)' : '#c0c0c0',
-                                fontSize: 11,
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 4,
-                              }}
-                            >
-                              <span>{ch.type === 'voice' ? '🔊' : '#'}</span>
-                              <span>{ch.name}</span>
-                            </button>
-                          ))}
+                  {/* Line 1: Title of room name at top on a single line */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
+                      {server.icon_url ? (
+                        <img
+                          src={server.icon_url}
+                          alt={server.name}
+                          style={{ width: 44, height: 44, borderRadius: 14, objectFit: 'cover', flexShrink: 0 }}
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            width: 44,
+                            height: 44,
+                            borderRadius: 14,
+                            background: '#242424',
+                            color: 'var(--chatter-primary)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 800,
+                            fontSize: 18,
+                            flexShrink: 0,
+                          }}
+                        >
+                          {server.name?.[0]?.toUpperCase() || 'S'}
                         </div>
                       )}
+                      <h4 style={{
+                        fontSize: 16.5,
+                        fontWeight: 800,
+                        color: '#fff',
+                        margin: 0,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        letterSpacing: '-0.01em',
+                      }}>
+                        {server.name}
+                      </h4>
                     </div>
+                    {isCurrent && (
+                      <span style={{ fontSize: 12, background: 'rgba(64, 227, 120, 0.16)', color: 'var(--chatter-primary)', padding: '4px 10px', borderRadius: 12, fontWeight: 700, flexShrink: 0 }}>
+                        Active Room
+                      </span>
+                    )}
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, marginLeft: 10 }}>
-                    {/* Proper SVG Copy Code Button */}
+                  {/* Line 2: Followed by members number below */}
+                  <div style={{ fontSize: 13.5, color: 'var(--chatter-light-text)', display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 2 }}>
+                    <span style={{ color: '#fff', fontWeight: 600 }}>{server.member_count || 1} members</span>
+                    <span>·</span>
+                    <span>{channelsCount} study channels</span>
+                    <span>·</span>
+                    <span style={{ color: 'var(--chatter-primary)', fontWeight: 600 }}>#{getServerCategory(server)}</span>
+                  </div>
+
+                  {/* Line 3: Another next line with links for poll, copy code, copy link, and to enter the room */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', paddingTop: 10, borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                    {/* Poll & Channels Link */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const voiceCh = server.channels?.find((c) => c.type === 'voice');
+                        if (voiceCh) {
+                          onJoinVoiceChannel?.(server.id, voiceCh.id, voiceCh.name);
+                        } else {
+                          const defaultCh = server.channels?.find((c) => c.type === 'text') || server.channels?.[0];
+                          onSelectServer(server.id, defaultCh?.id, defaultCh?.name);
+                        }
+                      }}
+                      style={{
+                        padding: '7px 12px',
+                        borderRadius: 12,
+                        background: 'rgba(255, 255, 255, 0.06)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        color: '#D4D4D4',
+                        fontSize: 12.5,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                      <span>Poll & Channels</span>
+                    </button>
+
+                    {/* Copy Code */}
                     <button
                       type="button"
                       onClick={(e) => handleCopyCode(e, server)}
                       title="Copy room invite code"
                       style={{
-                        padding: '6px 10px',
+                        padding: '7px 12px',
                         borderRadius: 12,
                         background: isCopied ? 'rgba(64, 227, 120, 0.2)' : 'rgba(255, 255, 255, 0.06)',
                         border: isCopied ? '1px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
-                        color: isCopied ? 'var(--chatter-primary)' : '#c0c0c0',
-                        fontSize: 11,
+                        color: isCopied ? 'var(--chatter-primary)' : '#D4D4D4',
+                        fontSize: 12.5,
                         fontWeight: 600,
                         cursor: 'pointer',
                         display: 'flex',
@@ -371,32 +392,32 @@ export default function ChatterRoomsView({
                     >
                       {isCopied ? (
                         <>
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
                           <span>Copied!</span>
                         </>
                       ) : (
                         <>
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                           </svg>
-                          <span>Code</span>
+                          <span>Copy Code</span>
                         </>
                       )}
                     </button>
 
-                    {/* Proper SVG Copy Link Button */}
+                    {/* Copy Link */}
                     <button
                       type="button"
                       onClick={(e) => handleCopyLink(e, server)}
                       title="Copy direct invite link to this room"
                       style={{
-                        padding: '6px 10px',
+                        padding: '7px 12px',
                         borderRadius: 12,
                         background: copiedLinkId === server.id ? 'rgba(64, 227, 120, 0.2)' : 'rgba(255, 255, 255, 0.06)',
                         border: copiedLinkId === server.id ? '1px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
-                        color: copiedLinkId === server.id ? 'var(--chatter-primary)' : '#c0c0c0',
-                        fontSize: 11,
+                        color: copiedLinkId === server.id ? 'var(--chatter-primary)' : '#D4D4D4',
+                        fontSize: 12.5,
                         fontWeight: 600,
                         cursor: 'pointer',
                         display: 'flex',
@@ -407,46 +428,47 @@ export default function ChatterRoomsView({
                     >
                       {copiedLinkId === server.id ? (
                         <>
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
                           <span>Link Copied!</span>
                         </>
                       ) : (
                         <>
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
                             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
                           </svg>
-                          <span>Link</span>
+                          <span>Copy Link</span>
                         </>
                       )}
                     </button>
 
-                    {isCurrent ? (
-                      <span style={{ fontSize: 11, background: 'rgba(64, 227, 120, 0.15)', color: 'var(--chatter-primary)', padding: '5px 10px', borderRadius: 12, fontWeight: 700 }}>
-                        Active
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const defaultCh = server.channels?.find((c) => c.type === 'text') || server.channels?.[0];
-                          onSelectServer(server.id, defaultCh?.id, defaultCh?.name);
-                        }}
-                        style={{
-                          padding: '6px 14px',
-                          borderRadius: 14,
-                          background: 'rgba(255, 255, 255, 0.08)',
-                          border: 'none',
-                          color: '#fff',
-                          fontSize: 12,
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Enter
-                      </button>
-                    )}
+                    {/* Enter Room button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const defaultCh = server.channels?.find((c) => c.type === 'text') || server.channels?.[0];
+                        onSelectServer(server.id, defaultCh?.id, defaultCh?.name);
+                      }}
+                      style={{
+                        marginLeft: 'auto',
+                        padding: '7px 18px',
+                        borderRadius: 14,
+                        background: 'var(--chatter-primary)',
+                        color: '#0E0E0E',
+                        fontSize: 13,
+                        fontWeight: 800,
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        boxShadow: '0 2px 10px rgba(64, 227, 120, 0.25)',
+                      }}
+                    >
+                      <span>Enter Room</span>
+                      <span>→</span>
+                    </button>
                   </div>
                 </div>
               );

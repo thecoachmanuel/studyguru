@@ -21,9 +21,8 @@ export default function ChatterCommentsSheet({
   const commentsEndRef = useRef(null);
   const inputRef = useRef(null);
 
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+  // Sheet opens without automatically triggering the mobile virtual keyboard
+  // Keyboard only pops up when user explicitly taps into the reply input
 
   const handleSendComment = (e) => {
     e.preventDefault();

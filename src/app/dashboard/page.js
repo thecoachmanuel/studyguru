@@ -29,6 +29,7 @@ import ChatterUserProfileModal from '@/components/chatter/ChatterUserProfileModa
 import ChatterSearchModal from '@/components/chatter/ChatterSearchModal';
 import ChatterNewDMSheet from '@/components/chatter/ChatterNewDMSheet';
 import ChatterRoomActionModal from '@/components/chatter/ChatterRoomActionModal';
+import ChatterRightSidebar from '@/components/chatter/ChatterRightSidebar';
 
 function moveChannelLocally(channels, channelId, beforeChannelId, afterChannelId) {
   const movedChannel = channels.find((channel) => channel.id === channelId);
@@ -84,8 +85,17 @@ export default function DashboardPage() {
         }
       })
       .catch(() => {});
+
+    const handleProfileUpdated = (e) => {
+      if (e?.detail) {
+        setDbProfile((prev) => ({ ...prev, ...e.detail }));
+      }
+    };
+    window.addEventListener('studycord_profile_updated', handleProfileUpdated);
+
     return () => {
       active = false;
+      window.removeEventListener('studycord_profile_updated', handleProfileUpdated);
     };
   }, [user?.id]);
 
@@ -147,8 +157,38 @@ export default function DashboardPage() {
   const [toast, setToast] = useState('');
   const [unreadCounts, setUnreadCounts] = useState({});
 
-  // ---------- Chatter UI States ----------
-  const [chatterTab, setChatterTab] = useState('feed'); // 'feed' | 'rooms' | 'guru' | 'chats' | 'profile'
+  // ---------- Chatter UI States with Refresh Persistence ----------
+  const [chatterTab, setChatterTabState] = useState('feed'); // 'feed' | 'rooms' | 'guru' | 'chats' | 'profile'
+  const [guruNavHidden, setGuruNavHidden] = useState(false);
+
+  const setChatterTab = useCallback((tab) => {
+    setChatterTabState(tab);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('studycord_active_tab', tab);
+        const url = new URL(window.location.href);
+        url.searchParams.set('tab', tab);
+        window.history.replaceState(null, '', url.pathname + url.search);
+      } catch {}
+    }
+  }, []);
+
+  // Restore active tab on initial mount / page refresh so user lands on same screen
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlTab = params.get('tab');
+      if (urlTab && ['feed', 'rooms', 'guru', 'chats', 'profile'].includes(urlTab)) {
+        setChatterTabState(urlTab);
+      } else {
+        const savedTab = localStorage.getItem('studycord_active_tab');
+        if (savedTab && ['feed', 'rooms', 'guru', 'chats', 'profile'].includes(savedTab)) {
+          setChatterTabState(savedTab);
+        }
+      }
+    } catch {}
+  }, []);
   const [directMessagesModalOpen, setDirectMessagesModalOpen] = useState(false);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [newDMSheetOpen, setNewDMSheetOpen] = useState(false);
@@ -999,100 +1039,143 @@ export default function DashboardPage() {
       />
 
       {/* ── Content View ── */}
-      {/* If chatterTab === 'feed', render ChatterFeedView */}
+      {/* If chatterTab === 'feed', render ChatterFeedView with desktop right sidebar */}
       {chatterTab === 'feed' && (
-        <div style={{ flex: 1, overflowY: 'auto', background: 'var(--chatter-black)', minHeight: '100dvh' }}>
-          <ChatterTopBar
-            onOpenNotifications={() => showToast('No new notifications')}
+        <div style={{ flex: 1, display: 'flex', height: '100dvh', overflow: 'hidden', background: 'var(--chatter-black)' }}>
+          <div style={{ flex: 1, overflowY: 'auto', minHeight: '100dvh' }}>
+            <div className="chatter-center-container">
+              <ChatterTopBar
+                onOpenNotifications={() => showToast('No new notifications')}
+                onOpenSearch={() => setSearchModalOpen(true)}
+                onOpenLiveSpaces={() => setChatterTab('rooms')}
+                onRandomTopic={() => setChatterTab('rooms')}
+              />
+              <ChatterFeedView
+                serverId={activeServerId}
+                profile={profile}
+                userId={user?.id}
+                onOpenLiveSpaces={() => setChatterTab('rooms')}
+                onStartDM={handleStartDM}
+                followingMap={followingMap}
+                onToggleFollow={handleToggleFollow}
+                targetPostId={targetPostId}
+              />
+            </div>
+          </div>
+          <ChatterRightSidebar
             onOpenSearch={() => setSearchModalOpen(true)}
-            onOpenLiveSpaces={() => setChatterTab('rooms')}
-            onRandomTopic={() => setChatterTab('rooms')}
-          />
-          <ChatterFeedView
-            serverId={activeServerId}
-            profile={profile}
-            userId={user?.id}
-            onOpenLiveSpaces={() => setChatterTab('rooms')}
-            onStartDM={handleStartDM}
-            followingMap={followingMap}
-            onToggleFollow={handleToggleFollow}
-            targetPostId={targetPostId}
-          />
-        </div>
-      )}
-
-      {/* If chatterTab === 'rooms', render ChatterRoomsView */}
-      {chatterTab === 'rooms' && (
-        <div style={{ flex: 1, overflowY: 'auto', background: 'var(--chatter-black)', minHeight: '100dvh' }}>
-          <ChatterTopBar
-            onOpenNotifications={() => showToast('No new notifications')}
-            onOpenSearch={() => setSearchModalOpen(true)}
-            onOpenLiveSpaces={() => setChatterTab('rooms')}
-            onRandomTopic={() => setChatterTab('rooms')}
-          />
-          <ChatterRoomsView
-            servers={servers}
-            activeServerId={activeServerId}
-            onSelectServer={(sId, cId, cName) => {
-              handleSelectServer(sId);
-              if (cId) {
-                setActiveChannelId(cId);
-                if (cName) setActiveChannelName(cName);
-                setActiveChannelType('text');
-              }
-              setChatterTab('chats');
-            }}
-            onCreateServer={() => setServerActionModal('create')}
-            onJoinServer={() => setServerActionModal('join')}
-            onJoinVoiceChannel={(sId, cId, cName) => {
-              setActiveServerId(sId);
-              setActiveChannelId(cId);
-              setActiveChannelName(cName);
-              setActiveChannelType('voice');
-              setAudioSpaceModalOpen(true);
-              voiceSession?.handleJoin?.(sId, cId, cName);
-            }}
-            isJoinedInVoiceRoom={isJoinedInVoiceRoom}
-            activeVoiceChannelName={activeVoiceChannelName}
-          />
-        </div>
-      )}
-
-      {/* If chatterTab === 'guru', render ChatterGuruView with full breathing space and flush bottom input */}
-      {chatterTab === 'guru' && (
-        <div className="chatter-guru-wrapper">
-          <ChatterGuruView
-            channelName={activeChannelName}
-            serverId={activeServerId}
-          />
-        </div>
-      )}
-
-      {/* If chatterTab === 'profile', render ChatterProfileView */}
-      {chatterTab === 'profile' && (
-        <div style={{ flex: 1, overflowY: 'auto', background: 'var(--chatter-black)', minHeight: '100dvh' }}>
-          <ChatterTopBar
-            onOpenNotifications={() => showToast('No new notifications')}
-            onOpenSearch={() => setSearchModalOpen(true)}
-            onOpenLiveSpaces={() => setChatterTab('rooms')}
-            onRandomTopic={() => setChatterTab('rooms')}
-          />
-          <ChatterProfileView
-            profile={profile}
-            servers={servers}
-            onLogout={handleLogout}
-            onOpenStatusModal={() => setUserStatusModalOpen(true)}
-            onOpenSettings={() => setSettingsOpen(true)}
-            onSelectServer={(sId) => {
-              handleSelectServer(sId);
-              setChatterTab('chats');
-            }}
+            onOpenRooms={() => setChatterTab('rooms')}
             onOpenGuru={() => setChatterTab('guru')}
             followingMap={followingMap}
-            onSelectPost={(pId) => {
-              setTargetPostId(pId);
-              setChatterTab('feed');
-            }}
+            onToggleFollow={handleToggleFollow}
+            onOpenUserProfile={(scholar) => setUserProfileModalTarget(scholar)}
+          />
+        </div>
+      )}
+
+      {/* If chatterTab === 'rooms', render ChatterRoomsView with desktop right sidebar */}
+      {chatterTab === 'rooms' && (
+        <div style={{ flex: 1, display: 'flex', height: '100dvh', overflow: 'hidden', background: 'var(--chatter-black)' }}>
+          <div style={{ flex: 1, overflowY: 'auto', minHeight: '100dvh' }}>
+            <div className="chatter-center-container">
+              <ChatterTopBar
+                onOpenNotifications={() => showToast('No new notifications')}
+                onOpenSearch={() => setSearchModalOpen(true)}
+                onOpenLiveSpaces={() => setChatterTab('rooms')}
+                onRandomTopic={() => setChatterTab('rooms')}
+              />
+              <ChatterRoomsView
+                servers={servers}
+                activeServerId={activeServerId}
+                onSelectServer={(sId, cId, cName) => {
+                  handleSelectServer(sId);
+                  if (cId) {
+                    setActiveChannelId(cId);
+                    if (cName) setActiveChannelName(cName);
+                    setActiveChannelType('text');
+                  }
+                  setChatterTab('chats');
+                }}
+                onCreateServer={() => setServerActionModal('create')}
+                onJoinServer={() => setServerActionModal('join')}
+                onJoinVoiceChannel={(sId, cId, cName) => {
+                  setActiveServerId(sId);
+                  setActiveChannelId(cId);
+                  setActiveChannelName(cName);
+                  setActiveChannelType('voice');
+                  setAudioSpaceModalOpen(true);
+                  voiceSession?.handleJoin?.(sId, cId, cName);
+                }}
+                isJoinedInVoiceRoom={isJoinedInVoiceRoom}
+                activeVoiceChannelName={activeVoiceChannelName}
+              />
+            </div>
+          </div>
+          <ChatterRightSidebar
+            onOpenSearch={() => setSearchModalOpen(true)}
+            onOpenRooms={() => setChatterTab('rooms')}
+            onOpenGuru={() => setChatterTab('guru')}
+            followingMap={followingMap}
+            onToggleFollow={handleToggleFollow}
+            onOpenUserProfile={(scholar) => setUserProfileModalTarget(scholar)}
+          />
+        </div>
+      )}
+
+      {/* StudyCord AI: Permanently mounted in background so chat thinking & streaming persist across navigation */}
+      <div
+        className="chatter-guru-wrapper"
+        style={{
+          display: chatterTab === 'guru' ? 'flex' : 'none',
+          flex: 1,
+          height: '100dvh',
+          width: '100%',
+        }}
+      >
+        <ChatterGuruView
+          channelName={activeChannelName}
+          serverId={activeServerId}
+          onHideNavChange={setGuruNavHidden}
+        />
+      </div>
+
+      {/* If chatterTab === 'profile', render ChatterProfileView with desktop right sidebar */}
+      {chatterTab === 'profile' && (
+        <div style={{ flex: 1, display: 'flex', height: '100dvh', overflow: 'hidden', background: 'var(--chatter-black)' }}>
+          <div style={{ flex: 1, overflowY: 'auto', minHeight: '100dvh' }}>
+            <div className="chatter-center-container">
+              <ChatterTopBar
+                onOpenNotifications={() => showToast('No new notifications')}
+                onOpenSearch={() => setSearchModalOpen(true)}
+                onOpenLiveSpaces={() => setChatterTab('rooms')}
+                onRandomTopic={() => setChatterTab('rooms')}
+              />
+              <ChatterProfileView
+                profile={profile}
+                servers={servers}
+                onLogout={handleLogout}
+                onOpenStatusModal={() => setUserStatusModalOpen(true)}
+                onOpenSettings={() => setSettingsOpen(true)}
+                onSelectServer={(sId) => {
+                  handleSelectServer(sId);
+                  setChatterTab('chats');
+                }}
+                onOpenGuru={() => setChatterTab('guru')}
+                followingMap={followingMap}
+                onSelectPost={(pId) => {
+                  setTargetPostId(pId);
+                  setChatterTab('feed');
+                }}
+              />
+            </div>
+          </div>
+          <ChatterRightSidebar
+            onOpenSearch={() => setSearchModalOpen(true)}
+            onOpenRooms={() => setChatterTab('rooms')}
+            onOpenGuru={() => setChatterTab('guru')}
+            followingMap={followingMap}
+            onToggleFollow={handleToggleFollow}
+            onOpenUserProfile={(scholar) => setUserProfileModalTarget(scholar)}
           />
         </div>
       )}
@@ -1232,6 +1315,7 @@ export default function DashboardPage() {
             setChatterTab(tab);
           }}
           unreadChatsCount={Object.values(unreadCounts).reduce((a, b) => a + b, 0)}
+          isHidden={chatterTab === 'guru' && guruNavHidden}
         />
       )}
 

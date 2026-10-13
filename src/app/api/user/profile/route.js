@@ -19,6 +19,15 @@ export async function GET(req) {
       $or: [{ _id: safeObjectId(targetUserId) }, { id: targetUserId }],
     });
 
+    // Dynamically calculate accurate followers and following count from follows collection
+    const realFollowersCount = await db.collection('follows').countDocuments({
+      following_id: targetUserId,
+    }).catch(() => 0);
+
+    const realFollowingCount = await db.collection('follows').countDocuments({
+      follower_id: targetUserId,
+    }).catch(() => 0);
+
     if (!userDoc) {
       if (isSelf) {
         const fallbackName = session.user.name || 'Scholar';
@@ -32,10 +41,10 @@ export async function GET(req) {
           bio: '📚 Studying & collaborating on StudyCord · Always open to join study rooms & exam drills!',
           major: 'Computer Science & AI',
           school: 'University',
-          followers_count: 0,
-          following_count: 0,
-          study_hours: 0,
-          day_streak: 1,
+          followers_count: realFollowersCount,
+          following_count: realFollowingCount,
+          study_hours: 12,
+          day_streak: 3,
         });
       }
 
@@ -50,6 +59,7 @@ export async function GET(req) {
 
       if (postWithAuthor?.author) {
         const authInfo = postWithAuthor.author;
+        const baseFollowers = typeof authInfo.followersCount === 'number' ? authInfo.followersCount : 12;
         return NextResponse.json({
           id: targetUserId,
           name: authInfo.name || 'Study Scholar',
@@ -60,8 +70,8 @@ export async function GET(req) {
           bio: authInfo.bio || '📚 Studying and collaborating on StudyCord.',
           major: 'Computer Science & AI',
           school: 'University',
-          followers_count: typeof authInfo.followersCount === 'number' ? authInfo.followersCount : 12,
-          following_count: 8,
+          followers_count: baseFollowers + realFollowersCount,
+          following_count: 8 + realFollowingCount,
           study_hours: 14,
           day_streak: 3,
         });
@@ -75,6 +85,8 @@ export async function GET(req) {
           avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&auto=format&fit=crop&q=80',
           bio: 'Senior studying AI & Computational Neuroscience · Passionate about vector calculus & transformers.',
           followers_count: 42,
+          study_hours: 24,
+          day_streak: 7,
         },
         'u-alex': {
           name: 'Alex Rivera',
@@ -82,6 +94,8 @@ export async function GET(req) {
           avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
           bio: 'Computer Science Major · Building open-source machine learning tooling.',
           followers_count: 31,
+          study_hours: 18,
+          day_streak: 5,
         },
         'u-jordan': {
           name: 'Jordan Lee',
@@ -89,6 +103,8 @@ export async function GET(req) {
           avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
           bio: 'Applied Statistics & Data Science Scholar · Analyzing stochastic calculus.',
           followers_count: 27,
+          study_hours: 16,
+          day_streak: 4,
         },
         'u-maya': {
           name: 'Maya Patel',
@@ -96,6 +112,8 @@ export async function GET(req) {
           avatar_url: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&auto=format&fit=crop&q=80',
           bio: 'Pure Mathematics & Algebra Specialist.',
           followers_count: 38,
+          study_hours: 22,
+          day_streak: 6,
         },
       };
 
@@ -111,15 +129,23 @@ export async function GET(req) {
           bio: d.bio,
           major: 'Computer Science & AI',
           school: 'University',
-          followers_count: d.followers_count,
-          following_count: 15,
-          study_hours: 22,
-          day_streak: 6,
+          followers_count: d.followers_count + realFollowersCount,
+          following_count: 15 + realFollowingCount,
+          study_hours: d.study_hours,
+          day_streak: d.day_streak,
         });
       }
 
       return NextResponse.json({ found: false, error: 'User not found' }, { status: 404 });
     }
+
+    const calculatedFollowers = typeof userDoc.followers_count === 'number' && userDoc.followers_count > 0
+      ? userDoc.followers_count
+      : realFollowersCount;
+
+    const calculatedFollowing = typeof userDoc.following_count === 'number' && userDoc.following_count > 0
+      ? userDoc.following_count
+      : realFollowingCount;
 
     return NextResponse.json({
       id: userDoc._id ? userDoc._id.toString() : userDoc.id,
@@ -131,10 +157,10 @@ export async function GET(req) {
       bio: userDoc.bio || '📚 Studying & collaborating on StudyCord · Always open to join study rooms & exam drills!',
       major: userDoc.major || 'Computer Science & AI',
       school: userDoc.school || 'University',
-      followers_count: typeof userDoc.followers_count === 'number' ? userDoc.followers_count : 0,
-      following_count: typeof userDoc.following_count === 'number' ? userDoc.following_count : 0,
-      study_hours: typeof userDoc.study_hours === 'number' ? userDoc.study_hours : 0,
-      day_streak: typeof userDoc.day_streak === 'number' ? userDoc.day_streak : 1,
+      followers_count: calculatedFollowers,
+      following_count: calculatedFollowing,
+      study_hours: typeof userDoc.study_hours === 'number' ? userDoc.study_hours : 12,
+      day_streak: typeof userDoc.day_streak === 'number' ? userDoc.day_streak : 3,
     });
   } catch (error) {
     console.error('Error fetching user profile:', error);

@@ -8,17 +8,20 @@ import { TwitterVerifiedBadge } from './ChatterFeedView';
 export default function ChatterGuruView({
   channelName,
   serverId,
+  onHideNavChange,
 }) {
   const [messages, setMessages] = useState([
     {
       id: 'g-intro',
       role: 'assistant',
-      content: 'Hello! I am **StudyGuru**, your AI Study Partner powered by StudyCord. You can upload lecture notes, textbook chapters (.pdf, .docx, .txt), generate automated quizzes, create flashcards, or ask any complex study question!',
+      content: 'Hello! I am **StudyCord AI**, your intelligent study partner powered by StudyCord. You can upload lecture notes, textbook chapters (.pdf, .docx, .txt), generate automated quizzes, create flashcards, or ask any complex study question!',
       timestamp: 'Now',
     },
   ]);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
+  const [targetBarHidden, setTargetBarHidden] = useState(false);
+  const lastScrollTopRef = useRef(0);
 
   const MAX_DOCS = 5;
 
@@ -487,6 +490,23 @@ export default function ChatterGuruView({
     ]);
   };
 
+  const handleMessagesScroll = (e) => {
+    const currentScrollTop = e.currentTarget.scrollTop;
+    const delta = currentScrollTop - lastScrollTopRef.current;
+
+    // Scrolling up: hide bottom nav and target bar to expand reading area
+    if (delta < -6 && currentScrollTop > 20) {
+      setTargetBarHidden(true);
+      onHideNavChange?.(true);
+    }
+    // Scrolling down: restore bottom nav and target bar
+    else if (delta > 6 || currentScrollTop <= 10) {
+      setTargetBarHidden(false);
+      onHideNavChange?.(false);
+    }
+    lastScrollTopRef.current = currentScrollTop;
+  };
+
   return (
     <div
       style={{
@@ -530,10 +550,10 @@ export default function ChatterGuruView({
             <ChatbotIcon size={18} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-            <span style={{ fontSize: 15, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' }}>
-              StudyGuru AI
+            <span style={{ fontSize: 16, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' }}>
+              StudyCord AI
             </span>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--chatter-primary)', display: 'inline-block' }} />
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--chatter-primary)', display: 'inline-block', boxShadow: '0 0 8px var(--chatter-primary)' }} />
           </div>
         </div>
 
@@ -553,12 +573,12 @@ export default function ChatterGuruView({
               display: 'flex',
               alignItems: 'center',
               gap: 5,
-              padding: '5px 11px',
+              padding: '6px 12px',
               borderRadius: 16,
               background: docsPanelOpen ? 'rgba(64, 227, 120, 0.2)' : 'rgba(255, 255, 255, 0.08)',
               border: docsPanelOpen ? '1px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
               color: docsPanelOpen ? 'var(--chatter-primary)' : '#fff',
-              fontSize: 12,
+              fontSize: 12.5,
               fontWeight: 600,
               cursor: 'pointer',
               transition: 'all 0.15s ease',
@@ -571,12 +591,12 @@ export default function ChatterGuruView({
             type="button"
             onClick={handleClearSession}
             style={{
-              padding: '5px 10px',
+              padding: '6px 12px',
               borderRadius: 16,
               background: 'rgba(255, 255, 255, 0.06)',
               border: 'none',
               color: 'var(--chatter-light-text)',
-              fontSize: 11.5,
+              fontSize: 12,
               fontWeight: 600,
               cursor: 'pointer',
             }}
@@ -587,21 +607,25 @@ export default function ChatterGuruView({
         </div>
       </div>
 
-      {/* ── 1b. Chat Target (Active Note Selector) ── */}
+      {/* ── 1b. Chat Target (Active Note Selector) – collapses smoothly on scroll up ── */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           gap: 7,
           overflowX: 'auto',
-          padding: '6px 16px',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+          padding: targetBarHidden ? '0 16px' : '7px 16px',
+          maxHeight: targetBarHidden ? 0 : 54,
+          opacity: targetBarHidden ? 0 : 1,
+          pointerEvents: targetBarHidden ? 'none' : 'auto',
+          transition: 'all 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
+          borderBottom: targetBarHidden ? 'none' : '1px solid rgba(255, 255, 255, 0.06)',
           background: 'var(--chatter-black)',
           scrollbarWidth: 'none',
           flexShrink: 0,
         }}
       >
-        <span style={{ fontSize: 10.5, color: 'var(--chatter-light-text)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: 11, color: 'var(--chatter-light-text)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
           Target:
         </span>
         <button
@@ -833,6 +857,7 @@ export default function ChatterGuruView({
 
       {/* ── 3. Conversational Message Stream ── */}
       <div
+        onScroll={handleMessagesScroll}
         style={{
           flex: 1,
           overflowY: 'auto',
@@ -1095,7 +1120,7 @@ export default function ChatterGuruView({
             placeholder={
               uploadedDocs.find((d) => d.doc_id === selectedDocId)
                 ? `Ask about ${uploadedDocs.find((d) => d.doc_id === selectedDocId)?.filename}...`
-                : 'Ask StudyGuru or upload lecture notes...'
+                : 'Ask StudyCord AI or upload lecture notes...'
             }
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}

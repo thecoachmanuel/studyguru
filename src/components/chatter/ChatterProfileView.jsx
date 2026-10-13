@@ -34,16 +34,30 @@ export default function ChatterProfileView({
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [savedNotes, setSavedNotes] = useState([]);
   const [loadingNotes, setLoadingNotes] = useState(true);
-  const [followersCount, setFollowersCount] = useState(0);
-  const [dayStreak, setDayStreak] = useState(1);
-  const [studyHours, setStudyHours] = useState(0);
+  const [followersCount, setFollowersCount] = useState(
+    typeof profile?.followers_count === 'number' ? profile.followers_count : 0
+  );
+  const [dayStreak, setDayStreak] = useState(
+    typeof profile?.day_streak === 'number' ? profile.day_streak : 1
+  );
+  const [studyHours, setStudyHours] = useState(
+    typeof profile?.study_hours === 'number' ? profile.study_hours : 0
+  );
 
   const avatarInputRef = useRef(null);
   const bannerInputRef = useRef(null);
 
   const followingCount = useMemo(() => {
-    return Object.values(followingMap).filter(Boolean).length;
-  }, [followingMap]);
+    const fromMap = Object.values(followingMap).filter(Boolean).length;
+    if (fromMap > 0) return fromMap;
+    return typeof profile?.following_count === 'number' ? profile.following_count : 0;
+  }, [followingMap, profile?.following_count]);
+
+  useEffect(() => {
+    if (typeof profile?.followers_count === 'number') setFollowersCount(profile.followers_count);
+    if (typeof profile?.day_streak === 'number') setDayStreak(profile.day_streak);
+    if (typeof profile?.study_hours === 'number') setStudyHours(profile.study_hours);
+  }, [profile?.followers_count, profile?.day_streak, profile?.study_hours]);
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -181,12 +195,27 @@ export default function ChatterProfileView({
         body: JSON.stringify({ avatar_url: finalUrl }),
       });
 
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('studycord_profile_updated', {
+            detail: { avatar_url: finalUrl },
+          })
+        );
+      }
+
       showToast('Profile photo saved!');
     } catch (err) {
       console.warn('Avatar upload fallback:', err);
       const reader = new FileReader();
       reader.onload = () => {
         setAvatarUrl(reader.result);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('studycord_profile_updated', {
+              detail: { avatar_url: reader.result },
+            })
+          );
+        }
         showToast('Profile photo updated!');
       };
       reader.readAsDataURL(file);
@@ -225,12 +254,27 @@ export default function ChatterProfileView({
         body: JSON.stringify({ banner_url: finalUrl }),
       });
 
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('studycord_profile_updated', {
+            detail: { banner_url: finalUrl },
+          })
+        );
+      }
+
       showToast('Cover banner saved!');
     } catch (err) {
       console.warn('Banner upload fallback:', err);
       const reader = new FileReader();
       reader.onload = () => {
         setBannerUrl(reader.result);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('studycord_profile_updated', {
+              detail: { banner_url: reader.result },
+            })
+          );
+        }
         showToast('Cover banner updated!');
       };
       reader.readAsDataURL(file);
@@ -243,19 +287,27 @@ export default function ChatterProfileView({
     e.preventDefault();
     setSavingProfile(true);
     try {
+      const updatedData = {
+        name: editName.trim(),
+        username: editUsername.trim().toLowerCase().replace(/[^a-z0-9_]/g, ''),
+        bio: editBio.trim(),
+      };
       const res = await fetch('/api/user/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: editName.trim(),
-          username: editUsername.trim().toLowerCase().replace(/[^a-z0-9_]/g, ''),
-          bio: editBio.trim(),
-        }),
+        body: JSON.stringify(updatedData),
       });
       if (res.ok) {
         setDisplayName(editName.trim());
         if (editUsername) setDisplayUsername(editUsername.trim().toLowerCase().replace(/[^a-z0-9_]/g, ''));
         setBioText(editBio.trim());
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('studycord_profile_updated', {
+              detail: updatedData,
+            })
+          );
+        }
         showToast('Profile updated successfully!');
         setEditProfileOpen(false);
       } else {
@@ -512,56 +564,54 @@ export default function ChatterProfileView({
           </div>
         </div>
 
-        {/* User Info with Verified Badge */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 800, color: '#fff', margin: 0 }}>
+        {/* User Info with Verified Badge (Flutter Chatter Gilroy Standard) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+          <h2 style={{ fontSize: 22, fontWeight: 800, color: '#fff', margin: 0, letterSpacing: '-0.02em' }}>
             {displayName || profile?.name || 'Scholar'}
           </h2>
           <TwitterVerifiedBadge />
         </div>
-        <div style={{ fontSize: 13, color: 'var(--chatter-light-text)', marginBottom: 8 }}>
+        <div style={{ fontSize: 14, color: 'var(--chatter-light-text)', marginBottom: 12 }}>
           @{displayUsername || profile?.username || 'scholar'} · {profile?.email}
         </div>
 
-        {/* Bio Section (Clean text display without inline edit button) */}
+        {/* Bio Section */}
         <div style={{ margin: '0 0 16px 0' }}>
-          <p style={{ fontSize: 13.5, color: '#D4D4D4', lineHeight: 1.5, margin: 0 }}>
+          <p style={{ fontSize: 15, color: '#E5E5E5', lineHeight: 1.55, margin: 0 }}>
             {bioText}
           </p>
         </div>
 
-        {/* ── 3. Study Stats Grid (Real-time dynamic data) ── */}
+        {/* ── 3. Flutter Chatter / Twitter Style Inline Stats Row ── */}
         <div
           style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: 8,
-            marginBottom: 20,
+            display: 'flex',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '8px 16px',
+            margin: '0 0 20px 0',
+            fontSize: 14.5,
+            color: 'var(--chatter-light-text)',
           }}
         >
-          <div style={{ background: 'var(--chatter-sheet)', borderRadius: 14, padding: '12px 8px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--chatter-primary)' }}>
-              {savedNotes.length}
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--chatter-light-text)' }}>Notes Shared</div>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <strong style={{ color: '#fff', fontWeight: 800, fontSize: 15.5 }}>{followersCount}</strong>
+            <span>Followers</span>
           </div>
-          <div style={{ background: 'var(--chatter-sheet)', borderRadius: 14, padding: '12px 8px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--chatter-primary)' }}>
-              {dayStreak}🔥
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--chatter-light-text)' }}>Day Streak</div>
+          <span style={{ opacity: 0.35 }}>·</span>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <strong style={{ color: '#fff', fontWeight: 800, fontSize: 15.5 }}>{followingCount}</strong>
+            <span>Following</span>
           </div>
-          <div style={{ background: 'var(--chatter-sheet)', borderRadius: 14, padding: '12px 8px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--chatter-primary)' }}>
-              {followersCount}
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--chatter-light-text)' }}>Followers</div>
+          <span style={{ opacity: 0.35 }}>·</span>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <strong style={{ color: 'var(--chatter-primary)', fontWeight: 800, fontSize: 15.5 }}>{studyHours}h</strong>
+            <span>Study Hours</span>
           </div>
-          <div style={{ background: 'var(--chatter-sheet)', borderRadius: 14, padding: '12px 8px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--chatter-primary)' }}>
-              {followingCount}
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--chatter-light-text)' }}>Following</div>
+          <span style={{ opacity: 0.35 }}>·</span>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <strong style={{ color: '#FEF08A', fontWeight: 800, fontSize: 15.5 }}>{dayStreak}🔥</strong>
+            <span>Streak</span>
           </div>
         </div>
 
@@ -640,7 +690,7 @@ export default function ChatterProfileView({
                       <span style={{ fontSize: 11, color: 'var(--chatter-primary)', fontWeight: 600 }}>View on Feed ↗</span>
                     </div>
                   </div>
-                  <p style={{ fontSize: 13.5, color: '#D4D4D4', lineHeight: 1.5, margin: '0 0 10px 0' }}>
+                  <p style={{ fontSize: 15, color: '#E5E5E5', lineHeight: 1.55, margin: '0 0 10px 0' }}>
                     {post.text}
                   </p>
                   {post.attachmentUrl && (

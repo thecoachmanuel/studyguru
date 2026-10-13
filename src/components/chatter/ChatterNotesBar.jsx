@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 
 export default function ChatterNotesBar({
   user,
@@ -78,6 +78,35 @@ export default function ChatterNotesBar({
   const [selectedEmoji, setSelectedEmoji] = useState('📚');
   const [savingNote, setSavingNote] = useState(false);
 
+  const [viewedNoteIds, setViewedNoteIds] = useState(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const saved = localStorage.getItem('studycord_viewed_notes');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const markNoteAsViewed = (id) => {
+    if (!id || id === 'my-note') return;
+    setViewedNoteIds((prev) => {
+      if (prev.includes(id)) return prev;
+      const updated = [...prev, id];
+      try {
+        localStorage.setItem('studycord_viewed_notes', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  };
+
+  // Sort notes so unviewed are at the beginning and viewed ones are pushed to the end
+  const sortedNotes = useMemo(() => {
+    const unviewed = notes.filter((n) => !viewedNoteIds.includes(n.id));
+    const viewed = notes.filter((n) => viewedNoteIds.includes(n.id));
+    return [...unviewed, ...viewed];
+  }, [notes, viewedNoteIds]);
+
   // Load user's saved status note on mount
   useEffect(() => {
     fetch('/api/user/status')
@@ -116,9 +145,15 @@ export default function ChatterNotesBar({
             emoji: userNote.emoji,
             timestamp: userNote.timestamp,
           },
-          ...notes,
+          ...sortedNotes,
         ]
-      : notes;
+      : sortedNotes;
+
+    // Mark current active story as viewed if it belongs to someone else
+    const currentStory = allStories[activeStoryIndex];
+    if (currentStory && currentStory.id !== 'my-note') {
+      markNoteAsViewed(currentStory.id);
+    }
 
     const DURATION_MS = 4000;
     const INTERVAL_MS = 40;
@@ -190,9 +225,9 @@ export default function ChatterNotesBar({
           emoji: userNote.emoji,
           timestamp: userNote.timestamp,
         },
-        ...notes,
+        ...sortedNotes,
       ]
-    : notes;
+    : sortedNotes;
 
   return (
     <div style={{ padding: '8px 12px 12px', borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
@@ -320,13 +355,15 @@ export default function ChatterNotesBar({
           </span>
         </div>
 
-        {/* ── 2. Classmate Notes ── */}
-        {notes.map((note, index) => {
+        {/* ── 2. Classmate Notes (Unviewed first, viewed pushed to end) ── */}
+        {sortedNotes.map((note, index) => {
           const storyIndex = userNote ? index + 1 : index;
+          const isViewed = viewedNoteIds.includes(note.id);
           return (
             <div
               key={note.id}
               onClick={() => {
+                markNoteAsViewed(note.id);
                 setActiveStoryIndex(storyIndex);
                 setStoryProgress(0);
               }}
@@ -336,25 +373,29 @@ export default function ChatterNotesBar({
                 alignItems: 'center',
                 cursor: 'pointer',
                 flexShrink: 0,
-                width: 72,
+                width: 76,
+                transition: 'opacity 0.2s ease',
+                opacity: isViewed ? 0.75 : 1,
               }}
             >
               {/* Note Thought Bubble */}
               <div
                 style={{
                   background: 'var(--chatter-sheet)',
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  border: isViewed
+                    ? '1px solid rgba(255, 255, 255, 0.08)'
+                    : '1px solid rgba(64, 227, 120, 0.35)',
                   borderRadius: 14,
                   padding: '4px 8px',
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: 600,
-                  color: '#fff',
-                  maxWidth: 72,
+                  color: isViewed ? 'var(--chatter-light-text)' : '#fff',
+                  maxWidth: 74,
                   textAlign: 'center',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
-                  marginBottom: 4,
+                  marginBottom: 5,
                   boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
                 }}
                 title={note.text}
@@ -362,17 +403,20 @@ export default function ChatterNotesBar({
                 {note.emoji} {note.text}
               </div>
 
-              {/* Avatar with Stories Ring */}
+              {/* Avatar with Stories Ring: Vibrant gradient if unviewed, sleek light gray outline if viewed */}
               <div
                 style={{
-                  width: 54,
-                  height: 54,
+                  width: 56,
+                  height: 56,
                   borderRadius: '50%',
-                  padding: 2,
-                  background: 'linear-gradient(45deg, var(--chatter-primary), #3b82f6)',
+                  padding: 2.5,
+                  background: isViewed
+                    ? 'rgba(255, 255, 255, 0.22)'
+                    : 'linear-gradient(45deg, var(--chatter-primary), #3b82f6)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  transition: 'background 0.2s ease',
                 }}
               >
                 <img
@@ -390,12 +434,12 @@ export default function ChatterNotesBar({
 
               <span
                 style={{
-                  fontSize: 11,
-                  color: '#fff',
+                  fontSize: 12.5,
+                  color: isViewed ? 'var(--chatter-light-text)' : '#fff',
                   marginTop: 4,
                   textAlign: 'center',
                   fontWeight: 600,
-                  maxWidth: 72,
+                  maxWidth: 74,
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',

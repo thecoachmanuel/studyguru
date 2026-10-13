@@ -1,5 +1,5 @@
-/* StudyGuru — Theme System (Light mode default, Cogni-inspired palette, Dark mode toggleable) */
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+/* StudyCord — Theme System (Chatter-aligned Gilroy / Outfit Typography & Tokens) */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
   /* CHATTER DESIGN SYSTEM TOKENS */
@@ -63,8 +63,8 @@
   --server-w: 68px;
   --channel-w: 260px;
   --right-w: 360px;
-  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-heading: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-family: 'Outfit', 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-heading: 'Outfit', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --radius-xs: 6px;
   --radius-sm: 10px;
   --radius-md: 14px;
@@ -9547,3 +9547,42 @@ body {
     padding-bottom: calc(62px + env(safe-area-inset-bottom));
   }
 }
+
+/* --- Desktop Right Sidebar (Twitter / X.com 3-column layout) --- */
+.chatter-desktop-right-sidebar {
+  width: 350px;
+  min-width: 320px;
+  max-width: 380px;
+  height: 100dvh;
+  position: sticky;
+  top: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  background: var(--chatter-black);
+  border-left: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 16px 20px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  flex-shrink: 0;
+}
+
+.chatter-desktop-right-sidebar::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .chatter-desktop-right-sidebar {
+    display: none !important;
+  }
+}
+
+/* Centered main container on desktop */
+.chatter-center-container {
+  flex: 1;
+  min-width: 0;
+  max-width: 680px;
+  margin: 0 auto;
+  width: 100%;
+}
+
