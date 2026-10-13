@@ -9435,6 +9435,9 @@ body {
     bottom: 30px;
     right: 30px;
   }
+  .chatter-desktop-empty-chat {
+    display: flex !important;
+  }
 }
 
 @media (max-width: 768px) {

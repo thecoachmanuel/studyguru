@@ -164,7 +164,7 @@ export default function ChatterChatsView({
             {filteredDMs.map((dm) => (
               <div
                 key={dm.id}
-                onClick={onOpenDMsModal}
+                onClick={() => onSelectChannel?.(null, dm.id, dm.user.name, 'dm')}
                 style={{
                   display: 'flex',
                   alignItems: 'center',

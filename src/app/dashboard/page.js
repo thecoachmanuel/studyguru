@@ -3,13 +3,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
-import ServerSidebar from '@/components/ServerSidebar';
-import ChannelSidebar from '@/components/ChannelSidebar';
-import MainPanel from '@/components/MainPanel';
-import AdvancedSearchPanel from '@/components/AdvancedSearchPanel';
-import ResourceWorkspacePanel from '@/components/ResourceWorkspacePanel';
-import VoicePanel from '@/components/VoicePanel';
-import RightPanel from '@/components/RightPanel';
 import { useVoiceSession } from '@/hooks/useVoiceSession';
 import ServerSettingsModal from '@/components/ServerSettingsModal';
 import { apiRequest } from '@/lib/api';
@@ -30,6 +23,9 @@ import ChatterGuruView from '@/components/chatter/ChatterGuruView';
 import ChatterProfileView from '@/components/chatter/ChatterProfileView';
 import DirectMessagesModal from '@/components/DirectMessagesModal';
 import UserStatusModal from '@/components/UserStatusModal';
+import ChatterChatRoom from '@/components/chatter/ChatterChatRoom';
+import ChatterAudioSpaceModal from '@/components/chatter/ChatterAudioSpaceModal';
+import ChatterUserProfileModal from '@/components/chatter/ChatterUserProfileModal';
 
 function moveChannelLocally(channels, channelId, beforeChannelId, afterChannelId) {
   const movedChannel = channels.find((channel) => channel.id === channelId);
@@ -128,6 +124,8 @@ export default function DashboardPage() {
   const [directMessagesModalOpen, setDirectMessagesModalOpen] = useState(false);
   const [userStatusModalOpen, setUserStatusModalOpen] = useState(false);
   const [userCurrentStatus, setUserCurrentStatus] = useState(null);
+  const [audioSpaceModalOpen, setAudioSpaceModalOpen] = useState(false);
+  const [userProfileModalTarget, setUserProfileModalTarget] = useState(null);
 
   // Ensure mobile screens land on welcome panel
   useEffect(() => {
@@ -733,6 +731,7 @@ export default function DashboardPage() {
             profile={profile}
             userId={user?.id}
             onOpenLiveSpaces={() => setChatterTab('rooms')}
+            onStartDM={() => setDirectMessagesModalOpen(true)}
           />
         </div>
       )}
@@ -760,7 +759,8 @@ export default function DashboardPage() {
               setActiveChannelId(cId);
               setActiveChannelName(cName);
               setActiveChannelType('voice');
-              setChatterTab('chats');
+              setAudioSpaceModalOpen(true);
+              voiceSession?.handleJoin?.(sId, cId, cName);
             }}
             isJoinedInVoiceRoom={isJoinedInVoiceRoom}
             activeVoiceChannelName={activeVoiceChannelName}
@@ -804,178 +804,131 @@ export default function DashboardPage() {
 
       {/* If chatterTab === 'chats' */}
       {chatterTab === 'chats' && (
-        <>
-          {/* Server Sidebar (Far Left in Chats view) */}
-          <ServerSidebar
-            servers={servers}
-            serversLoading={serversLoading}
-            activeServerId={activeServerId}
-            onSelectServer={handleSelectServer}
-            onCreateServer={handleCreateServer}
-            onJoinServer={handleJoinServer}
-            createModalOpen={serverActionModal === 'create'}
-            onCreateModalOpenChange={(open) => setServerActionModal(open ? 'create' : null)}
-            joinModalOpen={serverActionModal === 'join'}
-            onJoinModalOpenChange={(open) => setServerActionModal(open ? 'join' : null)}
-            currentUserId={user?.id}
-          />
-
-          {/* Channel Sidebar (Middle Left) */}
-          <ChannelSidebar
-            serverId={activeServerId}
-            serverName={activeServerName}
-            serverDescription={activeServerDescription}
-            channels={channels}
-            channelsLoading={channelsLoading}
-            channelsError={channelsError}
-            activeChannelId={activeChannelId}
-            onSelectChannel={handleSelectChannel}
-            onCreateChannel={handleCreateChannel}
-            onReorderChannel={handleReorderChannel}
-            voiceSession={voiceSession}
-            currentRole={currentRole}
-            onOpenSettings={() => setSettingsOpen(true)}
-            onLeaveServer={handleLeaveServer}
-            workspace={workspace}
-            onOpenAdvancedSearch={handleOpenAdvancedSearch}
-            createFormOpen={channelCreateFormOpen}
-            onCreateFormOpenChange={setChannelCreateFormOpen}
-            unreadCounts={unreadCounts}
-            profile={profile}
-          />
-
-          {/* Central Workspace Panel */}
-          {advancedSearchVisible ? (
-            <AdvancedSearchPanel
-              key={activeServerId || 'search'}
-              serverId={activeServerId}
-              serverName={activeServerName}
-              userEmail={user?.email}
-              profile={profile}
-              onLogout={handleLogout}
-              channelSidebarOpen={channelSidebarOpen}
-              onToggleChannelSidebar={() => setChannelSidebarOpen((p) => !p)}
-              onMobileBack={() => {
-                setActiveChannelId(null);
-                setMobilePanelView('sidebar');
-              }}
-              workspace={workspace}
-              onOpenResource={handleOpenResource}
-              onBackToSearch={() => {
-                setWorkspace('advanced-search');
-                setResourceOrigin(null);
-              }}
-              onRag1Activated={handleRag1Activated}
-              onToggleRightPanel={() => setRightPanelOpen((p) => !p)}
-              rightPanelOpen={rightPanelOpen}
+        <div style={{ flex: 1, display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--chatter-black)' }}>
+          {/* Left conversations list pane */}
+          <div
+            style={{
+              width: activeChannelId ? undefined : '100%',
+              maxWidth: activeChannelId ? 380 : undefined,
+              flex: activeChannelId ? '0 0 380px' : 1,
+              borderRight: activeChannelId ? '1px solid rgba(255, 255, 255, 0.08)' : 'none',
+              height: '100%',
+              overflowY: 'auto',
+              display: (activeChannelId && typeof window !== 'undefined' && window.innerWidth <= 768) ? 'none' : 'block',
+            }}
+          >
+            <ChatterTopBar
+              onOpenNotifications={() => showToast('No new notifications')}
+              onOpenSearch={handleOpenAdvancedSearch}
+              onOpenLiveSpaces={() => setChatterTab('rooms')}
+              onRandomTopic={() => setChatterTab('rooms')}
             />
-          ) : activeChannelType === 'voice' ? (
-            <VoicePanel
-              channelId={activeChannelId}
-              channelName={activeChannelName}
-              serverName={activeServerName}
+            <ChatterChatsView
+              servers={servers}
               activeServerId={activeServerId}
-              userId={user?.id}
-              profile={profile}
-              onMobileBack={() => {
-                setActiveChannelId(null);
-                setMobilePanelView('sidebar');
+              activeChannelId={activeChannelId}
+              onSelectChannel={(sId, cId, cName, cType) => {
+                setActiveServerId(sId);
+                setActiveChannelId(cId);
+                setActiveChannelName(cName);
+                setActiveChannelType(cType || 'text');
               }}
-              voiceSession={voiceSession}
-              onToggleRightPanel={() => setRightPanelOpen((p) => !p)}
-              rightPanelOpen={rightPanelOpen}
-              onRag1Activated={handleRag1Activated}
-              onOpenAiTab={handleOpenAiTab}
+              onOpenDMsModal={() => setDirectMessagesModalOpen(true)}
+              unreadCounts={unreadCounts}
+              user={user}
             />
+          </div>
+
+          {/* Right active chat room pane (Desktop) or Full View (Mobile) */}
+          {activeChannelId ? (
+            <div style={{ flex: 1, height: '100%', overflow: 'hidden' }}>
+              <ChatterChatRoom
+                channelId={activeChannelId}
+                channelName={activeChannelName}
+                serverId={activeServerId}
+                serverName={activeServerName}
+                userId={user?.id}
+                profile={profile}
+                onBack={() => setActiveChannelId(null)}
+                onStartAudioCall={() => {
+                  setAudioSpaceModalOpen(true);
+                  if (activeChannelType === 'voice') {
+                    voiceSession?.handleJoin?.(activeServerId, activeChannelId, activeChannelName);
+                  }
+                }}
+                onStartVideoCall={() => {
+                  setAudioSpaceModalOpen(true);
+                  if (activeChannelType === 'voice') {
+                    voiceSession?.handleJoin?.(activeServerId, activeChannelId, activeChannelName);
+                  }
+                  voiceSession?.toggleCamera?.();
+                }}
+              />
+            </div>
           ) : (
-            <>
-              {channelResourceVisible && (
-                <ResourceWorkspacePanel
-                  key="channel-resource-workspace"
-                  resource={channelResource}
-                  serverName={activeServerName}
-                  userEmail={user?.email}
-                  profile={profile}
-                  onLogout={handleLogout}
-                  channelSidebarOpen={channelSidebarOpen}
-                  onToggleChannelSidebar={() => setChannelSidebarOpen((p) => !p)}
-                  onMobileBack={() => {
-                    setActiveChannelId(null);
-                    setMobilePanelView('sidebar');
-                  }}
-                  onBack={handleBackToChannel}
-                  backLabel={`Back to #${activeChannelName || 'channel'}`}
-                  onRatingSummary={handleChannelRatingSummary}
-                  onRag1Activated={handleRag1Activated}
-                />
-              )}
-              <div
-                key="channel-main-panel"
-                className={[
-                  'dashboard-preserved-channel',
-                  channelResourceVisible ? 'dashboard-preserved-channel--hidden' : '',
-                ].filter(Boolean).join(' ')}
-              >
-                <MainPanel
-                  serverName={activeServerName}
-                  server={activeServer}
-                  channelName={activeChannelName}
-                  channelType={activeChannelType}
-                  channelId={activeChannelId}
-                  userEmail={user?.email}
-                  profile={profile}
-                  onLogout={handleLogout}
-                  channelSidebarOpen={channelSidebarOpen}
-                  onToggleChannelSidebar={() => setChannelSidebarOpen((p) => !p)}
-                  onMobileBack={() => {
-                    setActiveChannelId(null);
-                    setMobilePanelView('sidebar');
-                  }}
-                  activeServerId={activeServerId}
-                  userId={user?.id}
-                  currentRole={currentRole}
-                  onOpenResource={handleOpenChannelResource}
-                  resourceRatingOverrides={channelRatingOverrides}
-                  onCreateServerRequest={() => setServerActionModal('create')}
-                  onJoinServerRequest={() => setServerActionModal('join')}
-                  onCreateChannelRequest={() => setChannelCreateFormOpen(true)}
-                  onToggleRightPanel={() => setRightPanelOpen((p) => !p)}
-                  rightPanelOpen={rightPanelOpen}
-                  onRag1Activated={handleRag1Activated}
-                  onOpenAiTab={handleOpenAiTab}
-                  onMarkAsRead={handleMarkChannelRead}
-                />
-              </div>
-            </>
-          )}
-
-          {/* Right Panel Backdrop */}
-          {rightPanelOpen && (
             <div
-              className="right-panel-backdrop"
-              onClick={() => setRightPanelOpen(false)}
-              aria-label="Close AI Study Panel"
-            />
+              style={{
+                flex: 1,
+                display: 'none',
+                height: '100%',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexDirection: 'column',
+                gap: 12,
+                color: 'var(--chatter-light-text)',
+                background: '#0E0E0E',
+              }}
+              className="chatter-desktop-empty-chat"
+            >
+              <div
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 22,
+                  background: 'rgba(64, 227, 120, 0.12)',
+                  color: 'var(--chatter-primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 28,
+                }}
+              >
+                💬
+              </div>
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: '#fff', margin: 0 }}>
+                Select a Study Conversation
+              </h3>
+              <p style={{ fontSize: 13, color: 'var(--chatter-light-text)', margin: 0 }}>
+                Choose a direct message or study channel to begin collaborating.
+              </p>
+            </div>
           )}
+        </div>
+      )}
 
-          {/* Right Panel */}
-          <RightPanel
-            key={user?.id || 'anonymous'}
-            activeServerId={activeServerId}
-            activeChannelId={activeChannelId}
-            activeChannelName={activeChannelName}
-            serverInviteCode={activeServerInviteCode}
-            userId={user?.id}
-            members={members}
-            membersLoading={membersLoading}
-            profile={profile}
-            currentRole={currentRole}
-            onOpenSettings={() => setSettingsOpen(true)}
-            rag1ActivationRequest={rag1ActivationRequest}
-            onClose={() => setRightPanelOpen(false)}
-            onShareToChannel={handleShareAiToChannel}
-          />
-        </>
+      {/* ── Chatter Audio & Video Space Modal ── */}
+      {(audioSpaceModalOpen || isJoinedInVoiceRoom) && (
+        <ChatterAudioSpaceModal
+          voiceSession={voiceSession}
+          channelName={activeVoiceChannelName || activeChannelName}
+          serverName={activeServerName}
+          onClose={() => setAudioSpaceModalOpen(false)}
+          userId={user?.id}
+          profile={profile}
+        />
+      )}
+
+      {/* ── Chatter User Profile View Modal ── */}
+      {userProfileModalTarget && (
+        <ChatterUserProfileModal
+          targetUser={userProfileModalTarget}
+          currentUserId={user?.id}
+          onClose={() => setUserProfileModalTarget(null)}
+          onStartDM={(targetId) => {
+            setUserProfileModalTarget(null);
+            setDirectMessagesModalOpen(true);
+          }}
+        />
       )}
 
       {/* ── Mobile 5-Tab Navigation Bar (Exact Chatter App TabBarScreen) ── */}

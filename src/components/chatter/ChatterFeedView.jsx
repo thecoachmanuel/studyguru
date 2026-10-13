@@ -1,21 +1,26 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import SnapshotRail from '@/components/SnapshotRail';
+import ChatterUserProfileModal from './ChatterUserProfileModal';
 
 export default function ChatterFeedView({
   serverId,
   profile,
   userId,
   onOpenLiveSpaces,
+  onStartDM,
 }) {
   const [posts, setPosts] = useState([
     {
       id: 'p1',
       author: {
+        id: 'u-sarah',
         name: 'Sarah Chen',
         username: 'schen_ai',
         avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&auto=format&fit=crop&q=80',
+        followersCount: 42,
+        bio: 'Senior studying AI & Computational Neuroscience · Passionate about vector calculus & transformers.',
       },
       tag: '#CalculusIII',
       text: 'Just finished deriving Stokes’ Theorem with vector line integrals! 📐 Remember: boundary orientation must always match the surface normal by the right-hand rule.',
@@ -28,9 +33,12 @@ export default function ChatterFeedView({
     {
       id: 'p2',
       author: {
+        id: 'u-alex',
         name: 'Alex Rivera',
         username: 'arivera_cs',
         avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
+        followersCount: 31,
+        bio: 'Computer Science Major · Building open-source machine learning tooling.',
       },
       tag: '#DeepLearning',
       text: 'Quick tip for training Transformers: Always normalize your layer inputs before Multi-Head Attention (Pre-LN) for smoother gradients and no warmup spikes! 🚀',
@@ -42,9 +50,12 @@ export default function ChatterFeedView({
     {
       id: 'p3',
       author: {
+        id: 'u-emily',
         name: 'Emily Watson',
         username: 'em_bio',
         avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
+        followersCount: 56,
+        bio: 'Pre-Med Scholar · Biochemistry & Cellular Biology study groups.',
       },
       tag: '#Biochemistry',
       text: 'Citric Acid Cycle study group starting in 15 minutes in the Live Audio Space! Jump in if you need a quick review for tomorrow’s midterm. 🧬🔬',
@@ -55,9 +66,15 @@ export default function ChatterFeedView({
     },
   ]);
 
+  const [followingMap, setFollowingMap] = useState({});
+  const [profileModalUser, setProfileModalUser] = useState(null);
+
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [newPostText, setNewPostText] = useState('');
   const [newPostTag, setNewPostTag] = useState('#GeneralStudy');
+  const [attachedImage, setAttachedImage] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef(null);
 
   const handleLike = (id) => {
     setPosts((prev) =>
@@ -75,6 +92,26 @@ export default function ChatterFeedView({
     );
   };
 
+  const handleToggleFollow = (authorId) => {
+    setFollowingMap((prev) => ({
+      ...prev,
+      [authorId]: !prev[authorId],
+    }));
+  };
+
+  const handleImageFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAttachedImage(reader.result);
+      setUploadingImage(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleCreatePost = (e) => {
     e.preventDefault();
     if (!newPostText.trim()) return;
@@ -82,12 +119,16 @@ export default function ChatterFeedView({
     const newPost = {
       id: `p-${Date.now()}`,
       author: {
+        id: userId || 'me',
         name: profile?.name || 'You',
         username: profile?.username || 'scholar',
         avatar_url: profile?.avatar_url || null,
+        followersCount: 1,
+        bio: 'Study enthusiast',
       },
       tag: newPostTag.startsWith('#') ? newPostTag : `#${newPostTag}`,
       text: newPostText,
+      attachmentUrl: attachedImage,
       timestamp: 'Just now',
       likes: 0,
       liked: false,
@@ -96,6 +137,7 @@ export default function ChatterFeedView({
 
     setPosts([newPost, ...posts]);
     setNewPostText('');
+    setAttachedImage(null);
     setCreateModalOpen(false);
   };
 
@@ -108,101 +150,134 @@ export default function ChatterFeedView({
 
       {/* ── 2. Chatter Social Posts Stream ── */}
       <div style={{ marginTop: 8 }}>
-        {posts.map((post) => (
-          <article key={post.id} className="chatter-post-card">
-            {/* Header: Author + Meta */}
-            <div className="chatter-post-header">
-              <div className="chatter-post-author">
-                {post.author.avatar_url ? (
-                  <img
-                    src={post.author.avatar_url}
-                    alt={post.author.name}
-                    className="chatter-post-avatar"
-                  />
-                ) : (
-                  <div
-                    className="chatter-post-avatar"
-                    style={{
-                      background: '#2A2A2A',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: 700,
-                      color: 'var(--chatter-primary)',
-                      fontSize: 16,
-                    }}
-                  >
-                    {post.author.name[0]}
+        {posts.map((post) => {
+          const isFollowing = Boolean(followingMap[post.author.id]);
+          const isMe = post.author.id === userId || post.author.id === 'me';
+          return (
+            <article key={post.id} className="chatter-post-card">
+              {/* Header: Author + Follow Button + Tag */}
+              <div className="chatter-post-header">
+                <div
+                  className="chatter-post-author"
+                  onClick={() => setProfileModalUser(post.author)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  {post.author.avatar_url ? (
+                    <img
+                      src={post.author.avatar_url}
+                      alt={post.author.name}
+                      className="chatter-post-avatar"
+                    />
+                  ) : (
+                    <div
+                      className="chatter-post-avatar"
+                      style={{
+                        background: '#2A2A2A',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 700,
+                        color: 'var(--chatter-primary)',
+                        fontSize: 16,
+                      }}
+                    >
+                      {post.author.name[0]}
+                    </div>
+                  )}
+                  <div>
+                    <div className="chatter-post-name" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>{post.author.name}</span>
+                      <span style={{ color: 'var(--chatter-bluetick)', fontSize: 13 }}>✓</span>
+                    </div>
+                    <div className="chatter-post-meta">
+                      @{post.author.username} · {post.timestamp}
+                    </div>
                   </div>
-                )}
-                <div>
-                  <div className="chatter-post-name">{post.author.name}</div>
-                  <div className="chatter-post-meta">
-                    @{post.author.username} · {post.timestamp}
-                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {/* Chatter Follow Button */}
+                  {!isMe && (
+                    <button
+                      type="button"
+                      onClick={() => handleToggleFollow(post.author.id)}
+                      style={{
+                        padding: '5px 13px',
+                        borderRadius: 16,
+                        background: isFollowing ? 'transparent' : 'rgba(64, 227, 120, 0.12)',
+                        border: isFollowing ? '1px solid rgba(255, 255, 255, 0.15)' : '1px solid rgba(64, 227, 120, 0.3)',
+                        color: isFollowing ? 'var(--chatter-light-text)' : 'var(--chatter-primary)',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {isFollowing ? '✓ Following' : '+ Follow'}
+                    </button>
+                  )}
+                  {/* Tag Pill */}
+                  <span className="chatter-hashtag">{post.tag}</span>
                 </div>
               </div>
 
-              {/* Tag Pill */}
-              <span className="chatter-hashtag">{post.tag}</span>
-            </div>
+              {/* Post Content */}
+              <p className="chatter-post-body">{post.text}</p>
 
-            {/* Post Content */}
-            <p className="chatter-post-body">{post.text}</p>
+              {/* Media Attachment (Image) */}
+              {post.attachmentUrl && (
+                <div style={{ marginBottom: 12, borderRadius: 14, overflow: 'hidden', maxHeight: 380, border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <img
+                    src={post.attachmentUrl}
+                    alt="Post attachment"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  />
+                </div>
+              )}
 
-            {/* Optional Media Attachment */}
-            {post.attachmentUrl && (
-              <div style={{ marginBottom: 12, borderRadius: 12, overflow: 'hidden', maxHeight: 340 }}>
-                <img
-                  src={post.attachmentUrl}
-                  alt="Post attachment"
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-              </div>
-            )}
-
-            {/* Bottom Actions Bar (Heart, Comment, Share) */}
-            <div className="chatter-post-actions">
-              <button
-                type="button"
-                className={`chatter-post-action-btn ${post.liked ? 'chatter-post-action-btn--liked' : ''}`}
-                onClick={() => handleLike(post.id)}
-                aria-label="Like post"
-              >
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill={post.liked ? 'currentColor' : 'none'}
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+              {/* Bottom Actions Bar (Heart, Comment, Share) */}
+              <div className="chatter-post-actions">
+                <button
+                  type="button"
+                  className={`chatter-post-action-btn ${post.liked ? 'chatter-post-action-btn--liked' : ''}`}
+                  onClick={() => handleLike(post.id)}
+                  aria-label="Like post"
                 >
-                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                </svg>
-                <span>{post.likes}</span>
-              </button>
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill={post.liked ? 'currentColor' : 'none'}
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                  </svg>
+                  <span>{post.likes}</span>
+                </button>
 
-              <button type="button" className="chatter-post-action-btn" aria-label="Comment">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
-                <span>{post.comments}</span>
-              </button>
+                <button type="button" className="chatter-post-action-btn" aria-label="Comment">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
+                  <span>{post.comments}</span>
+                </button>
 
-              <button type="button" className="chatter-post-action-btn" aria-label="Share">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="18" cy="5" r="3" />
-                  <circle cx="6" cy="12" r="3" />
-                  <circle cx="18" cy="19" r="3" />
-                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-                </svg>
-              </button>
-            </div>
-          </article>
-        ))}
+                <button type="button" className="chatter-post-action-btn" aria-label="Share">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="18" cy="5" r="3" />
+                    <circle cx="6" cy="12" r="3" />
+                    <circle cx="18" cy="19" r="3" />
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                  </svg>
+                </button>
+              </div>
+            </article>
+          );
+        })}
       </div>
 
       {/* ── 3. Chatter Floating Action Button (+) ── */}
@@ -219,7 +294,7 @@ export default function ChatterFeedView({
         </svg>
       </button>
 
-      {/* ── 4. Create Post Modal ── */}
+      {/* ── 4. Create Post Modal with Image Upload ── */}
       {createModalOpen && (
         <div
           style={{
@@ -239,17 +314,17 @@ export default function ChatterFeedView({
             style={{
               background: 'var(--chatter-sheet)',
               border: '1px solid rgba(255, 255, 255, 0.1)',
-              borderRadius: 20,
+              borderRadius: 22,
               padding: 24,
-              maxWidth: 500,
+              maxWidth: 520,
               width: '100%',
-              boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
+              boxShadow: '0 16px 48px rgba(0,0,0,0.7)',
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <h3 style={{ fontSize: 18, fontWeight: 700, color: '#fff', margin: 0 }}>
-                Share Study Notes & Thoughts
+                Share Study Post & Resources
               </h3>
               <button
                 type="button"
@@ -261,7 +336,7 @@ export default function ChatterFeedView({
             </div>
 
             <form onSubmit={handleCreatePost}>
-              <div style={{ marginBottom: 12 }}>
+              <div style={{ marginBottom: 14 }}>
                 <input
                   type="text"
                   placeholder="Subject Tag (e.g. #OrganicChemistry)"
@@ -270,7 +345,7 @@ export default function ChatterFeedView({
                   style={{
                     width: '100%',
                     padding: '10px 14px',
-                    borderRadius: 10,
+                    borderRadius: 12,
                     background: '#141414',
                     border: '1px solid rgba(255, 255, 255, 0.1)',
                     color: 'var(--chatter-primary)',
@@ -282,13 +357,13 @@ export default function ChatterFeedView({
                 />
                 <textarea
                   rows={4}
-                  placeholder="What are you studying or discovering right now?"
+                  placeholder="What notes, key takeaways, or study insights are you sharing?"
                   value={newPostText}
                   onChange={(e) => setNewPostText(e.target.value)}
                   style={{
                     width: '100%',
                     padding: '12px 14px',
-                    borderRadius: 10,
+                    borderRadius: 12,
                     background: '#141414',
                     border: '1px solid rgba(255, 255, 255, 0.1)',
                     color: '#fff',
@@ -299,13 +374,74 @@ export default function ChatterFeedView({
                 />
               </div>
 
+              {/* Image attachment preview or upload button */}
+              {attachedImage ? (
+                <div style={{ position: 'relative', marginBottom: 14, borderRadius: 12, overflow: 'hidden', maxHeight: 180 }}>
+                  <img src={attachedImage} alt="Attachment" style={{ width: '100%', maxHeight: 180, objectFit: 'cover' }} />
+                  <button
+                    type="button"
+                    onClick={() => setAttachedImage(null)}
+                    style={{
+                      position: 'absolute',
+                      top: 8,
+                      right: 8,
+                      background: 'rgba(0,0,0,0.7)',
+                      border: 'none',
+                      color: '#fff',
+                      borderRadius: '50%',
+                      width: 28,
+                      height: 28,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <div style={{ marginBottom: 16 }}>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={handleImageFileChange}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '10px 16px',
+                      borderRadius: 12,
+                      background: 'rgba(255, 255, 255, 0.06)',
+                      border: '1px dashed rgba(255, 255, 255, 0.2)',
+                      color: 'var(--chatter-light-text)',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      width: '100%',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                      <circle cx="8.5" cy="8.5" r="1.5" />
+                      <polyline points="21 15 16 10 5 21" />
+                    </svg>
+                    <span>{uploadingImage ? 'Loading Image...' : 'Attach Image or Notes Photo'}</span>
+                  </button>
+                </div>
+              )}
+
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
                 <button
                   type="button"
                   onClick={() => setCreateModalOpen(false)}
                   style={{
                     padding: '10px 18px',
-                    borderRadius: 10,
+                    borderRadius: 12,
                     background: 'transparent',
                     border: '1px solid rgba(255, 255, 255, 0.15)',
                     color: '#979797',
@@ -317,10 +453,10 @@ export default function ChatterFeedView({
                 </button>
                 <button
                   type="submit"
-                  disabled={!newPostText.trim()}
+                  disabled={!newPostText.trim() || uploadingImage}
                   style={{
-                    padding: '10px 22px',
-                    borderRadius: 10,
+                    padding: '10px 24px',
+                    borderRadius: 12,
                     background: 'var(--chatter-primary)',
                     border: 'none',
                     color: '#0E0E0E',
@@ -335,6 +471,16 @@ export default function ChatterFeedView({
             </form>
           </div>
         </div>
+      )}
+
+      {/* ── 5. User Profile Modal ── */}
+      {profileModalUser && (
+        <ChatterUserProfileModal
+          targetUser={profileModalUser}
+          currentUserId={userId}
+          onClose={() => setProfileModalUser(null)}
+          onStartDM={onStartDM}
+        />
       )}
     </div>
   );

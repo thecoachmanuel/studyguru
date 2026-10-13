@@ -149,12 +149,13 @@ export default function ChatterRoomsView({
               <button
                 type="button"
                 onClick={() => {
-                  // If a server has voice channels, join the first available voice channel
                   const serverWithVoice = servers.find((s) => s.channels?.some((c) => c.type === 'voice'));
-                  if (serverWithVoice) {
-                    const voiceChan = serverWithVoice.channels.find((c) => c.type === 'voice');
-                    onJoinVoiceChannel?.(serverWithVoice.id, voiceChan.id, voiceChan.name);
-                  }
+                  const voiceChan = serverWithVoice?.channels?.find((c) => c.type === 'voice');
+                  onJoinVoiceChannel?.(
+                    serverWithVoice?.id || space.id,
+                    voiceChan?.id || space.id,
+                    voiceChan?.name || space.title
+                  );
                 }}
                 style={{
                   padding: '8px 16px',
