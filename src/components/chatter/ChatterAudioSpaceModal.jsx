@@ -16,6 +16,7 @@ export default function ChatterAudioSpaceModal({
   const {
     participants = [],
     micConnected,
+    isMuted = false,
     loading,
     joining,
     error,
@@ -70,21 +71,38 @@ export default function ChatterAudioSpaceModal({
     }
   };
 
-  // Find local user in participants
-  const localParticipant = participants.find((p) => p.userId === userId) || {
-    userId,
-    name: profile?.name || 'You',
-    avatar_url: profile?.avatar_url,
-    speaking: false,
-    micMuted: !micConnected,
-  };
+  // Standardize participants list across both schema formats
+  const normalizedParticipants = participants.map((p) => {
+    const isMe = String(p.user_id || p.userId) === String(userId);
+    return {
+      userId: p.user_id || p.userId,
+      name: isMe
+        ? (profile?.full_name || profile?.name || 'You')
+        : (p.profiles?.full_name || p.profiles?.username || p.name || 'Scholar'),
+      avatar_url: isMe
+        ? (profile?.avatar_url || null)
+        : (p.profiles?.avatar_url || p.avatar_url || null),
+      speaking: isMe ? !isMuted : (!p.is_muted && p.speaking !== false),
+      isMuted: isMe ? isMuted : (p.is_muted ?? false),
+    };
+  });
 
-  // Group participants into Speakers (unmuted or local) and Listeners (muted)
-  const speakers = participants.length > 0
-    ? participants.filter((p) => !p.micMuted || p.speaking || p.userId === userId)
-    : [localParticipant];
+  const hasLocal = normalizedParticipants.some((p) => String(p.userId) === String(userId));
+  const fullParticipants = hasLocal
+    ? normalizedParticipants
+    : [
+        {
+          userId,
+          name: profile?.full_name || profile?.name || 'You',
+          avatar_url: profile?.avatar_url || null,
+          speaking: !isMuted,
+          isMuted,
+        },
+        ...normalizedParticipants,
+      ];
 
-  const listeners = participants.filter((p) => p.micMuted && !p.speaking && p.userId !== userId);
+  const speakers = fullParticipants.filter((p) => !p.isMuted);
+  const listeners = fullParticipants.filter((p) => p.isMuted);
 
   // Local video ref
   const localVideoRef = useRef(null);
@@ -230,13 +248,15 @@ export default function ChatterAudioSpaceModal({
                 <div
                   style={{
                     position: 'relative',
-                    borderRadius: 18,
+                    borderRadius: 20,
                     overflow: 'hidden',
                     background: '#111',
-                    border: micConnected ? '2px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.1)',
-                    boxShadow: micConnected ? '0 0 16px rgba(64, 227, 120, 0.4)' : 'none',
-                    aspectRatio: '16/9',
-                    minHeight: 180,
+                    border: !isMuted ? '2px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.1)',
+                    boxShadow: !isMuted ? '0 0 16px rgba(64, 227, 120, 0.4)' : 'none',
+                    aspectRatio: isScreenSharing ? '16/9' : '1/1',
+                    maxWidth: isScreenSharing ? '100%' : 360,
+                    margin: '0 auto',
+                    width: '100%',
                   }}
                 >
                   <video
@@ -244,7 +264,14 @@ export default function ChatterAudioSpaceModal({
                     autoPlay
                     playsInline
                     muted
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: isScreenSharing ? 'contain' : 'cover',
+                      objectPosition: 'center center',
+                      display: 'block',
+                      transform: isScreenSharing ? 'none' : 'scaleX(-1)',
+                    }}
                   />
                   <div
                     style={{
@@ -302,8 +329,8 @@ export default function ChatterAudioSpaceModal({
             }}
           >
             {speakers.map((speaker, index) => {
-              const isSpeaking = speaker.speaking || (speaker.userId === userId && micConnected);
-              const isMe = speaker.userId === userId;
+              const isMe = String(speaker.userId) === String(userId);
+              const isSpeaking = speaker.speaking;
               return (
                 <div key={speaker.userId || index} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
                   {/* Avatar with Chatter Pulsing Emerald Ring */}
@@ -480,19 +507,19 @@ export default function ChatterAudioSpaceModal({
               width: 50,
               height: 50,
               borderRadius: '50%',
-              background: micConnected ? 'var(--chatter-primary)' : 'rgba(255, 255, 255, 0.1)',
-              color: micConnected ? '#0E0E0E' : '#fff',
+              background: !isMuted ? 'var(--chatter-primary)' : 'rgba(255, 255, 255, 0.1)',
+              color: !isMuted ? '#0E0E0E' : '#fff',
               border: 'none',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
-              boxShadow: micConnected ? '0 4px 16px rgba(64, 227, 120, 0.35)' : 'none',
+              boxShadow: !isMuted ? '0 4px 16px rgba(64, 227, 120, 0.35)' : 'none',
               transition: 'all 0.18s ease',
             }}
-            title={micConnected ? 'Mute Microphone' : 'Unmute Microphone'}
+            title={!isMuted ? 'Mute Microphone' : 'Unmute Microphone'}
           >
-            {micConnected ? (
+            {!isMuted ? (
               <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
                 <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
@@ -631,28 +658,29 @@ function RemoteVideoTile({ remoteUserId, stream, participant, isSpeaking }) {
     <div
       style={{
         position: 'relative',
-        borderRadius: 18,
+        borderRadius: 20,
         overflow: 'hidden',
         background: '#141414',
         border: isSpeaking ? '2px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
         boxShadow: isSpeaking ? '0 0 16px rgba(64, 227, 120, 0.4)' : 'none',
-        minHeight: 180,
-        height: '100%',
+        aspectRatio: '1/1',
+        maxWidth: 360,
+        margin: '0 auto',
+        width: '100%',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        aspectRatio: '16/9',
       }}
     >
       <video
         ref={videoRef}
         autoPlay
         playsInline
-        muted
         style={{
           width: '100%',
           height: '100%',
           objectFit: 'cover',
+          objectPosition: 'center center',
           display: hasVideo ? 'block' : 'none',
         }}
       />

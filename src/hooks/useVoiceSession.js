@@ -3,7 +3,22 @@ import { apiRequest } from '../lib/api';
 import { getPusherClient } from '../lib/pusherClient';
 
 const AUTOPLAY_WARNING = 'Your browser blocked automatic media playback. Click the page, then try again.';
-const PLAYBACK_RETRY_EVENTS = ['pointerdown', 'click', 'keydown'];
+const PLAYBACK_RETRY_EVENTS = ['pointerdown', 'click', 'keydown', 'touchstart'];
+
+const unlockAudioOnMobile = () => {
+  if (typeof window === 'undefined') return;
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (AudioCtx) {
+      if (!window.__studycord_audio_ctx) {
+        window.__studycord_audio_ctx = new AudioCtx();
+      }
+      if (window.__studycord_audio_ctx.state === 'suspended') {
+        window.__studycord_audio_ctx.resume().catch(() => {});
+      }
+    }
+  } catch {}
+};
 
 export function useVoiceSession(userId, profile = null) {
   const [joinedChannelId, setJoinedChannelId] = useState(null);
@@ -69,10 +84,13 @@ export function useVoiceSession(userId, profile = null) {
     participantsRef.current = participants;
   }, [participants]);
 
+  // Authoritative local mute state so remote sync never unexpectedly mutes local mic
+  const [isLocalMuted, setIsLocalMuted] = useState(false);
+  const isLocalMutedRef = useRef(false);
+
   // Derived variables
-  const myParticipant = participants.find((p) => p.user_id === userId);
   const isJoined = Boolean(joinedChannelId);
-  const isMuted = myParticipant?.is_muted ?? false;
+  const isMuted = isLocalMuted;
 
   const currentChannelIdRef = useRef(joinedChannelId);
   const currentUserIdRef = useRef(userId);
@@ -601,11 +619,14 @@ export function useVoiceSession(userId, profile = null) {
           audioElement.autoplay = true;
           audioElement.playsInline = true;
           audioElement.muted = false;
-          audioElement.style.display = 'none';
+          audioElement.setAttribute('playsinline', 'true');
+          audioElement.setAttribute('webkit-playsinline', 'true');
+          audioElement.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;opacity:0.01;pointer-events:none;';
           document.body.appendChild(audioElement);
         }
         audioElement.srcObject = remoteStream;
         playRemoteMedia(audioElement);
+        unlockAudioOnMobile();
       }
 
       setRemoteStreams((prev) => ({ ...prev, [otherUserId]: remoteStream }));
@@ -1204,13 +1225,14 @@ export function useVoiceSession(userId, profile = null) {
           audio: false,
           video: {
             facingMode: 'user',
-            width: { ideal: 1280, max: 1920 },
-            height: { ideal: 720, max: 1080 },
+            width: { ideal: 720 },
+            height: { ideal: 720 },
+            aspectRatio: { ideal: 1.0 },
             frameRate: { ideal: 24, max: 30 },
           },
         });
       } catch (err1) {
-        console.warn('[WebRTC] HD camera constraint rejected, falling back to basic user-facing:', err1);
+        console.warn('[WebRTC] Square camera constraint rejected, falling back to basic user-facing:', err1);
         try {
           cameraStream = await navigator.mediaDevices.getUserMedia({
             audio: false,
@@ -1360,26 +1382,22 @@ export function useVoiceSession(userId, profile = null) {
       }
 
       setParticipants((prev) => {
-        // Optimistically ensure local user remains present
-        const hasMe = activeRemote.some((p) => p.user_id === userId);
-        if (!hasMe && userId) {
-          const localEntry = prev.find((p) => p.user_id === userId) || {
-            id: `vp-${joinedChannelId}-${userId}`,
-            channel_id: joinedChannelId,
-            server_id: joinedServerId,
-            user_id: userId,
-            is_muted: isMuted,
-            joined_at: new Date().toISOString(),
-            last_seen: new Date().toISOString(),
-            profiles: {
-              username: profile?.username || 'You',
-              full_name: profile?.full_name || 'You',
-              avatar_url: profile?.avatar_url || null,
-            },
-          };
-          return [localEntry, ...activeRemote];
-        }
-        return activeRemote;
+        const localEntry = {
+          id: `vp-${joinedChannelId}-${userId}`,
+          channel_id: joinedChannelId,
+          server_id: joinedServerId,
+          user_id: userId,
+          is_muted: isLocalMutedRef.current,
+          joined_at: new Date().toISOString(),
+          last_seen: new Date().toISOString(),
+          profiles: {
+            username: profile?.username || 'You',
+            full_name: profile?.full_name || 'You',
+            avatar_url: profile?.avatar_url || null,
+          },
+        };
+        const remoteOthers = activeRemote.filter((p) => p.user_id !== userId);
+        return [localEntry, ...remoteOthers];
       });
     } catch (err) {
       console.warn('[VoiceSync] Participants fetch warning:', err);
@@ -1408,8 +1426,11 @@ export function useVoiceSession(userId, profile = null) {
     }
 
     if (!channelId || !userId) return;
+    unlockAudioOnMobile();
     setJoining(true);
     setError('');
+    setIsLocalMuted(false);
+    isLocalMutedRef.current = false;
 
     try {
       await initLocalAudio(false);
@@ -1512,7 +1533,9 @@ export function useVoiceSession(userId, profile = null) {
     if (!joinedChannelId || !userId) return;
     setError('');
 
-    const newMuteState = !isMuted;
+    const newMuteState = !isLocalMutedRef.current;
+    isLocalMutedRef.current = newMuteState;
+    setIsLocalMuted(newMuteState);
 
     if (localStreamRef.current) {
       localStreamRef.current.getAudioTracks().forEach((track) => {

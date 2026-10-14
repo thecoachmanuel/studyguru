@@ -399,8 +399,8 @@ export default function ChatterGuruView({
           id: `u-quiz-${Date.now()}`,
           role: 'user',
           content: isRegen
-            ? `Generate a fresh, new 5-question CBT quiz on ${targetDocName}.`
-            : `Generate a 5-question multiple choice quiz on ${targetDocName}.`,
+            ? `Generate a fresh, new 5-question Quiz Assessment on ${targetDocName}.`
+            : `Generate a 5-question multiple choice Quiz Assessment on ${targetDocName}.`,
           timestamp: 'Now',
         },
       ]);
@@ -1133,9 +1133,9 @@ export default function ChatterGuruView({
                     <ChatMarkdownMessage content={m.content} />
                   )}
 
-                  {/* Interactive CBT Quiz Component */}
+                  {/* Interactive Quiz Assessment Component */}
                   {m.quizData && (
-                    <CbtQuizCard
+                    <QuizAssessmentCard
                       messageId={m.id}
                       questions={m.quizData}
                       onRegenerate={() => handleGenerateMCQ(selectedDocId, null, m.id)}
@@ -1338,12 +1338,13 @@ export default function ChatterGuruView({
   );
 }
 
-// Subcomponent: CBT Standard Examination & Quiz Component
-function CbtQuizCard({ questions = [], onRegenerate, messageId }) {
+// Subcomponent: Quiz Assessment Component with Expandable Fullscreen Support
+function QuizAssessmentCard({ questions = [], onRegenerate, messageId }) {
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Automatically reset quiz state when fresh questions arrive
   const questionsKey = Array.isArray(questions)
@@ -1356,6 +1357,22 @@ function CbtQuizCard({ questions = [], onRegenerate, messageId }) {
     setIsSubmitted(false);
     setRegenerating(false);
   }, [questionsKey]);
+
+  // Keyboard navigation when in fullscreen
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setIsFullscreen(false);
+      } else if (e.key === 'ArrowRight') {
+        setCurrentQIndex((i) => Math.min(questions.length - 1, i + 1));
+      } else if (e.key === 'ArrowLeft') {
+        setCurrentQIndex((i) => Math.max(0, i - 1));
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFullscreen, questions.length]);
 
   if (!Array.isArray(questions) || questions.length === 0) return null;
 
@@ -1405,94 +1422,9 @@ function CbtQuizCard({ questions = [], onRegenerate, messageId }) {
     }
   };
 
-  return (
-    <div
-      style={{
-        background: '#121212',
-        borderRadius: 20,
-        padding: 16,
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-        marginTop: 12,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 14,
-      }}
-    >
-      {/* Top CBT Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 14, fontWeight: 800, color: '#fff' }}>
-            📝 CBT Assessment
-          </span>
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              padding: '2px 8px',
-              borderRadius: 12,
-              background: isSubmitted ? 'rgba(64, 227, 120, 0.15)' : 'rgba(255, 255, 255, 0.08)',
-              color: isSubmitted ? 'var(--chatter-primary)' : 'var(--chatter-light-text)',
-            }}
-          >
-            {isSubmitted ? 'Completed' : `Answered: ${answeredCount}/${totalQuestions}`}
-          </span>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {onRegenerate && (
-            <button
-              type="button"
-              onClick={handleRegenerateClick}
-              disabled={regenerating}
-              title="Generate new quiz questions from document"
-              style={{
-                padding: '4px 10px',
-                borderRadius: 12,
-                background: regenerating ? 'rgba(64, 227, 120, 0.15)' : 'rgba(255, 255, 255, 0.06)',
-                border: regenerating ? '1px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
-                color: regenerating ? 'var(--chatter-primary)' : 'var(--chatter-light-text)',
-                fontSize: 11.5,
-                fontWeight: 600,
-                cursor: regenerating ? 'wait' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 5,
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <span
-                style={{
-                  display: 'inline-block',
-                  animation: regenerating ? 'chatter-spin 0.8s linear infinite' : 'none',
-                }}
-              >
-                ↺
-              </span>
-              <span>{regenerating ? 'Generating...' : 'New Quiz'}</span>
-            </button>
-          )}
-          {isSubmitted && (
-            <button
-              type="button"
-              onClick={handleRetake}
-              style={{
-                padding: '4px 10px',
-                borderRadius: 12,
-                background: 'rgba(64, 227, 120, 0.15)',
-                border: '1px solid rgba(64, 227, 120, 0.3)',
-                color: 'var(--chatter-primary)',
-                fontSize: 11.5,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              Retake
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* CBT Question Palette (Numbered questions bar) */}
+  const renderQuizContent = (fullscreen = false) => (
+    <>
+      {/* Quiz Question Palette (Numbered questions bar) */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
         {questions.map((q, idx) => {
           const isCurrent = currentQIndex === idx;
@@ -1521,13 +1453,13 @@ function CbtQuizCard({ questions = [], onRegenerate, messageId }) {
               type="button"
               onClick={() => setCurrentQIndex(idx)}
               style={{
-                width: 32,
-                height: 32,
+                width: fullscreen ? 38 : 32,
+                height: fullscreen ? 38 : 32,
                 borderRadius: 10,
                 background: pillBg,
                 border: pillBorder,
                 color: pillColor,
-                fontSize: 12.5,
+                fontSize: fullscreen ? 14 : 12.5,
                 fontWeight: 700,
                 display: 'flex',
                 alignItems: 'center',
@@ -1550,7 +1482,7 @@ function CbtQuizCard({ questions = [], onRegenerate, messageId }) {
             background: 'linear-gradient(135deg, rgba(64, 227, 120, 0.12) 0%, rgba(20, 20, 20, 0.9) 100%)',
             border: '1.5px solid var(--chatter-primary)',
             borderRadius: 16,
-            padding: '14px 18px',
+            padding: fullscreen ? '18px 24px' : '14px 18px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -1560,11 +1492,11 @@ function CbtQuizCard({ questions = [], onRegenerate, messageId }) {
             <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--chatter-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Final Test Result
             </div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: '#fff', marginTop: 2 }}>
+            <div style={{ fontSize: fullscreen ? 26 : 22, fontWeight: 800, color: '#fff', marginTop: 2 }}>
               Score: {correctCount} / {totalQuestions} <span style={{ fontSize: 16, color: 'var(--chatter-primary)' }}>({percentage}%)</span>
             </div>
           </div>
-          <div style={{ textAlign: 'right', fontSize: 13, fontWeight: 700, color: percentage >= 80 ? 'var(--chatter-primary)' : '#fff' }}>
+          <div style={{ textAlign: 'right', fontSize: fullscreen ? 15 : 13, fontWeight: 700, color: percentage >= 80 ? 'var(--chatter-primary)' : '#fff' }}>
             {percentage >= 80 ? '🎯 Outstanding Mastery!' : percentage >= 60 ? '👍 Good Competency' : '📚 Review Solutions Below'}
           </div>
         </div>
@@ -1575,19 +1507,19 @@ function CbtQuizCard({ questions = [], onRegenerate, messageId }) {
         style={{
           background: '#181818',
           borderRadius: 16,
-          padding: 16,
+          padding: fullscreen ? '24px 28px' : '16px',
           border: '1px solid rgba(255, 255, 255, 0.06)',
         }}
       >
-        <div style={{ fontSize: 11.5, color: 'var(--chatter-light-text)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>
+        <div style={{ fontSize: fullscreen ? 13 : 11.5, color: 'var(--chatter-light-text)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>
           Question {currentQIndex + 1} of {totalQuestions}
         </div>
-        <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', lineHeight: 1.5, marginBottom: 14 }}>
+        <div style={{ fontSize: fullscreen ? 18.5 : 15, fontWeight: 700, color: '#fff', lineHeight: 1.5, marginBottom: fullscreen ? 18 : 14 }}>
           {currentQ.question}
         </div>
 
         {/* Options */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: fullscreen ? 12 : 8 }}>
           {currentQ.options?.map((opt, i) => {
             const letter = String.fromCharCode(65 + i); // 'A', 'B', 'C', 'D'
             const isSelected = selectedAnswers[currentQIndex] === opt;
@@ -1622,14 +1554,14 @@ function CbtQuizCard({ questions = [], onRegenerate, messageId }) {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 10,
+                  gap: 12,
                   textAlign: 'left',
-                  padding: '10px 14px',
-                  borderRadius: 12,
+                  padding: fullscreen ? '14px 18px' : '10px 14px',
+                  borderRadius: 14,
                   background: optBg,
                   border: optBorder,
                   color: optColor,
-                  fontSize: 13,
+                  fontSize: fullscreen ? 15 : 13,
                   fontWeight: 600,
                   cursor: isSubmitted ? 'default' : 'pointer',
                   transition: 'all 0.15s ease',
@@ -1637,15 +1569,15 @@ function CbtQuizCard({ questions = [], onRegenerate, messageId }) {
               >
                 <span
                   style={{
-                    width: 24,
-                    height: 24,
+                    width: fullscreen ? 28 : 24,
+                    height: fullscreen ? 28 : 24,
                     borderRadius: '50%',
                     background: isSelected ? 'var(--chatter-primary)' : 'rgba(255, 255, 255, 0.1)',
                     color: isSelected ? '#0E0E0E' : '#fff',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: 11,
+                    fontSize: fullscreen ? 13 : 11,
                     fontWeight: 800,
                     flexShrink: 0,
                   }}
@@ -1653,8 +1585,8 @@ function CbtQuizCard({ questions = [], onRegenerate, messageId }) {
                   {letter}
                 </span>
                 <span style={{ flex: 1 }}>{opt}</span>
-                {isSubmitted && isCorrect && <span style={{ fontSize: 13 }}>✓</span>}
-                {isSubmitted && isSelected && !isCorrect && <span style={{ fontSize: 13 }}>✗</span>}
+                {isSubmitted && isCorrect && <span style={{ fontSize: 14 }}>✓</span>}
+                {isSubmitted && isSelected && !isCorrect && <span style={{ fontSize: 14 }}>✗</span>}
               </button>
             );
           })}
@@ -1664,13 +1596,13 @@ function CbtQuizCard({ questions = [], onRegenerate, messageId }) {
         {isSubmitted && currentQ.explanation && (
           <div
             style={{
-              marginTop: 14,
-              padding: '10px 14px',
-              borderRadius: 12,
+              marginTop: 16,
+              padding: fullscreen ? '14px 18px' : '10px 14px',
+              borderRadius: 14,
               background: 'rgba(64, 227, 120, 0.08)',
               border: '1px solid rgba(64, 227, 120, 0.2)',
-              fontSize: 13,
-              lineHeight: 1.55,
+              fontSize: fullscreen ? 14.5 : 13,
+              lineHeight: 1.6,
               color: '#fff',
             }}
           >
@@ -1682,19 +1614,19 @@ function CbtQuizCard({ questions = [], onRegenerate, messageId }) {
         )}
       </div>
 
-      {/* CBT Action Bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      {/* Quiz Action Bar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
         <button
           type="button"
           onClick={() => setCurrentQIndex((i) => Math.max(0, i - 1))}
           disabled={currentQIndex === 0}
           style={{
-            padding: '8px 16px',
+            padding: fullscreen ? '10px 20px' : '8px 16px',
             borderRadius: 14,
             background: currentQIndex === 0 ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.08)',
             border: 'none',
             color: currentQIndex === 0 ? 'rgba(255, 255, 255, 0.25)' : '#fff',
-            fontSize: 13,
+            fontSize: fullscreen ? 14 : 13,
             fontWeight: 700,
             cursor: currentQIndex === 0 ? 'not-allowed' : 'pointer',
           }}
@@ -1709,12 +1641,12 @@ function CbtQuizCard({ questions = [], onRegenerate, messageId }) {
                 type="button"
                 onClick={() => setCurrentQIndex((i) => Math.min(totalQuestions - 1, i + 1))}
                 style={{
-                  padding: '8px 18px',
+                  padding: fullscreen ? '10px 22px' : '8px 18px',
                   borderRadius: 14,
                   background: 'rgba(255, 255, 255, 0.08)',
                   border: 'none',
                   color: '#fff',
-                  fontSize: 13,
+                  fontSize: fullscreen ? 14 : 13,
                   fontWeight: 700,
                   cursor: 'pointer',
                 }}
@@ -1727,18 +1659,18 @@ function CbtQuizCard({ questions = [], onRegenerate, messageId }) {
               type="button"
               onClick={handleSubmitQuiz}
               style={{
-                padding: '8px 20px',
+                padding: fullscreen ? '10px 26px' : '8px 20px',
                 borderRadius: 14,
                 background: 'var(--chatter-primary)',
                 border: 'none',
                 color: '#0E0E0E',
-                fontSize: 13,
+                fontSize: fullscreen ? 14.5 : 13,
                 fontWeight: 800,
                 cursor: 'pointer',
                 boxShadow: '0 4px 14px rgba(64, 227, 120, 0.3)',
               }}
             >
-              Submit CBT Test ✓
+              Submit Quiz Assessment ✓
             </button>
           </div>
         ) : (
@@ -1747,12 +1679,12 @@ function CbtQuizCard({ questions = [], onRegenerate, messageId }) {
             onClick={() => setCurrentQIndex((i) => Math.min(totalQuestions - 1, i + 1))}
             disabled={currentQIndex === totalQuestions - 1}
             style={{
-              padding: '8px 18px',
+              padding: fullscreen ? '10px 22px' : '8px 18px',
               borderRadius: 14,
               background: currentQIndex === totalQuestions - 1 ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.08)',
               border: 'none',
               color: currentQIndex === totalQuestions - 1 ? 'rgba(255, 255, 255, 0.25)' : '#fff',
-              fontSize: 13,
+              fontSize: fullscreen ? 14 : 13,
               fontWeight: 700,
               cursor: currentQIndex === totalQuestions - 1 ? 'not-allowed' : 'pointer',
             }}
@@ -1761,7 +1693,223 @@ function CbtQuizCard({ questions = [], onRegenerate, messageId }) {
           </button>
         )}
       </div>
-    </div>
+    </>
+  );
+
+  return (
+    <>
+      <div
+        style={{
+          background: '#121212',
+          borderRadius: 20,
+          padding: 16,
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          marginTop: 12,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 14,
+        }}
+      >
+        {/* Top Quiz Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 14, fontWeight: 800, color: '#fff' }}>
+              📝 Quiz Assessment
+            </span>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                padding: '2px 8px',
+                borderRadius: 12,
+                background: isSubmitted ? 'rgba(64, 227, 120, 0.15)' : 'rgba(255, 255, 255, 0.08)',
+                color: isSubmitted ? 'var(--chatter-primary)' : 'var(--chatter-light-text)',
+              }}
+            >
+              {isSubmitted ? 'Completed' : `Answered: ${answeredCount}/${totalQuestions}`}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {onRegenerate && (
+              <button
+                type="button"
+                onClick={handleRegenerateClick}
+                disabled={regenerating}
+                title="Generate new quiz questions from document"
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: 12,
+                  background: regenerating ? 'rgba(64, 227, 120, 0.15)' : 'rgba(255, 255, 255, 0.06)',
+                  border: regenerating ? '1px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
+                  color: regenerating ? 'var(--chatter-primary)' : 'var(--chatter-light-text)',
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  cursor: regenerating ? 'wait' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <span
+                  style={{
+                    display: 'inline-block',
+                    animation: regenerating ? 'chatter-spin 0.8s linear infinite' : 'none',
+                  }}
+                >
+                  ↺
+                </span>
+                <span>{regenerating ? 'Generating...' : 'New Quiz'}</span>
+              </button>
+            )}
+
+            {isSubmitted && (
+              <button
+                type="button"
+                onClick={handleRetake}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: 12,
+                  background: 'rgba(64, 227, 120, 0.15)',
+                  border: '1px solid rgba(64, 227, 120, 0.3)',
+                  color: 'var(--chatter-primary)',
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Retake
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setIsFullscreen(true)}
+              title="Expand Quiz Assessment to Fullscreen"
+              style={{
+                padding: '4px 10px',
+                borderRadius: 12,
+                background: 'rgba(64, 227, 120, 0.15)',
+                border: '1px solid rgba(64, 227, 120, 0.3)',
+                color: 'var(--chatter-primary)',
+                fontSize: 12,
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                cursor: 'pointer',
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+              </svg>
+              <span>Expand</span>
+            </button>
+          </div>
+        </div>
+
+        {renderQuizContent(false)}
+      </div>
+
+      {/* Fullscreen Immersive Quiz Modal Overlay */}
+      {isFullscreen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 10000,
+            background: 'rgba(10, 10, 10, 0.98)',
+            backdropFilter: 'blur(20px)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflowY: 'auto',
+            padding: 'calc(16px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom))',
+          }}
+        >
+          <div style={{ maxWidth: 840, width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 18 }}>
+            {/* Fullscreen Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>
+                  📝 Quiz Assessment
+                </span>
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    padding: '3px 10px',
+                    borderRadius: 14,
+                    background: isSubmitted ? 'rgba(64, 227, 120, 0.15)' : 'rgba(255, 255, 255, 0.08)',
+                    color: isSubmitted ? 'var(--chatter-primary)' : 'var(--chatter-light-text)',
+                  }}
+                >
+                  {isSubmitted ? 'Completed' : `Answered: ${answeredCount}/${totalQuestions}`}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {onRegenerate && (
+                  <button
+                    type="button"
+                    onClick={handleRegenerateClick}
+                    disabled={regenerating}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: 14,
+                      background: regenerating ? 'rgba(64, 227, 120, 0.15)' : 'rgba(255, 255, 255, 0.06)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      color: regenerating ? 'var(--chatter-primary)' : '#fff',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: regenerating ? 'wait' : 'pointer',
+                    }}
+                  >
+                    ↺ New Quiz
+                  </button>
+                )}
+                {isSubmitted && (
+                  <button
+                    type="button"
+                    onClick={handleRetake}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: 14,
+                      background: 'rgba(64, 227, 120, 0.15)',
+                      border: '1px solid rgba(64, 227, 120, 0.3)',
+                      color: 'var(--chatter-primary)',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Retake
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsFullscreen(false)}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: 14,
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    color: '#fff',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  ✕ Close
+                </button>
+              </div>
+            </div>
+
+            {renderQuizContent(true)}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

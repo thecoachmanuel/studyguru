@@ -85,12 +85,18 @@ export async function addOrUpdateParticipant({ channelId, serverId, user, isMute
   try {
     const pusher = getPusherServer();
     await pusher.trigger(`voice-channel-${channelId}`, 'participant-joined', participant);
+    const liveCount = participantsByChannel.get(channelId)?.size || 1;
     if (serverId) {
       await pusher.trigger(`voice-counts-${serverId}`, 'voice-counts-updated', {
         channelId,
-        count: participantsByChannel.get(channelId)?.size || 1,
+        count: liveCount,
       });
     }
+    await pusher.trigger('voice-counts-global', 'voice-counts-updated', {
+      channelId,
+      serverId: serverId || null,
+      count: liveCount,
+    });
   } catch {}
 
   return participant;
@@ -111,12 +117,18 @@ export async function removeParticipant({ channelId, userId, serverId }) {
   try {
     const pusher = getPusherServer();
     await pusher.trigger(`voice-channel-${channelId}`, 'participant-left', { user_id: userId });
+    const liveCount = participantsByChannel.get(channelId)?.size || 0;
     if (serverId) {
       await pusher.trigger(`voice-counts-${serverId}`, 'voice-counts-updated', {
         channelId,
-        count: participantsByChannel.get(channelId)?.size || 0,
+        count: liveCount,
       });
     }
+    await pusher.trigger('voice-counts-global', 'voice-counts-updated', {
+      channelId,
+      serverId: serverId || null,
+      count: liveCount,
+    });
   } catch {}
 
   return removed;
@@ -190,9 +202,8 @@ export async function getServerVoiceCounts(serverId) {
 
   for (const [chanId, userMap] of participantsByChannel.entries()) {
     if (userMap.size > 0) {
-      // Check if any participant matches serverId
       const first = userMap.values().next().value;
-      if (!serverId || first?.server_id === serverId) {
+      if (!serverId || serverId === 'all' || first?.server_id === serverId) {
         counts[chanId] = userMap.size;
       }
     }
@@ -201,8 +212,12 @@ export async function getServerVoiceCounts(serverId) {
   try {
     const db = await getDatabase();
     const cutoff = new Date(Date.now() - STALE_PARTICIPANT_TIMEOUT_MS).toISOString();
+    const query = { last_seen: { $gte: cutoff } };
+    if (serverId && serverId !== 'all') {
+      query.server_id = serverId;
+    }
     const rows = await db.collection('voice_participants')
-      .find({ server_id: serverId, last_seen: { $gte: cutoff } })
+      .find(query)
       .toArray();
     for (const r of rows) {
       counts[r.channel_id] = (counts[r.channel_id] || 0) + 1;

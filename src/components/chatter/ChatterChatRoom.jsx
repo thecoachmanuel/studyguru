@@ -660,7 +660,7 @@ export default function ChatterChatRoom({
                 position: 'relative',
               }}
             >
-              {!isMe && (
+              {!isMe && channelType !== 'dm' && (
                 <div
                   style={{
                     width: 34,
@@ -925,7 +925,7 @@ export default function ChatterChatRoom({
           </div>
         )}
 
-        {channelType === 'dm' && dmRequestStatus === 'pending' && requestedBy && String(requestedBy) === String(userId) && (
+        {channelType === 'dm' && dmRequestStatus === 'pending' && requestedBy && String(requestedBy) === String(userId) && messages.length > 0 && (
           <div
             style={{
               padding: '10px 14px',

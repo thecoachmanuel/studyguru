@@ -1,6 +1,5 @@
-'use client';
-
 import { useState, useEffect } from 'react';
+import { getPusherClient } from '../../lib/pusherClient';
 
 export default function ChatterRoomsView({
   servers = [],
@@ -38,6 +37,55 @@ export default function ChatterRoomsView({
   const [userFollowers, setUserFollowers] = useState(0);
   const [newSpaceTitle, setNewSpaceTitle] = useState('');
   const [newSpaceCategory, setNewSpaceCategory] = useState('Computer Science');
+  const [liveVoiceCounts, setLiveVoiceCounts] = useState({});
+
+  // Fetch active voice counts & subscribe to real-time participant changes
+  useEffect(() => {
+    let mounted = true;
+    const fetchCounts = async () => {
+      try {
+        const res = await fetch('/api/voice/active-counts');
+        if (res.ok) {
+          const data = await res.json();
+          if (mounted && data?.counts) {
+            setLiveVoiceCounts((prev) => ({ ...prev, ...data.counts }));
+          }
+        }
+      } catch {}
+    };
+
+    fetchCounts();
+    const interval = setInterval(fetchCounts, 5000);
+
+    const pusher = getPusherClient();
+    let channel = null;
+    if (pusher) {
+      try {
+        channel = pusher.subscribe('voice-counts-global');
+        channel.bind('voice-counts-updated', ({ channelId, count }) => {
+          if (channelId && typeof count === 'number') {
+            setLiveVoiceCounts((prev) => ({
+              ...prev,
+              [channelId]: count,
+            }));
+          }
+        });
+      } catch (err) {
+        console.warn('Pusher voice counts error:', err);
+      }
+    }
+
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+      if (pusher && channel) {
+        try {
+          channel.unbind_all();
+          pusher.unsubscribe('voice-counts-global');
+        } catch {}
+      }
+    };
+  }, []);
 
   // Load followers count to check hosting criteria
   useEffect(() => {
@@ -111,15 +159,19 @@ export default function ChatterRoomsView({
   const serverVoiceSpaces = servers.flatMap((srv) =>
     (srv.channels || [])
       .filter((ch) => ch.type === 'voice')
-      .map((ch) => ({
-        id: ch.id,
-        serverId: srv.id,
-        title: `${srv.name} – ${ch.name}`,
-        category: getServerCategory(srv),
-        tags: [`#${getServerCategory(srv).replace(/\s+/g, '')}`, '#StudyVoice'],
-        listenersCount: srv.member_count || 1,
-        speakers: [],
-      }))
+      .map((ch) => {
+        const liveCount = liveVoiceCounts[ch.id] ?? 0;
+        return {
+          id: ch.id,
+          serverId: srv.id,
+          title: `${srv.name} – ${ch.name}`,
+          category: getServerCategory(srv),
+          tags: [`#${getServerCategory(srv).replace(/\s+/g, '')}`, '#StudyVoice'],
+          listenersCount: liveCount,
+          isLiveNow: liveCount > 0,
+          speakers: [],
+        };
+      })
   );
   const allAudioSpaces = [...customSpaces, ...serverVoiceSpaces];
 
@@ -331,45 +383,11 @@ export default function ChatterRoomsView({
                   <div style={{ fontSize: 15, color: 'var(--chatter-light-text)', display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 2 }}>
                     <span style={{ color: '#fff', fontWeight: 600 }}>{server.member_count || 1} members</span>
                     <span>·</span>
-                    <span>{channelsCount} study channels</span>
-                    <span>·</span>
-                    <span style={{ color: 'var(--chatter-primary)', fontWeight: 600 }}>#{getServerCategory(server)}</span>
+                    <span style={{ color: 'var(--chatter-primary)', fontWeight: 500 }}>Active study room</span>
                   </div>
 
-                  {/* Line 3: Another next line with links for poll, copy code, copy link, and to enter the room */}
+                  {/* Line 3: Next line with links for copy code, copy link, and to enter the room */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', paddingTop: 12, borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                    {/* Poll & Channels Link */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const voiceCh = server.channels?.find((c) => c.type === 'voice');
-                        if (voiceCh) {
-                          onJoinVoiceChannel?.(server.id, voiceCh.id, voiceCh.name);
-                        } else {
-                          const defaultCh = server.channels?.find((c) => c.type === 'text') || server.channels?.[0];
-                          onSelectServer(server.id, defaultCh?.id, defaultCh?.name);
-                        }
-                      }}
-                      style={{
-                        padding: '8px 14px',
-                        borderRadius: 12,
-                        background: 'rgba(255, 255, 255, 0.06)',
-                        border: '1px solid rgba(255, 255, 255, 0.08)',
-                        color: '#D4D4D4',
-                        fontSize: 13.5,
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-                      <span>Poll & Channels</span>
-                    </button>
-
                     {/* Copy Code */}
                     <button
                       type="button"
@@ -567,8 +585,18 @@ export default function ChatterRoomsView({
                   </div>
                 </div>
 
-                <div style={{ fontSize: 13.5, color: 'var(--chatter-light-text)', whiteSpace: 'nowrap', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span>🎙️</span> {space.listenersCount || 1} listening
+                <div style={{ fontSize: 13.5, color: space.isLiveNow ? 'var(--chatter-primary)' : 'var(--chatter-light-text)', whiteSpace: 'nowrap', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
+                  {space.isLiveNow ? (
+                    <>
+                      <span className="chatter-audiospace-live-dot" style={{ display: 'inline-block' }} />
+                      <span>{space.listenersCount} active</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>🎙️</span>
+                      <span>{space.listenersCount > 0 ? `${space.listenersCount} listening` : 'Open space'}</span>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -585,7 +613,11 @@ export default function ChatterRoomsView({
                     />
                   ))}
                   <span style={{ fontSize: 13.5, color: 'var(--chatter-light-text)', marginLeft: 10, fontWeight: 500 }}>
-                    {(space.speakers || []).length > 0 ? space.speakers.map((s) => s.name).join(', ') + ' speaking' : 'Drop-in voice room'}
+                    {(space.speakers || []).length > 0
+                      ? space.speakers.map((s) => s.name).join(', ') + ' speaking'
+                      : space.isLiveNow
+                        ? `${space.listenersCount} scholar${space.listenersCount > 1 ? 's' : ''} inside`
+                        : 'Drop-in voice room'}
                   </span>
                 </div>
 
