@@ -313,7 +313,10 @@ export default function ChannelSidebar({
     return (
       <aside className="channel-sidebar" id="channel-sidebar">
         <div className="channel-sidebar__header">
-          <span className="channel-sidebar__title">StudyGuru</span>
+          <div className="chatter-logo-tag" style={{ fontSize: 18, gap: 5 }}>
+            <span>Study<span style={{ color: 'var(--chatter-primary)' }}>Cord</span></span>
+            <span className="chatter-logo-tag__dot" style={{ width: 6, height: 6 }} />
+          </div>
         </div>
         <div className="channel-sidebar__empty"><p>Select a group to view channels</p></div>
       </aside>

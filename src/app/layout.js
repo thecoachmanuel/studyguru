@@ -11,11 +11,11 @@ export const viewport = {
 };
 
 export const metadata = {
-  title: 'StudyGuru – AI-Powered Student Collaboration Platform',
+  title: 'StudyCord – AI-Powered Student Collaboration Platform',
   description:
-    'StudyGuru is an AI-powered student collaboration platform with real-time messaging, voice, video, document sharing, semantic search, and an AI Study Assistant.',
+    'StudyCord is an AI-powered student collaboration platform with real-time messaging, voice, video, document sharing, semantic search, and an AI Study Assistant.',
   keywords:
-    'StudyGuru, StudyGuru AI, AI study platform, student collaboration platform, study groups, semantic search for students, AI study assistant',
+    'StudyCord, StudyCord AI, AI study platform, student collaboration platform, study groups, semantic search for students, AI study assistant',
   icons: {
     icon: [
       { url: '/favicon.ico' },

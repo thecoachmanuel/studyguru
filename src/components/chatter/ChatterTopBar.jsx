@@ -45,7 +45,7 @@ export default function ChatterTopBar({
 
       {/* Center Logo Tag matching Chatter */}
       <div className="chatter-logo-tag">
-        <span>StudyCord</span>
+        <span>Study<span style={{ color: 'var(--chatter-primary)' }}>Cord</span></span>
         <span className="chatter-logo-tag__dot" />
       </div>
 

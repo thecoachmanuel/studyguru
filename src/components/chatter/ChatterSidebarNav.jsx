@@ -74,9 +74,9 @@ export default function ChatterSidebarNav({
       <div>
         {/* Brand Header */}
         <div className="chatter-desktop-brand">
-          <div className="chatter-logo-tag">
-            <span>StudyCord</span>
-            <span className="chatter-logo-tag__dot" />
+          <div className="chatter-logo-tag" style={{ fontSize: 22, gap: 6 }}>
+            <span>Study<span style={{ color: 'var(--chatter-primary)' }}>Cord</span></span>
+            <span className="chatter-logo-tag__dot" style={{ width: 7, height: 7 }} />
           </div>
         </div>
 

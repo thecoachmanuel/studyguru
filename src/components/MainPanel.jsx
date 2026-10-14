@@ -1350,7 +1350,7 @@ export default function MainPanel({
               <span className="main-panel__server-badge">{serverName}</span>
             </>
           ) : (
-            <h2 className="main-panel__channel-name">StudyGuru</h2>
+            <h2 className="main-panel__channel-name">StudyCord</h2>
           )}
         </div>
 

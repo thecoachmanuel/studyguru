@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import EtherealBackground from '@/components/EtherealBackground';
-import StudyGuruLogo from '@/components/StudyGuruLogo';
+import StudyCordLogo from '@/components/StudyCordLogo';
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState('');
@@ -41,9 +41,9 @@ export default function ResetPasswordPage() {
       <main className="auth-recovery-layout">
         <section className="auth-card auth-page-transition" aria-labelledby="reset-password-title">
           <div className="auth-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <Link href="/" style={{ display: 'inline-flex', marginBottom: '16px', textDecoration: 'none' }}>
-              <StudyGuruLogo width={160} height={44} />
-            </Link>
+            <div style={{ marginBottom: 16 }}>
+              <StudyCordLogo fontSize={28} href="/" />
+            </div>
             <h1 className="auth-title" id="reset-password-title">Choose a new password</h1>
             <p className="auth-subtitle">Use a password that meets your existing account requirements.</p>
           </div>

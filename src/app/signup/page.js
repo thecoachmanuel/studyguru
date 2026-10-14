@@ -122,26 +122,9 @@ export default function SignupPage() {
       >
         <Seo {...SIGNUP_SEO} />
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div
-              style={{
-                width: 38,
-                height: 38,
-                borderRadius: 12,
-                background: 'linear-gradient(135deg, #40e378, #22c55e)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#0E0E0E',
-                fontWeight: 900,
-                fontSize: 20,
-              }}
-            >
-              S
-            </div>
-            <span style={{ fontSize: 24, fontWeight: 900, letterSpacing: '-0.03em', color: '#fff' }}>
-              Study<span style={{ color: '#40e378' }}>Cord</span>
-            </span>
+          <div className="chatter-logo-tag" style={{ fontSize: 28, gap: 7 }}>
+            <span>Study<span style={{ color: 'var(--chatter-primary)' }}>Cord</span></span>
+            <span className="chatter-logo-tag__dot" style={{ width: 8, height: 8 }} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#888', fontSize: 14 }}>
             <span>Setting up your study lounge…</span>
@@ -183,28 +166,12 @@ export default function SignupPage() {
         }}
       >
         {/* Brand Header */}
-        <div style={{ textAlign: 'center', marginBottom: 26 }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-            <div
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 12,
-                background: 'linear-gradient(135deg, #40e378, #22c55e)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#0E0E0E',
-                fontWeight: 900,
-                fontSize: 22,
-                boxShadow: '0 4px 16px rgba(64, 227, 120, 0.3)',
-              }}
-            >
-              S
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+            <div className="chatter-logo-tag" style={{ fontSize: 28, gap: 7 }}>
+              <span>Study<span style={{ color: 'var(--chatter-primary)' }}>Cord</span></span>
+              <span className="chatter-logo-tag__dot" style={{ width: 8, height: 8 }} />
             </div>
-            <span style={{ fontSize: 26, fontWeight: 900, letterSpacing: '-0.03em', color: '#fff' }}>
-              Study<span style={{ color: '#40e378' }}>Cord</span>
-            </span>
           </div>
           <p style={{ fontSize: 14, color: '#888', margin: 0, fontWeight: 500 }}>
             Join classmates & study groups across universities.

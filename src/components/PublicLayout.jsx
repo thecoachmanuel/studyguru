@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Seo from './Seo';
 import ThemeToggle from './ThemeToggle';
-import StudyGuruLogo from './StudyGuruLogo';
+import StudyCordLogo from './StudyCordLogo';
 
 const NAV_ITEMS = [
   ['/about', 'About'],
@@ -23,8 +23,8 @@ export default function PublicLayout({ seo, children }) {
       <a className="public-site__skip-link" href="#public-content">Skip to content</a>
       <header className="public-site__header">
         <div className="public-site__header-inner">
-          <Link className="public-site__brand" href="/" aria-label="StudyGuru home" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
-            <StudyGuruLogo width={145} height={40} />
+          <Link className="public-site__brand" href="/" aria-label="StudyCord home" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
+            <StudyCordLogo fontSize={22} dotSize={7} />
           </Link>
           <nav className="public-site__nav" aria-label="Public navigation">
             {NAV_ITEMS.map(([path, label]) => (
@@ -51,8 +51,8 @@ export default function PublicLayout({ seo, children }) {
       <footer className="public-site__footer">
         <div className="public-site__footer-inner">
           <div>
-            <Link className="public-site__brand" href="/" aria-label="StudyGuru home" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
-              <StudyGuruLogo width={135} height={38} />
+            <Link className="public-site__brand" href="/" aria-label="StudyCord home" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
+              <StudyCordLogo fontSize={20} dotSize={6} />
             </Link>
             <p>An AI-powered student collaboration platform for learning together.</p>
           </div>
@@ -68,7 +68,7 @@ export default function PublicLayout({ seo, children }) {
             <Link href="/terms">Terms</Link>
           </nav>
         </div>
-        <p className="public-site__copyright">© 2026 StudyGuru. Built for students who learn together.</p>
+        <p className="public-site__copyright">© 2026 StudyCord. Built for students who learn together.</p>
       </footer>
     </div>
   );

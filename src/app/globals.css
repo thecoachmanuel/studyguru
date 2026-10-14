@@ -9035,6 +9035,20 @@ body {
   border-radius: 50%;
   background: var(--chatter-primary);
   box-shadow: 0 0 10px var(--chatter-primary);
+  animation: chatter-dot-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes chatter-dot-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 10px var(--chatter-primary);
+  }
+  50% {
+    opacity: 0.75;
+    transform: scale(0.92);
+    box-shadow: 0 0 16px var(--chatter-primary);
+  }
 }
 
 /* --- Mobile 5-Tab Navigation Bar --- */

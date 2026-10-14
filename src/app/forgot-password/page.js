@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import EtherealBackground from '@/components/EtherealBackground';
-import StudyGuruLogo from '@/components/StudyGuruLogo';
+import StudyCordLogo from '@/components/StudyCordLogo';
 import { isValidEmail } from '@/lib/authFlow';
 
 const NEUTRAL_SUCCESS = 'If an account exists for this email, password reset instructions have been sent.';
@@ -40,11 +40,11 @@ export default function ForgotPasswordPage() {
       <main className="auth-recovery-layout">
         <section className="auth-card auth-page-transition" aria-labelledby="forgot-password-title">
           <div className="auth-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <Link href="/" style={{ display: 'inline-flex', marginBottom: '16px', textDecoration: 'none' }}>
-              <StudyGuruLogo width={160} height={44} />
-            </Link>
+            <div style={{ marginBottom: 16 }}>
+              <StudyCordLogo fontSize={28} href="/" />
+            </div>
             <h1 className="auth-title" id="forgot-password-title">Reset your password</h1>
-            <p className="auth-subtitle">Enter the email associated with your StudyGuru account.</p>
+            <p className="auth-subtitle">Enter the email associated with your StudyCord account.</p>
           </div>
 
           {error && <div className="error-message" role="alert">{error}</div>}

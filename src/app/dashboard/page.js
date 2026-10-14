@@ -9,7 +9,6 @@ import { apiRequest } from '@/lib/api';
 import { getCurrentMemberRole } from '@/lib/permissions';
 import { leaveServer } from '@/lib/lifecycleApi';
 import { dismissAllMenus } from '@/hooks/useDismissableMenu';
-import StudyGuruLogo from '@/components/StudyGuruLogo';
 import ChatbotIcon from '@/components/ChatbotIcon';
 import { getPusherClient } from '@/lib/pusherClient';
 import { clearStoredUnread, setStoredUnreadCount } from '@/lib/unreadMessages';

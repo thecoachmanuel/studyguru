@@ -41,7 +41,7 @@ export default function NeutralHomeState({
       <div className="neutral-home__content">
         <section className="neutral-home__welcome" aria-labelledby="neutral-home-title">
           <div className="neutral-home__welcome-copy">
-            <p className="neutral-home__eyebrow">StudyGuru home</p>
+            <p className="neutral-home__eyebrow">StudyCord home</p>
             <h1 id="neutral-home-title">Welcome back, {username}</h1>
             <p className="neutral-home__intro">
               Ready when you are. Choose a study space from the left to get started.
@@ -223,7 +223,7 @@ export default function NeutralHomeState({
         </div>
 
         <footer className="neutral-home__footer">
-          <nav className="neutral-home__footer-links" aria-label="StudyGuru information">
+          <nav className="neutral-home__footer-links" aria-label="StudyCord information">
             <Link href="/about">About</Link>
             <Link href="/features">Features</Link>
             <Link href="/technology">Technology</Link>
@@ -236,7 +236,7 @@ export default function NeutralHomeState({
             <Link href="/privacy">Privacy</Link>
             <Link href="/terms">Terms</Link>
           </nav>
-          <p className="neutral-home__footer-copyright">© 2026 StudyGuru</p>
+          <p className="neutral-home__footer-copyright">© 2026 StudyCord</p>
           <p className="neutral-home__footer-subtitle">
             AI-Powered Student Collaboration Platform
           </p>
