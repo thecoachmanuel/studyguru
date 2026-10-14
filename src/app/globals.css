@@ -9265,24 +9265,25 @@ body {
 }
 
 .chatter-post-name {
-  font-size: 15px;
+  font-size: 15.5px;
   font-weight: 700;
   color: var(--chatter-white);
 }
 
 .chatter-post-meta {
-  font-size: 12px;
+  font-size: 13.5px;
   color: var(--chatter-light-text);
 }
 
 .chatter-post-body {
-  font-size: 14.5px;
-  line-height: 1.55;
+  font-size: 15.5px;
+  line-height: 1.6;
   color: var(--chatter-white);
   margin-bottom: 12px;
 }
 
 .chatter-hashtag {
+  font-size: 13px;
   color: var(--chatter-hashtag);
   font-weight: 600;
   cursor: pointer;
@@ -9308,7 +9309,7 @@ body {
   background: transparent;
   border: none;
   color: var(--chatter-light-text);
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
   transition: color 0.15s ease, transform 0.12s ease;
@@ -9549,6 +9550,31 @@ body {
 }
 
 /* --- Desktop Right Sidebar (Twitter / X.com 3-column layout) --- */
+.chatter-main-column {
+  flex: 1;
+  min-width: 0;
+  height: 100dvh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.chatter-main-column::-webkit-scrollbar {
+  width: 5px;
+}
+
+.chatter-main-column::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chatter-main-column::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 4px;
+}
+
 .chatter-desktop-right-sidebar {
   width: 350px;
   min-width: 320px;
@@ -9558,9 +9584,10 @@ body {
   top: 0;
   overflow-y: auto;
   scrollbar-width: none;
+  -ms-overflow-style: none;
   background: var(--chatter-black);
-  border-left: 1px solid rgba(255, 255, 255, 0.07);
-  padding: 16px 20px 40px;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 18px 20px 48px;
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -9569,6 +9596,8 @@ body {
 
 .chatter-desktop-right-sidebar::-webkit-scrollbar {
   display: none;
+  width: 0;
+  height: 0;
 }
 
 @media (max-width: 1023px) {
@@ -9584,5 +9613,10 @@ body {
   max-width: 680px;
   margin: 0 auto;
   width: 100%;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 

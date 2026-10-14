@@ -28,6 +28,16 @@ export async function GET(req) {
       follower_id: targetUserId,
     }).catch(() => 0);
 
+    const docsCount = await db.collection('rag_documents').countDocuments({
+      user_id: targetUserId,
+    }).catch(() => 0);
+
+    const userPostsCount = await db.collection('posts').countDocuments({
+      $or: [{ 'author.id': targetUserId }, { author_id: targetUserId }],
+    }).catch(() => 0);
+
+    const dynamicStudyHours = Math.max(8, docsCount * 3 + userPostsCount * 2);
+
     if (!userDoc) {
       if (isSelf) {
         const fallbackName = session.user.name || 'Scholar';
@@ -43,8 +53,8 @@ export async function GET(req) {
           school: 'University',
           followers_count: realFollowersCount,
           following_count: realFollowingCount,
-          study_hours: 12,
-          day_streak: 3,
+          study_hours: dynamicStudyHours,
+          day_streak: 1,
         });
       }
 
@@ -159,8 +169,8 @@ export async function GET(req) {
       school: userDoc.school || 'University',
       followers_count: calculatedFollowers,
       following_count: calculatedFollowing,
-      study_hours: typeof userDoc.study_hours === 'number' ? userDoc.study_hours : 12,
-      day_streak: typeof userDoc.day_streak === 'number' ? userDoc.day_streak : 3,
+      study_hours: typeof userDoc.study_hours === 'number' ? userDoc.study_hours : dynamicStudyHours,
+      day_streak: typeof userDoc.day_streak === 'number' ? userDoc.day_streak : 1,
     });
   } catch (error) {
     console.error('Error fetching user profile:', error);

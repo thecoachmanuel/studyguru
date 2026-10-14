@@ -1042,7 +1042,7 @@ export default function DashboardPage() {
       {/* If chatterTab === 'feed', render ChatterFeedView with desktop right sidebar */}
       {chatterTab === 'feed' && (
         <div style={{ flex: 1, display: 'flex', height: '100dvh', overflow: 'hidden', background: 'var(--chatter-black)' }}>
-          <div style={{ flex: 1, overflowY: 'auto', minHeight: '100dvh' }}>
+          <div className="chatter-main-column">
             <div className="chatter-center-container">
               <ChatterTopBar
                 onOpenNotifications={() => showToast('No new notifications')}
@@ -1069,6 +1069,7 @@ export default function DashboardPage() {
             followingMap={followingMap}
             onToggleFollow={handleToggleFollow}
             onOpenUserProfile={(scholar) => setUserProfileModalTarget(scholar)}
+            currentUserId={user?.id}
           />
         </div>
       )}
@@ -1076,7 +1077,7 @@ export default function DashboardPage() {
       {/* If chatterTab === 'rooms', render ChatterRoomsView with desktop right sidebar */}
       {chatterTab === 'rooms' && (
         <div style={{ flex: 1, display: 'flex', height: '100dvh', overflow: 'hidden', background: 'var(--chatter-black)' }}>
-          <div style={{ flex: 1, overflowY: 'auto', minHeight: '100dvh' }}>
+          <div className="chatter-main-column">
             <div className="chatter-center-container">
               <ChatterTopBar
                 onOpenNotifications={() => showToast('No new notifications')}
@@ -1118,6 +1119,7 @@ export default function DashboardPage() {
             followingMap={followingMap}
             onToggleFollow={handleToggleFollow}
             onOpenUserProfile={(scholar) => setUserProfileModalTarget(scholar)}
+            currentUserId={user?.id}
           />
         </div>
       )}
@@ -1142,7 +1144,7 @@ export default function DashboardPage() {
       {/* If chatterTab === 'profile', render ChatterProfileView with desktop right sidebar */}
       {chatterTab === 'profile' && (
         <div style={{ flex: 1, display: 'flex', height: '100dvh', overflow: 'hidden', background: 'var(--chatter-black)' }}>
-          <div style={{ flex: 1, overflowY: 'auto', minHeight: '100dvh' }}>
+          <div className="chatter-main-column">
             <div className="chatter-center-container">
               <ChatterTopBar
                 onOpenNotifications={() => showToast('No new notifications')}
@@ -1176,6 +1178,7 @@ export default function DashboardPage() {
             followingMap={followingMap}
             onToggleFollow={handleToggleFollow}
             onOpenUserProfile={(scholar) => setUserProfileModalTarget(scholar)}
+            currentUserId={user?.id}
           />
         </div>
       )}

@@ -54,9 +54,55 @@ export default function ChatterFeedView({
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingPostId, setDeletingPostId] = useState(null);
 
+  // Infinite Scroll Pagination (10 posts per batch)
+  const [visibleCount, setVisibleCount] = useState(10);
+  const loadMoreRef = useRef(null);
+
+  // Prioritize posts of followed users, followed by chronological recency
+  const sortedPosts = useMemo(() => {
+    return [...posts].sort((a, b) => {
+      const aId = a.author?.id || a.author_id;
+      const bId = b.author?.id || b.author_id;
+      const aFollowing = Boolean(aId && activeFollowing[aId]);
+      const bFollowing = Boolean(bId && activeFollowing[bId]);
+      if (aFollowing && !bFollowing) return -1;
+      if (!aFollowing && bFollowing) return 1;
+      const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return timeB - timeA;
+    });
+  }, [posts, activeFollowing]);
+
+  // 10 posts at a time chunked loading
+  const visiblePosts = useMemo(() => {
+    return sortedPosts.slice(0, visibleCount);
+  }, [sortedPosts, visibleCount]);
+
+  const hasMore = visibleCount < sortedPosts.length;
+
+  useEffect(() => {
+    if (!loadMoreRef.current || !hasMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount((prev) => Math.min(prev + 10, sortedPosts.length));
+        }
+      },
+      { rootMargin: '300px' }
+    );
+
+    observer.observe(loadMoreRef.current);
+    return () => observer.disconnect();
+  }, [hasMore, sortedPosts.length]);
+
   // Auto-scroll to target post when navigated from profile
   useEffect(() => {
     if (targetPostId && posts.length > 0) {
+      const idx = sortedPosts.findIndex((p) => p.id === targetPostId);
+      if (idx >= 0 && idx >= visibleCount) {
+        setVisibleCount(idx + 5);
+      }
       setTimeout(() => {
         const el = document.getElementById(`post-${targetPostId}`);
         if (el) {
@@ -68,7 +114,7 @@ export default function ChatterFeedView({
         }
       }, 200);
     }
-  }, [targetPostId, posts]);
+  }, [targetPostId, posts, sortedPosts, visibleCount]);
 
   // 1. Fetch persistent posts from MongoDB
   useEffect(() => {
@@ -411,21 +457,6 @@ export default function ChatterFeedView({
     setCreateModalOpen(false);
   };
 
-  // Prioritize posts of followed users, followed by chronological recency
-  const sortedPosts = useMemo(() => {
-    return [...posts].sort((a, b) => {
-      const aId = a.author?.id || a.author_id;
-      const bId = b.author?.id || b.author_id;
-      const aFollowing = Boolean(aId && activeFollowing[aId]);
-      const bFollowing = Boolean(bId && activeFollowing[bId]);
-      if (aFollowing && !bFollowing) return -1;
-      if (!aFollowing && bFollowing) return 1;
-      const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
-      const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
-      return timeB - timeA;
-    });
-  }, [posts, activeFollowing]);
-
   return (
     <div style={{ paddingBottom: 'calc(84px + env(safe-area-inset-bottom))', maxWidth: 680, margin: '0 auto', width: '100%', position: 'relative' }}>
       {/* Share Toast Banner */}
@@ -457,9 +488,9 @@ export default function ChatterFeedView({
       {/* ── 1. Top Chatter Study Notes & Stories Carousel ── */}
       <ChatterNotesBar user={{ id: userId }} profile={profile} onOpenLiveSpaces={onOpenLiveSpaces} />
 
-      {/* ── 2. Chatter Social Posts Stream (Followed users prioritized) ── */}
+      {/* ── 2. Chatter Social Posts Stream (Chunked infinite scroll) ── */}
       <div style={{ marginTop: 8 }}>
-        {sortedPosts.map((post) => {
+        {visiblePosts.map((post) => {
           const isMe = post.author.id === userId || post.author.id === 'me';
           const isFollowing = !!(activeFollowing[post.author.id]);
           return (
@@ -687,6 +718,49 @@ export default function ChatterFeedView({
             </article>
           );
         })}
+
+        {/* Sentinel loader for infinite scroll */}
+        {hasMore && (
+          <div
+            ref={loadMoreRef}
+            style={{
+              padding: '24px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              color: 'var(--chatter-light-text)',
+              fontSize: 13.5,
+              fontWeight: 500,
+            }}
+          >
+            <div
+              style={{
+                width: 18,
+                height: 18,
+                borderRadius: '50%',
+                border: '2px solid rgba(255, 255, 255, 0.2)',
+                borderTopColor: 'var(--chatter-primary)',
+                animation: 'spin 0.8s linear infinite',
+              }}
+            />
+            <span>Loading more posts…</span>
+          </div>
+        )}
+
+        {!hasMore && sortedPosts.length > 5 && (
+          <div
+            style={{
+              textAlign: 'center',
+              padding: '28px 16px 16px',
+              color: 'rgba(255, 255, 255, 0.35)',
+              fontSize: 13,
+              fontWeight: 500,
+            }}
+          >
+            You&apos;re all caught up ✨
+          </div>
+        )}
       </div>
 
       {/* ── 3. Chatter Floating Action Button (+) ── */}

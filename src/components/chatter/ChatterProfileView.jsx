@@ -148,8 +148,6 @@ export default function ChatterProfileView({
           const docs = await res.json();
           if (mounted && Array.isArray(docs)) {
             setSavedNotes(docs);
-            // Calculate dynamic study hours based on notes & posts
-            setStudyHours(Math.max(4, docs.length * 3 + myPosts.length));
           }
         }
       } catch (err) {

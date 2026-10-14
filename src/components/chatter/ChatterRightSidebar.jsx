@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { TwitterVerifiedBadge } from './ChatterFeedView';
 
 export default function ChatterRightSidebar({
@@ -11,41 +11,118 @@ export default function ChatterRightSidebar({
   onToggleFollow,
   onOpenUserProfile,
   onJoinVoiceChannel,
+  currentUserId,
 }) {
-  const trendingTopics = [
-    { tag: '#ComputerScience', category: 'Algorithms & AI', postsCount: '1.4k posts' },
-    { tag: '#LinearAlgebra', category: 'Mathematics', postsCount: '920 posts' },
-    { tag: '#MCATPrep', category: 'Biochem & Med', postsCount: '780 posts' },
-    { tag: '#MachineLearning', category: 'Deep Learning', postsCount: '650 posts' },
-    { tag: '#OrganicChemistry', category: 'Reaction Mechanisms', postsCount: '510 posts' },
-  ];
+  const [suggestedScholars, setSuggestedScholars] = useState([]);
+  const [trendingTopics, setTrendingTopics] = useState([]);
 
-  const suggestedScholars = [
-    {
-      id: 'u-sarah',
-      name: 'Sarah Chen',
-      username: 'schen_ai',
-      avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&auto=format&fit=crop&q=80',
-      major: 'AI & Neuroscience',
-      followers_count: 42,
-    },
-    {
-      id: 'u-alex',
-      name: 'Alex Rivera',
-      username: 'arivera_cs',
-      avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
-      major: 'Computer Systems',
-      followers_count: 31,
-    },
-    {
-      id: 'u-jordan',
-      name: 'Jordan Lee',
-      username: 'jlee_stats',
-      avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
-      major: 'Applied Statistics',
-      followers_count: 27,
-    },
-  ];
+  // 1. Fetch real scholars from the database
+  useEffect(() => {
+    let active = true;
+    fetch('/api/user/search?q=')
+      .then((r) => (r.ok ? r.json() : []))
+      .then((users) => {
+        if (!active || !Array.isArray(users)) return;
+        const others = users
+          .filter((u) => u.id !== currentUserId && u._id !== currentUserId)
+          .slice(0, 5)
+          .map((u) => ({
+            id: u.id || u._id,
+            name: u.name || 'Scholar',
+            username: u.username || 'scholar',
+            avatar_url: u.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
+            major: u.subject || u.major || 'Study Partner',
+            followers_count: typeof u.followersCount === 'number' ? u.followersCount : (u.followers_count || 0),
+          }));
+
+        if (others.length > 0) {
+          setSuggestedScholars(others);
+        } else {
+          // Fallback to active demo scholars if database is completely empty
+          setSuggestedScholars([
+            {
+              id: 'u-sarah',
+              name: 'Sarah Chen',
+              username: 'schen_ai',
+              avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&auto=format&fit=crop&q=80',
+              major: 'AI & Neuroscience',
+              followers_count: 42,
+            },
+            {
+              id: 'u-alex',
+              name: 'Alex Rivera',
+              username: 'arivera_cs',
+              avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
+              major: 'Computer Systems',
+              followers_count: 31,
+            },
+            {
+              id: 'u-jordan',
+              name: 'Jordan Lee',
+              username: 'jlee_stats',
+              avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
+              major: 'Applied Statistics',
+              followers_count: 27,
+            },
+          ]);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [currentUserId]);
+
+  // 2. Fetch real posts to extract live trending study hashtags
+  useEffect(() => {
+    let active = true;
+    fetch('/api/posts')
+      .then((r) => (r.ok ? r.json() : []))
+      .then((posts) => {
+        if (!active || !Array.isArray(posts)) return;
+        const tagCounts = {};
+        posts.forEach((p) => {
+          if (p.tag) {
+            const cleanTag = p.tag.startsWith('#') ? p.tag : `#${p.tag}`;
+            tagCounts[cleanTag] = (tagCounts[cleanTag] || 0) + 1;
+          }
+          // Also match hashtags in text
+          const matches = (p.text || '').match(/#[a-zA-Z0-9_]+/g);
+          if (matches) {
+            matches.forEach((t) => {
+              tagCounts[t] = (tagCounts[t] || 0) + 1;
+            });
+          }
+        });
+
+        const sortedTags = Object.entries(tagCounts)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([tag, count]) => ({
+            tag,
+            category: 'Active Discussions',
+            postsCount: `${count} ${count === 1 ? 'post' : 'posts'}`,
+          }));
+
+        if (sortedTags.length > 0) {
+          setTrendingTopics(sortedTags);
+        } else {
+          setTrendingTopics([
+            { tag: '#ComputerScience', category: 'Algorithms & AI', postsCount: '1.4k posts' },
+            { tag: '#LinearAlgebra', category: 'Mathematics', postsCount: '920 posts' },
+            { tag: '#MCATPrep', category: 'Biochem & Med', postsCount: '780 posts' },
+            { tag: '#MachineLearning', category: 'Deep Learning', postsCount: '650 posts' },
+            { tag: '#OrganicChemistry', category: 'Reaction Mechanisms', postsCount: '510 posts' },
+          ]);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <aside className="chatter-desktop-right-sidebar" aria-label="Desktop Right Sidebar">

@@ -11,14 +11,34 @@ export default function ChatterUserProfileModal({
   followingMap = {},
   onToggleFollow,
 }) {
-  const [liveUser, setLiveUser] = useState(targetUser || {});
+  const [liveUser, setLiveUser] = useState(() => {
+    const rawFollowers = typeof targetUser?.followers_count === 'number'
+      ? targetUser.followers_count
+      : (typeof targetUser?.followersCount === 'number' ? targetUser.followersCount : 0);
+    const rawFollowing = typeof targetUser?.following_count === 'number'
+      ? targetUser.following_count
+      : (typeof targetUser?.followingCount === 'number' ? targetUser.followingCount : 0);
+    const rawHours = typeof targetUser?.study_hours === 'number'
+      ? targetUser.study_hours
+      : (typeof targetUser?.studyHours === 'number' ? targetUser.studyHours : 0);
+    const rawStreak = typeof targetUser?.day_streak === 'number'
+      ? targetUser.day_streak
+      : (typeof targetUser?.dayStreak === 'number' ? targetUser.dayStreak : 1);
+
+    return {
+      ...(targetUser || {}),
+      followers_count: rawFollowers,
+      following_count: rawFollowing,
+      study_hours: rawHours,
+      day_streak: rawStreak,
+    };
+  });
 
   const isSelf = targetUser?.id === currentUserId || targetUser?.id === 'me' || targetUser?.id === 'u-me';
 
   // Fetch real-time profile data for targetUser so bio, avatar, and stats match their profile exactly
   useEffect(() => {
     if (!targetUser?.id) return;
-    setLiveUser(targetUser);
 
     let active = true;
     const profileUrl = isSelf ? '/api/user/profile' : `/api/user/profile?userId=${encodeURIComponent(targetUser.id)}`;
@@ -34,10 +54,10 @@ export default function ChatterUserProfileModal({
             avatar_url: data.avatar_url || prev.avatar_url,
             banner_url: data.banner_url || prev.banner_url,
             bio: (data.bio && !data.bio.startsWith('📚 Studying & collaborating on StudyCord · Always open')) ? data.bio : (prev.bio || data.bio),
-            followers_count: typeof data.followers_count === 'number' ? data.followers_count : (prev.followersCount || prev.followers_count || 0),
-            following_count: typeof data.following_count === 'number' ? data.following_count : (prev.followingCount || prev.following_count || 0),
-            study_hours: typeof data.study_hours === 'number' ? data.study_hours : (prev.study_hours || 12),
-            day_streak: typeof data.day_streak === 'number' ? data.day_streak : (prev.day_streak || 3),
+            followers_count: typeof data.followers_count === 'number' ? data.followers_count : (prev.followers_count || 0),
+            following_count: typeof data.following_count === 'number' ? data.following_count : (prev.following_count || 0),
+            study_hours: typeof data.study_hours === 'number' ? data.study_hours : (prev.study_hours || 0),
+            day_streak: typeof data.day_streak === 'number' ? data.day_streak : (prev.day_streak || 1),
           }));
         }
       })
@@ -51,11 +71,9 @@ export default function ChatterUserProfileModal({
   if (!targetUser) return null;
 
   const isFollowing = !!followingMap[targetUser?.id];
-  const displayFollowers = typeof liveUser?.followers_count === 'number'
-    ? liveUser.followers_count
-    : (typeof liveUser?.followersCount === 'number' ? liveUser.followersCount : 0);
-  const studyHours = liveUser.study_hours ? `${liveUser.study_hours}h` : '12h';
-  const dayStreak = liveUser.day_streak ? `${liveUser.day_streak}🔥` : '3🔥';
+  const displayFollowers = typeof liveUser?.followers_count === 'number' ? liveUser.followers_count : 0;
+  const studyHours = `${liveUser.study_hours || 0}h`;
+  const dayStreak = `${liveUser.day_streak || 1}🔥`;
 
   const handleToggleFollow = () => {
     const willFollow = !isFollowing;

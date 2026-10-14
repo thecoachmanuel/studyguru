@@ -100,12 +100,41 @@ export default function ChatterNotesBar({
     });
   };
 
-  // Sort notes so unviewed are at the beginning and viewed ones are pushed to the end
-  const sortedNotes = useMemo(() => {
-    const unviewed = notes.filter((n) => !viewedNoteIds.includes(n.id));
-    const viewed = notes.filter((n) => viewedNoteIds.includes(n.id));
-    return [...unviewed, ...viewed];
+  // Group notes by author so multiple stories from one scholar are grouped
+  const authorGroups = useMemo(() => {
+    const groups = [];
+    const authorMap = new Map();
+
+    notes.forEach((note) => {
+      const aId = note.author?.id || note.id;
+      if (!authorMap.has(aId)) {
+        const groupObj = {
+          authorId: aId,
+          author: note.author,
+          notes: [note],
+        };
+        authorMap.set(aId, groupObj);
+        groups.push(groupObj);
+      } else {
+        authorMap.get(aId).notes.push(note);
+      }
+    });
+
+    // An author is considered fully viewed ONLY if ALL their stories have been viewed
+    return groups.map((g) => ({
+      ...g,
+      isFullyViewed: g.notes.every((n) => viewedNoteIds.includes(n.id)),
+      hasUnviewed: g.notes.some((n) => !viewedNoteIds.includes(n.id)),
+      latestEmoji: g.notes[g.notes.length - 1]?.emoji || '📚',
+    }));
   }, [notes, viewedNoteIds]);
+
+  // Unviewed authors appear first; fully-viewed authors are pushed to the end
+  const sortedAuthorGroups = useMemo(() => {
+    const unviewed = authorGroups.filter((g) => !g.isFullyViewed);
+    const fullyViewed = authorGroups.filter((g) => g.isFullyViewed);
+    return [...unviewed, ...fullyViewed];
+  }, [authorGroups]);
 
   // Load user's saved status note on mount
   useEffect(() => {
@@ -124,33 +153,56 @@ export default function ChatterNotesBar({
       .catch(() => {});
   }, []);
 
-  // Story Viewer Timer (auto-advance every 4 seconds)
+  // Modal viewer session: stable snapshot of stories currently being viewed
+  const [viewerStories, setViewerStories] = useState([]);
+
+  // Open story viewer for a specific author group
+  const handleOpenAuthorStories = (group) => {
+    const authorStories = group.notes;
+    // Start at the first unviewed story, or index 0 if all viewed
+    const firstUnviewedIdx = authorStories.findIndex((n) => !viewedNoteIds.includes(n.id));
+    const startIdx = firstUnviewedIdx >= 0 ? firstUnviewedIdx : 0;
+
+    setViewerStories(authorStories);
+    setActiveStoryIndex(startIdx);
+    setStoryProgress(0);
+
+    const currentStory = authorStories[startIdx];
+    if (currentStory && currentStory.id !== 'my-note') {
+      markNoteAsViewed(currentStory.id);
+    }
+  };
+
+  const handleOpenUserNote = () => {
+    if (!userNote) {
+      setCreateNoteModalOpen(true);
+      return;
+    }
+    const myStory = {
+      id: 'my-note',
+      author: {
+        id: user?.id || 'me',
+        name: profile?.name || 'You',
+        username: profile?.username || 'scholar',
+        avatar_url: profile?.avatar_url,
+      },
+      text: userNote.text,
+      emoji: userNote.emoji,
+      timestamp: userNote.timestamp,
+    };
+    setViewerStories([myStory]);
+    setActiveStoryIndex(0);
+    setStoryProgress(0);
+  };
+
+  // Story Viewer Timer: strictly per-story tracking without cascading
   useEffect(() => {
-    if (activeStoryIndex === null) {
+    if (activeStoryIndex === null || viewerStories.length === 0) {
       setStoryProgress(0);
       return;
     }
 
-    const allStories = userNote
-      ? [
-          {
-            id: 'my-note',
-            author: {
-              id: user?.id || 'me',
-              name: profile?.name || 'You',
-              username: profile?.username || 'scholar',
-              avatar_url: profile?.avatar_url,
-            },
-            text: userNote.text,
-            emoji: userNote.emoji,
-            timestamp: userNote.timestamp,
-          },
-          ...sortedNotes,
-        ]
-      : sortedNotes;
-
-    // Mark current active story as viewed if it belongs to someone else
-    const currentStory = allStories[activeStoryIndex];
+    const currentStory = viewerStories[activeStoryIndex];
     if (currentStory && currentStory.id !== 'my-note') {
       markNoteAsViewed(currentStory.id);
     }
@@ -162,11 +214,12 @@ export default function ChatterNotesBar({
     const timer = setInterval(() => {
       setStoryProgress((prev) => {
         if (prev >= 100) {
-          if (activeStoryIndex < allStories.length - 1) {
+          if (activeStoryIndex < viewerStories.length - 1) {
             setActiveStoryIndex((idx) => idx + 1);
             return 0;
           } else {
             setActiveStoryIndex(null);
+            setViewerStories([]);
             return 0;
           }
         }
@@ -175,7 +228,7 @@ export default function ChatterNotesBar({
     }, INTERVAL_MS);
 
     return () => clearInterval(timer);
-  }, [activeStoryIndex, userNote, notes, user, profile]);
+  }, [activeStoryIndex, viewerStories]);
 
   const handleSaveNote = async (e) => {
     e.preventDefault();
@@ -211,38 +264,21 @@ export default function ChatterNotesBar({
     }
   };
 
-  const allStoryItems = userNote
-    ? [
-        {
-          id: 'my-note',
-          author: {
-            id: user?.id || 'me',
-            name: profile?.name || 'You',
-            username: profile?.username || 'scholar',
-            avatar_url: profile?.avatar_url,
-          },
-          text: userNote.text,
-          emoji: userNote.emoji,
-          timestamp: userNote.timestamp,
-        },
-        ...sortedNotes,
-      ]
-    : sortedNotes;
-
   return (
-    <div style={{ padding: '8px 12px 12px', borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
+    <div style={{ padding: '10px 14px 12px', borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
       <div
         style={{
           display: 'flex',
-          gap: 16,
+          gap: 12,
           overflowX: 'auto',
           scrollbarWidth: 'none',
-          padding: '6px 4px',
+          padding: '4px 2px',
           alignItems: 'flex-start',
         }}
       >
         {/* ── 1. User Note Item (+) ── */}
         <div
+          onClick={handleOpenUserNote}
           style={{
             display: 'flex',
             flexDirection: 'column',
@@ -252,21 +288,22 @@ export default function ChatterNotesBar({
             width: 72,
           }}
         >
-          {/* Note Bubble */}
+          {/* Note Bubble or Action Pill */}
           <div
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               if (userNote) {
-                setActiveStoryIndex(0);
+                handleOpenUserNote();
               } else {
                 setCreateNoteModalOpen(true);
               }
             }}
             style={{
               background: 'var(--chatter-sheet)',
-              border: userNote ? '1px solid var(--chatter-primary)' : '1px dashed rgba(255, 255, 255, 0.18)',
+              border: userNote ? '1px solid var(--chatter-primary)' : '1px dashed rgba(255, 255, 255, 0.2)',
               borderRadius: 14,
-              padding: '4px 8px',
-              fontSize: 11,
+              padding: '3px 8px',
+              fontSize: 11.5,
               fontWeight: 600,
               color: userNote ? '#fff' : 'var(--chatter-light-text)',
               maxWidth: 72,
@@ -274,36 +311,33 @@ export default function ChatterNotesBar({
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
-              marginBottom: 4,
+              marginBottom: 6,
               boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
             }}
             title={userNote ? userNote.text : 'Share a note'}
           >
-            {userNote ? `${userNote.emoji} ${userNote.text}` : 'Share note'}
+            {userNote ? `${userNote.emoji} ${userNote.text}` : '+ Note'}
           </div>
 
-          {/* Avatar with (+) badge */}
-          <div
-            onClick={() => setCreateNoteModalOpen(true)}
-            style={{ position: 'relative', width: 54, height: 54 }}
-          >
+          {/* Avatar with (+) badge or status emoji */}
+          <div style={{ position: 'relative', width: 56, height: 56 }}>
             {profile?.avatar_url ? (
               <img
                 src={profile.avatar_url}
                 alt="Your Avatar"
                 style={{
-                  width: 54,
-                  height: 54,
+                  width: 56,
+                  height: 56,
                   borderRadius: '50%',
                   objectFit: 'cover',
-                  border: userNote ? '2px solid var(--chatter-primary)' : '2px solid rgba(255, 255, 255, 0.12)',
+                  border: userNote ? '2px solid var(--chatter-primary)' : '2px solid rgba(255, 255, 255, 0.15)',
                 }}
               />
             ) : (
               <div
                 style={{
-                  width: 54,
-                  height: 54,
+                  width: 56,
+                  height: 56,
                   borderRadius: '50%',
                   background: '#242424',
                   color: 'var(--chatter-primary)',
@@ -312,140 +346,141 @@ export default function ChatterNotesBar({
                   justifyContent: 'center',
                   fontWeight: 800,
                   fontSize: 20,
-                  border: userNote ? '2px solid var(--chatter-primary)' : '2px solid rgba(255, 255, 255, 0.12)',
+                  border: userNote ? '2px solid var(--chatter-primary)' : '2px solid rgba(255, 255, 255, 0.15)',
                 }}
               >
                 {profile?.name?.[0]?.toUpperCase() || 'Y'}
               </div>
             )}
 
-            {/* Plus Icon Badge */}
+            {/* Plus / Emoji Badge */}
             <div
+              onClick={(e) => {
+                e.stopPropagation();
+                setCreateNoteModalOpen(true);
+              }}
               style={{
                 position: 'absolute',
-                bottom: 0,
-                right: 0,
-                width: 18,
-                height: 18,
+                bottom: -2,
+                right: -2,
+                width: 20,
+                height: 20,
                 borderRadius: '50%',
-                background: 'var(--chatter-primary)',
-                color: '#0E0E0E',
+                background: userNote ? 'var(--chatter-sheet)' : 'var(--chatter-primary)',
+                color: userNote ? '#fff' : '#0E0E0E',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: 13,
+                fontSize: userNote ? 12 : 14,
                 fontWeight: 900,
                 border: '2px solid var(--chatter-black)',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
               }}
             >
-              +
+              {userNote ? userNote.emoji : '+'}
             </div>
           </div>
 
           <span
             style={{
-              fontSize: 11,
+              fontSize: 13.5,
               color: 'var(--chatter-light-text)',
-              marginTop: 4,
+              marginTop: 6,
               textAlign: 'center',
-              fontWeight: 500,
+              fontWeight: 600,
             }}
           >
             Your Note
           </span>
         </div>
 
-        {/* ── 2. Classmate Notes (Unviewed first, viewed pushed to end) ── */}
-        {sortedNotes.map((note, index) => {
-          const storyIndex = userNote ? index + 1 : index;
-          const isViewed = viewedNoteIds.includes(note.id);
+        {/* ── 2. Classmate Author Stories (Clean bubbles without floating tags) ── */}
+        {sortedAuthorGroups.map((group) => {
+          const isViewed = group.isFullyViewed;
+          const author = group.author || { name: 'Scholar', avatar_url: '' };
+
           return (
             <div
-              key={note.id}
-              onClick={() => {
-                markNoteAsViewed(note.id);
-                setActiveStoryIndex(storyIndex);
-                setStoryProgress(0);
-              }}
+              key={group.authorId}
+              onClick={() => handleOpenAuthorStories(group)}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 cursor: 'pointer',
                 flexShrink: 0,
-                width: 76,
-                transition: 'opacity 0.2s ease',
-                opacity: isViewed ? 0.75 : 1,
+                width: 72,
+                transition: 'opacity 0.2s ease, transform 0.15s ease',
+                opacity: isViewed ? 0.72 : 1,
+                paddingTop: 28, // Matches top height alignment since floating tag is removed
               }}
             >
-              {/* Note Thought Bubble */}
-              <div
-                style={{
-                  background: 'var(--chatter-sheet)',
-                  border: isViewed
-                    ? '1px solid rgba(255, 255, 255, 0.08)'
-                    : '1px solid rgba(64, 227, 120, 0.35)',
-                  borderRadius: 14,
-                  padding: '4px 8px',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: isViewed ? 'var(--chatter-light-text)' : '#fff',
-                  maxWidth: 74,
-                  textAlign: 'center',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  marginBottom: 5,
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                }}
-                title={note.text}
-              >
-                {note.emoji} {note.text}
-              </div>
-
-              {/* Avatar with Stories Ring: Vibrant gradient if unviewed, sleek light gray outline if viewed */}
-              <div
-                style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: '50%',
-                  padding: 2.5,
-                  background: isViewed
-                    ? 'rgba(255, 255, 255, 0.22)'
-                    : 'linear-gradient(45deg, var(--chatter-primary), #3b82f6)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'background 0.2s ease',
-                }}
-              >
-                <img
-                  src={note.author.avatar_url}
-                  alt={note.author.name}
+              {/* Avatar with Stories Ring: Vibrant gradient if ANY story unviewed; sleek gray outline ONLY if ALL viewed */}
+              <div style={{ position: 'relative', width: 56, height: 56 }}>
+                <div
                   style={{
-                    width: 48,
-                    height: 48,
+                    width: 56,
+                    height: 56,
                     borderRadius: '50%',
-                    objectFit: 'cover',
-                    border: '2px solid var(--chatter-black)',
+                    padding: 2.5,
+                    background: isViewed
+                      ? 'rgba(255, 255, 255, 0.22)'
+                      : 'linear-gradient(45deg, var(--chatter-primary), #3b82f6)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'background 0.2s ease',
                   }}
-                />
+                >
+                  <img
+                    src={author.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80'}
+                    alt={author.name}
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: '50%',
+                      objectFit: 'cover',
+                      border: '2px solid var(--chatter-black)',
+                    }}
+                  />
+                </div>
+
+                {/* Clean emoji badge on avatar bottom-right */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: -2,
+                    right: -2,
+                    width: 20,
+                    height: 20,
+                    borderRadius: '50%',
+                    background: 'var(--chatter-sheet)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 11,
+                    border: '1.5px solid var(--chatter-black)',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
+                  }}
+                >
+                  {group.latestEmoji}
+                </div>
               </div>
 
               <span
                 style={{
-                  fontSize: 12.5,
+                  fontSize: 13.5,
                   color: isViewed ? 'var(--chatter-light-text)' : '#fff',
-                  marginTop: 4,
+                  marginTop: 6,
                   textAlign: 'center',
                   fontWeight: 600,
-                  maxWidth: 74,
+                  maxWidth: 72,
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
                 }}
               >
-                {note.author.name.split(' ')[0]}
+                {author.name?.split(' ')[0] || 'Scholar'}
               </span>
             </div>
           );
@@ -453,12 +488,12 @@ export default function ChatterNotesBar({
       </div>
 
       {/* ── 3. Story Viewer Modal (Auto-advancing progress bar) ── */}
-      {activeStoryIndex !== null && allStoryItems[activeStoryIndex] && (
+      {activeStoryIndex !== null && viewerStories[activeStoryIndex] && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0, 0, 0, 0.92)',
+            background: 'rgba(0, 0, 0, 0.94)',
             backdropFilter: 'blur(16px)',
             zIndex: 9999,
             display: 'flex',
@@ -471,13 +506,13 @@ export default function ChatterNotesBar({
           {/* Top Story Progress Bars */}
           <div>
             <div style={{ display: 'flex', gap: 5, marginBottom: 16 }}>
-              {allStoryItems.map((st, i) => {
+              {viewerStories.map((st, i) => {
                 let fillPercent = 0;
                 if (i < activeStoryIndex) fillPercent = 100;
                 else if (i === activeStoryIndex) fillPercent = storyProgress;
                 return (
                   <div
-                    key={st.id}
+                    key={st.id || i}
                     style={{
                       flex: 1,
                       height: 3,
@@ -503,23 +538,26 @@ export default function ChatterNotesBar({
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <img
-                  src={allStoryItems[activeStoryIndex].author.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80'}
+                  src={viewerStories[activeStoryIndex].author?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80'}
                   alt="Story Author"
-                  style={{ width: 42, height: 42, borderRadius: '50%', objectFit: 'cover' }}
+                  style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover' }}
                 />
                 <div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>
-                    {allStoryItems[activeStoryIndex].author.name}
+                  <div style={{ fontSize: 15.5, fontWeight: 700, color: '#fff' }}>
+                    {viewerStories[activeStoryIndex].author?.name || 'Scholar'}
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--chatter-light-text)' }}>
-                    @{allStoryItems[activeStoryIndex].author.username} · {allStoryItems[activeStoryIndex].timestamp}
+                  <div style={{ fontSize: 13, color: 'var(--chatter-light-text)' }}>
+                    @{viewerStories[activeStoryIndex].author?.username || 'scholar'} · {viewerStories[activeStoryIndex].timestamp}
                   </div>
                 </div>
               </div>
 
               <button
                 type="button"
-                onClick={() => setActiveStoryIndex(null)}
+                onClick={() => {
+                  setActiveStoryIndex(null);
+                  setViewerStories([]);
+                }}
                 style={{
                   width: 36,
                   height: 36,
@@ -565,17 +603,19 @@ export default function ChatterNotesBar({
                 left: 0,
                 width: '35%',
                 cursor: 'pointer',
+                zIndex: 5,
               }}
             />
 
             {/* Right Tap Zone (Next Story) */}
             <div
               onClick={() => {
-                if (activeStoryIndex < allStoryItems.length - 1) {
+                if (activeStoryIndex < viewerStories.length - 1) {
                   setActiveStoryIndex((i) => i + 1);
                   setStoryProgress(0);
                 } else {
                   setActiveStoryIndex(null);
+                  setViewerStories([]);
                 }
               }}
               style={{
@@ -585,6 +625,7 @@ export default function ChatterNotesBar({
                 right: 0,
                 width: '35%',
                 cursor: 'pointer',
+                zIndex: 5,
               }}
             />
 
@@ -602,19 +643,19 @@ export default function ChatterNotesBar({
               }}
             >
               <div style={{ fontSize: 48, marginBottom: 16 }}>
-                {allStoryItems[activeStoryIndex].emoji || '📚'}
+                {viewerStories[activeStoryIndex].emoji || '📚'}
               </div>
               <h3 style={{ fontSize: 20, fontWeight: 700, color: '#fff', margin: '0 0 10px 0', lineHeight: 1.4 }}>
-                &ldquo;{allStoryItems[activeStoryIndex].text}&rdquo;
+                &ldquo;{viewerStories[activeStoryIndex].text}&rdquo;
               </h3>
-              <p style={{ fontSize: 13, color: 'var(--chatter-light-text)', margin: 0 }}>
+              <p style={{ fontSize: 13.5, color: 'var(--chatter-light-text)', margin: 0 }}>
                 Study Status on StudyCord
               </p>
             </div>
           </div>
 
           {/* Bottom Tap Navigation Info */}
-          <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--chatter-light-text)' }}>
+          <div style={{ textAlign: 'center', fontSize: 13, color: 'var(--chatter-light-text)' }}>
             Tap left to go back · Tap right to skip · Auto-advancing
           </div>
         </div>

@@ -9,14 +9,16 @@ import { cleanEmDashes } from '@/lib/cleanText';
 const chatResponseCache = new Map();
 const CHAT_CACHE_TTL = 1000 * 60 * 30; // 30 minutes
 
+const GREETING_REGEX = /^(hi|hello|hey|hiya|howdy|sup|yo|good\s*(morning|afternoon|evening|day)|what\'?s\s*up|how\s*are\s*you)[\s!.,?]*$/i;
+const CHITCHAT_IDENTITY_REGEX = /^(who\s*are\s*you|what\s*(are\s*you|can\s*you\s*do|is\s*studycord|is\s*your\s*name))[\s!.,?]*$/i;
+
 /**
  * Detects whether a student is requesting to learn or be tutored
  */
 function isTeachingOrBroadQuery(query) {
   if (!query || typeof query !== 'string') return false;
   const q = query.trim().toLowerCase();
-  if (q.length <= 25) return true;
-  return /teach|explain.*(topic|subject|material|document|everything|chapter|concept|all)|walk.*through|overview|start|syllabus|what is this|lesson|guide me|summary|introduction|step by step|let's learn/i.test(q);
+  return /teach|explain.*(topic|subject|material|document|everything|chapter|concept|all|this)|walk.*through|overview|start|syllabus|what is this|lesson|guide me|summary|introduction|step by step|let's learn|begin/i.test(q);
 }
 
 /**
@@ -50,6 +52,62 @@ export async function POST(req) {
 
     if (!message || !message.trim()) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 });
+    }
+
+    const trimmedMessage = message.trim();
+    const wantsStream = req.headers.get('accept')?.includes('text/event-stream') || body.stream === true;
+
+    // Instant Greeting & Salutation Router (<10ms latency)
+    if (GREETING_REGEX.test(trimmedMessage)) {
+      const activeSubject = body.documentTitle || body.docTitle || body.filename || '';
+      const reply = activeSubject
+        ? `Hey there! 👋 I'm StudyCord AI Guru, your personal study tutor. I'm ready to help you master **${activeSubject}**! What topic, concept, or question would you like to start with?`
+        : `Hey there! 👋 I'm StudyCord AI Guru, your personal study tutor. What subject, problem, or topic are you working on today? Feel free to ask any question or upload your notes!`;
+
+      if (wantsStream) {
+        const encoder = new TextEncoder();
+        return new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(encoder.encode(reply));
+              controller.close();
+            },
+          }),
+          {
+            headers: {
+              'Content-Type': 'text/plain; charset=utf-8',
+              'Transfer-Encoding': 'chunked',
+              'Cache-Control': 'no-cache, no-transform',
+            },
+          }
+        );
+      }
+      return NextResponse.json({ answer: reply, success: true, instant: true });
+    }
+
+    // Instant Identity / Capability check (<10ms latency)
+    if (CHITCHAT_IDENTITY_REGEX.test(trimmedMessage)) {
+      const reply = `I'm StudyCord AI Guru, your personal academic tutor and study partner! 🎓\n\nHere is how I can help you excel:\n• **Step-by-Step Tutoring**: I teach one concept at a time with intuitive, real-world analogies.\n• **Document Grounding**: Ask me anything about your uploaded study documents or PDFs.\n• **Any Subject**: STEM, Coding, Medicine, Humanities, Languages, or Exam Prep.\n• **Interactive Check-ins**: I test your understanding as we go to make sure concepts stick.\n\nWhat are you studying right now?`;
+
+      if (wantsStream) {
+        const encoder = new TextEncoder();
+        return new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(encoder.encode(reply));
+              controller.close();
+            },
+          }),
+          {
+            headers: {
+              'Content-Type': 'text/plain; charset=utf-8',
+              'Transfer-Encoding': 'chunked',
+              'Cache-Control': 'no-cache, no-transform',
+            },
+          }
+        );
+      }
+      return NextResponse.json({ answer: reply, success: true, instant: true });
     }
 
     const userId = session.user.id;
@@ -171,16 +229,21 @@ export async function POST(req) {
       .map((turn) => `${turn.role === 'user' ? 'Student' : 'Personal Tutor'}: ${turn.content.trim()}`)
       .join('\n\n');
 
-    // 5. Personal Tutor System Prompt
-    const systemPrompt = `You are StudyGuru AI, a brilliant, empathetic, and encouraging Personal Tutor.
-Your mission is to guide the student through their study material using an interactive, adaptive, conversational tutoring approach.
+    // 5. Personal Tutor System Prompt (Grounded in doc if present, versatile academic wisdom overall)
+    const hasActiveDoc = Boolean(docTitle && (fullDocumentText || contextChunks.length > 0));
 
-ACTIVE STUDY DOCUMENT & TOPIC ANCHOR:
-• Subject Document: "${docTitle || 'Study Material'}"
-• CRITICAL MANDATORY DIRECTIVE: You must NEVER lose track of this topic or file uploaded ("${docTitle}"). Every single response, explanation, analogy, and question MUST remain firmly rooted in this specific study document and its subject matter. If the student asks short or conversational questions, always relate your answer directly back to "${docTitle}".
+    const systemPrompt = `You are StudyGuru AI (AI Guru), a brilliant, empathetic, and encouraging Personal Academic Tutor on StudyCord.
+Your mission is to guide the student through their academic questions and study materials using an interactive, adaptive, conversational tutoring approach.
 
-Study Material Document Context:
-${contextText}
+${hasActiveDoc ? `ACTIVE STUDY DOCUMENT & TOPIC:
+• Subject Document: "${docTitle}"
+• TUTORING DIRECTIVE:
+  - If the student's question relates to "${docTitle}", anchor your explanations, analogies, and examples firmly in the document material below.
+  - If the student asks a general academic, foundational, or adjacent question, provide a brilliant, clear explanation using your deep academic knowledge, and connect it back to the study context when helpful.
+
+Document Context:
+${contextText}` : `ACADEMIC TUTORING CONTEXT:
+• General Academic Mode: Answer any subject question (STEM, Coding, Medicine, Humanities, Languages, or Exam Prep) with crystal-clear explanations, intuitive analogies, and step-by-step guidance.`}
 
 CORE HUMAN TUTORING PEDAGOGY:
 1. STEP-BY-STEP CONVERSATIONAL PACING (ONE Concept at a Time):
@@ -217,13 +280,10 @@ ${isExplicitAllAtOnce ? `
     }
     userPrompt += `Current Student Message: ${message}`;
     if (!isExplicitAllAtOnce) {
-      userPrompt += `\n\n(TUTOR INSTRUCTION: Teach conversationally. Explain ONLY the immediate next step or concept in 2-3 short, digestible paragraphs using a relatable real-world analogy. DO NOT dump the entire topic or document at once. Ground your response firmly in "${docTitle}". Conclude with an engaging interactive check-in question to adapt to the student's pace.)`;
+      userPrompt += `\n\n(TUTOR INSTRUCTION: Teach conversationally. Explain ONLY the immediate next step or concept in 2-3 short, digestible paragraphs using a relatable real-world analogy. DO NOT dump the entire topic or document at once. ${docTitle ? `Ground your response in "${docTitle}".` : ''} Conclude with an engaging interactive check-in question to adapt to the student's pace.)`;
     } else {
-      userPrompt += `\n\n(TUTOR INSTRUCTION: The student explicitly requested the whole concept/topic at once. Ground everything in "${docTitle}" and provide a comprehensive, full breakdown.)`;
+      userPrompt += `\n\n(TUTOR INSTRUCTION: The student explicitly requested the whole concept/topic at once. Ground everything in the study material and provide a comprehensive, full breakdown.)`;
     }
-
-    // Check if client explicitly asks for streaming
-    const wantsStream = req.headers.get('accept')?.includes('text/event-stream') || body.stream === true;
 
     if (wantsStream) {
       const encoder = new TextEncoder();
