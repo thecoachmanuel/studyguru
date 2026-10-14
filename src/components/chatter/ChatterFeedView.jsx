@@ -458,7 +458,7 @@ export default function ChatterFeedView({
   };
 
   return (
-    <div style={{ paddingBottom: 'calc(84px + env(safe-area-inset-bottom))', maxWidth: 680, margin: '0 auto', width: '100%', position: 'relative' }}>
+    <div style={{ paddingBottom: 'calc(84px + env(safe-area-inset-bottom))', width: '100%', position: 'relative' }}>
       {/* Share Toast Banner */}
       {shareToast && (
         <div

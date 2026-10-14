@@ -58,36 +58,7 @@ export async function GET(req) {
         });
       }
 
-      // Check if this user authored any posts in the posts collection
-      const postWithAuthor = await db.collection('posts').findOne({
-        $or: [
-          { 'author.id': targetUserId },
-          { author_id: targetUserId },
-          { 'author.username': targetUserId },
-        ],
-      });
-
-      if (postWithAuthor?.author) {
-        const authInfo = postWithAuthor.author;
-        const baseFollowers = typeof authInfo.followersCount === 'number' ? authInfo.followersCount : 12;
-        return NextResponse.json({
-          id: targetUserId,
-          name: authInfo.name || 'Study Scholar',
-          username: authInfo.username || authInfo.name?.toLowerCase().replace(/\s+/g, '_') || 'scholar',
-          email: null,
-          avatar_url: authInfo.avatar_url || authInfo.avatar || null,
-          banner_url: null,
-          bio: authInfo.bio || '📚 Studying and collaborating on StudyCord.',
-          major: 'Computer Science & AI',
-          school: 'University',
-          followers_count: baseFollowers + realFollowersCount,
-          following_count: 8 + realFollowingCount,
-          study_hours: 14,
-          day_streak: 3,
-        });
-      }
-
-      // Demo/seed authors fallback
+      // Demo/seed authors fallback checked first for consistent stats
       const demoUsers = {
         'u-sarah': {
           name: 'Sarah Chen',
@@ -97,6 +68,7 @@ export async function GET(req) {
           followers_count: 42,
           study_hours: 24,
           day_streak: 7,
+          following_count: 15,
         },
         'u-alex': {
           name: 'Alex Rivera',
@@ -106,6 +78,7 @@ export async function GET(req) {
           followers_count: 31,
           study_hours: 18,
           day_streak: 5,
+          following_count: 12,
         },
         'u-jordan': {
           name: 'Jordan Lee',
@@ -115,6 +88,7 @@ export async function GET(req) {
           followers_count: 27,
           study_hours: 16,
           day_streak: 4,
+          following_count: 14,
         },
         'u-maya': {
           name: 'Maya Patel',
@@ -124,6 +98,7 @@ export async function GET(req) {
           followers_count: 38,
           study_hours: 22,
           day_streak: 6,
+          following_count: 18,
         },
       };
 
@@ -140,9 +115,47 @@ export async function GET(req) {
           major: 'Computer Science & AI',
           school: 'University',
           followers_count: d.followers_count + realFollowersCount,
-          following_count: 15 + realFollowingCount,
+          following_count: d.following_count + realFollowingCount,
           study_hours: d.study_hours,
           day_streak: d.day_streak,
+        });
+      }
+
+      // Check if this user authored any posts in the posts collection
+      const postWithAuthor = await db.collection('posts').findOne({
+        $or: [
+          { 'author.id': targetUserId },
+          { author_id: targetUserId },
+          { 'author.username': targetUserId },
+        ],
+      });
+
+      if (postWithAuthor?.author) {
+        const authInfo = postWithAuthor.author;
+        const baseFollowers = typeof authInfo.followersCount === 'number'
+          ? authInfo.followersCount
+          : (typeof authInfo.followers_count === 'number' ? authInfo.followers_count : 12);
+        const baseHours = typeof authInfo.study_hours === 'number'
+          ? authInfo.study_hours
+          : (typeof authInfo.studyHours === 'number' ? authInfo.studyHours : 14);
+        const baseStreak = typeof authInfo.day_streak === 'number'
+          ? authInfo.day_streak
+          : (typeof authInfo.dayStreak === 'number' ? authInfo.dayStreak : 1);
+
+        return NextResponse.json({
+          id: targetUserId,
+          name: authInfo.name || 'Study Scholar',
+          username: authInfo.username || authInfo.name?.toLowerCase().replace(/\s+/g, '_') || 'scholar',
+          email: null,
+          avatar_url: authInfo.avatar_url || authInfo.avatar || null,
+          banner_url: null,
+          bio: authInfo.bio || '📚 Studying and collaborating on StudyCord.',
+          major: 'Computer Science & AI',
+          school: 'University',
+          followers_count: baseFollowers + realFollowersCount,
+          following_count: 8 + realFollowingCount,
+          study_hours: baseHours,
+          day_streak: baseStreak,
         });
       }
 

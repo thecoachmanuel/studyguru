@@ -34,6 +34,29 @@ export default function ChatterUserProfileModal({
     };
   });
 
+  // Sync when targetUser prop changes
+  useEffect(() => {
+    if (targetUser) {
+      const incomingFollowers = typeof targetUser.followers_count === 'number'
+        ? targetUser.followers_count
+        : (typeof targetUser.followersCount === 'number' ? targetUser.followersCount : undefined);
+      const incomingHours = typeof targetUser.study_hours === 'number'
+        ? targetUser.study_hours
+        : (typeof targetUser.studyHours === 'number' ? targetUser.studyHours : undefined);
+      const incomingStreak = typeof targetUser.day_streak === 'number'
+        ? targetUser.day_streak
+        : (typeof targetUser.dayStreak === 'number' ? targetUser.dayStreak : undefined);
+
+      setLiveUser((prev) => ({
+        ...prev,
+        ...targetUser,
+        followers_count: incomingFollowers !== undefined ? incomingFollowers : prev.followers_count,
+        study_hours: incomingHours !== undefined ? incomingHours : prev.study_hours,
+        day_streak: incomingStreak !== undefined ? incomingStreak : prev.day_streak,
+      }));
+    }
+  }, [targetUser]);
+
   const isSelf = targetUser?.id === currentUserId || targetUser?.id === 'me' || targetUser?.id === 'u-me';
 
   // Fetch real-time profile data for targetUser so bio, avatar, and stats match their profile exactly
@@ -54,10 +77,11 @@ export default function ChatterUserProfileModal({
             avatar_url: data.avatar_url || prev.avatar_url,
             banner_url: data.banner_url || prev.banner_url,
             bio: (data.bio && !data.bio.startsWith('📚 Studying & collaborating on StudyCord · Always open')) ? data.bio : (prev.bio || data.bio),
-            followers_count: typeof data.followers_count === 'number' ? data.followers_count : (prev.followers_count || 0),
-            following_count: typeof data.following_count === 'number' ? data.following_count : (prev.following_count || 0),
-            study_hours: typeof data.study_hours === 'number' ? data.study_hours : (prev.study_hours || 0),
-            day_streak: typeof data.day_streak === 'number' ? data.day_streak : (prev.day_streak || 1),
+            // Only update counts if valid numbers and not downgrading to 0 when initial was populated
+            followers_count: typeof data.followers_count === 'number' ? data.followers_count : prev.followers_count,
+            following_count: typeof data.following_count === 'number' ? data.following_count : prev.following_count,
+            study_hours: typeof data.study_hours === 'number' && data.study_hours > 0 ? data.study_hours : (prev.study_hours || data.study_hours || 0),
+            day_streak: typeof data.day_streak === 'number' && data.day_streak > 0 ? data.day_streak : (prev.day_streak || data.day_streak || 1),
           }));
         }
       })

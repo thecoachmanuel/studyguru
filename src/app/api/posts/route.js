@@ -3,6 +3,14 @@ import { auth } from '@/auth';
 import { getDatabase, safeObjectId } from '@/lib/mongodb';
 import { getPusherServer } from '@/lib/pusherServer';
 
+// Author stats baseline for demo and seed users to ensure 100% UI consistency without flickering
+export const DEMO_AUTHOR_STATS = {
+  'u-sarah': { followers: 42, following: 15, hours: 24, streak: 7 },
+  'u-alex': { followers: 31, following: 12, hours: 18, streak: 5 },
+  'u-jordan': { followers: 27, following: 14, hours: 16, streak: 4 },
+  'u-maya': { followers: 38, following: 18, hours: 22, streak: 6 },
+};
+
 // Seed posts for initial community experience if database is empty
 const INITIAL_DEMO_POSTS = [
   {
@@ -13,6 +21,13 @@ const INITIAL_DEMO_POSTS = [
       username: 'schen_ai',
       avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&auto=format&fit=crop&q=80',
       followersCount: 42,
+      followers_count: 42,
+      followingCount: 15,
+      following_count: 15,
+      study_hours: 24,
+      studyHours: 24,
+      day_streak: 7,
+      dayStreak: 7,
       bio: 'Senior studying AI & Computational Neuroscience · Passionate about vector calculus & transformers.',
     },
     tag: '#CalculusIII',
@@ -57,6 +72,13 @@ const INITIAL_DEMO_POSTS = [
       username: 'arivera_cs',
       avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
       followersCount: 31,
+      followers_count: 31,
+      followingCount: 12,
+      following_count: 12,
+      study_hours: 18,
+      studyHours: 18,
+      day_streak: 5,
+      dayStreak: 5,
       bio: 'Computer Science Major · Building open-source machine learning tooling.',
     },
     tag: '#MachineLearning',
@@ -121,13 +143,22 @@ export async function GET(req) {
     const posts = await postsCol.find({}).sort({ created_at: -1 }).limit(50).toArray();
 
     // Fetch author users to ensure latest avatar, name, bio, and stats are applied
-    const authorIds = posts.map((p) => p.author?.id || p.author_id).filter(Boolean);
+    const authorIds = posts.map((p) => p.author?.id || p.author_id).filter(Boolean).map(String);
     const userObjIds = authorIds.map((id) => safeObjectId(id)).filter(Boolean);
     const authorDocs = await db.collection('users')
       .find({
         $or: [{ _id: { $in: userObjIds } }, { id: { $in: authorIds } }],
       })
       .toArray();
+
+    // Query real follower counts from follows collection for all authorIds in one single query
+    const followCounts = await db.collection('follows').aggregate([
+      { $match: { following_id: { $in: authorIds } } },
+      { $group: { _id: '$following_id', count: { $sum: 1 } } },
+    ]).toArray().catch(() => []);
+
+    const followCountMap = new Map();
+    followCounts.forEach((fc) => followCountMap.set(String(fc._id), fc.count));
 
     const authorMap = new Map();
     authorDocs.forEach((u) => {
@@ -139,13 +170,40 @@ export async function GET(req) {
     const formatted = posts.map((p) => {
       const postId = p._id ? p._id.toString() : p.id;
       const authorId = p.author?.id || p.author_id;
-      const authorDoc = authorMap.get(String(authorId));
+      const authorIdStr = String(authorId);
+      const authorDoc = authorMap.get(authorIdStr);
 
       const authorName = authorDoc?.name || p.author?.name || p.author_name || 'Scholar';
       const authorUsername = authorDoc?.username || p.author?.username || p.author_username || authorName.toLowerCase().replace(/\s+/g, '_');
       const authorAvatar = authorDoc?.avatar_url || authorDoc?.image || p.author?.avatar_url || p.author_avatar || null;
       const authorBio = authorDoc?.bio || p.author?.bio || p.author_bio || '';
-      const authorFollowers = typeof authorDoc?.followers_count === 'number' ? authorDoc.followers_count : (p.author?.followersCount || 0);
+
+      const demoStats = DEMO_AUTHOR_STATS[authorIdStr];
+      const realFollowers = followCountMap.get(authorIdStr) || 0;
+
+      let authorFollowers = 0;
+      let authorHours = 14;
+      let authorStreak = 1;
+      let authorFollowing = 5;
+
+      if (demoStats) {
+        authorFollowers = demoStats.followers + realFollowers;
+        authorHours = demoStats.hours;
+        authorStreak = demoStats.streak;
+        authorFollowing = demoStats.following;
+      } else if (authorDoc) {
+        authorFollowers = typeof authorDoc.followers_count === 'number' && authorDoc.followers_count > 0
+          ? authorDoc.followers_count
+          : realFollowers;
+        authorHours = typeof authorDoc.study_hours === 'number' ? authorDoc.study_hours : 14;
+        authorStreak = typeof authorDoc.day_streak === 'number' ? authorDoc.day_streak : 1;
+        authorFollowing = typeof authorDoc.following_count === 'number' ? authorDoc.following_count : 5;
+      } else if (p.author) {
+        authorFollowers = p.author.followersCount || p.author.followers_count || realFollowers;
+        authorHours = p.author.study_hours || p.author.studyHours || 14;
+        authorStreak = p.author.day_streak || p.author.dayStreak || 1;
+        authorFollowing = p.author.followingCount || p.author.following_count || 5;
+      }
 
       const likedBy = Array.isArray(p.liked_by) ? p.liked_by.map(String) : [];
       const isLiked = Boolean(currentUserId && likedBy.includes(currentUserId));
@@ -170,9 +228,14 @@ export async function GET(req) {
           username: authorUsername,
           avatar_url: authorAvatar,
           followersCount: authorFollowers,
+          followers_count: authorFollowers,
+          followingCount: authorFollowing,
+          following_count: authorFollowing,
           bio: authorBio,
-          study_hours: authorDoc?.study_hours || 0,
-          day_streak: authorDoc?.day_streak || 1,
+          study_hours: authorHours,
+          studyHours: authorHours,
+          day_streak: authorStreak,
+          dayStreak: authorStreak,
         },
         tag: p.tag || '#StudyNotes',
         text: p.text,

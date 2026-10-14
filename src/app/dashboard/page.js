@@ -1126,7 +1126,7 @@ export default function DashboardPage() {
 
       {/* StudyCord AI: Permanently mounted in background so chat thinking & streaming persist across navigation */}
       <div
-        className="chatter-guru-wrapper"
+        className={`chatter-guru-wrapper ${guruNavHidden ? 'chatter-guru-wrapper--nav-hidden' : ''}`}
         style={{
           display: chatterTab === 'guru' ? 'flex' : 'none',
           flex: 1,
@@ -1138,6 +1138,7 @@ export default function DashboardPage() {
           channelName={activeChannelName}
           serverId={activeServerId}
           onHideNavChange={setGuruNavHidden}
+          isNavHidden={guruNavHidden}
         />
       </div>
 

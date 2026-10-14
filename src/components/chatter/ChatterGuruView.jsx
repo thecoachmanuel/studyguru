@@ -9,6 +9,7 @@ export default function ChatterGuruView({
   channelName,
   serverId,
   onHideNavChange,
+  isNavHidden = false,
 }) {
   const [messages, setMessages] = useState([
     {
@@ -439,6 +440,7 @@ export default function ChatterGuruView({
           if (done) break;
           const chunk = decoder.decode(value, { stream: true });
           accumulated += chunk;
+          setLoading(false);
           setMessages((prev) =>
             prev.map((m) => (m.id === aiMsgId ? { ...m, content: accumulated } : m))
           );
@@ -494,13 +496,13 @@ export default function ChatterGuruView({
     const currentScrollTop = e.currentTarget.scrollTop;
     const delta = currentScrollTop - lastScrollTopRef.current;
 
-    // Scrolling up: hide bottom nav and target bar to expand reading area
-    if (delta < -6 && currentScrollTop > 20) {
+    // Scrolling down (reading new content): hide bottom nav to expand reading and compose area
+    if (delta > 6 && currentScrollTop > 30) {
       setTargetBarHidden(true);
       onHideNavChange?.(true);
     }
-    // Scrolling down: restore bottom nav and target bar
-    else if (delta > 6 || currentScrollTop <= 10) {
+    // Scrolling up or near top: restore bottom nav and target bar
+    else if (delta < -6 || currentScrollTop <= 15) {
       setTargetBarHidden(false);
       onHideNavChange?.(false);
     }
@@ -869,6 +871,10 @@ export default function ChatterGuruView({
       >
         {messages.map((m) => {
           const isUser = m.role === 'user';
+          // Hide empty assistant placeholder while AI is generating
+          if (!isUser && !m.content && !m.quizData && !m.flashcardsData) {
+            return null;
+          }
           return (
             <div
               key={m.id}
@@ -980,7 +986,7 @@ export default function ChatterGuruView({
           );
         })}
 
-        {loading && (
+        {loading && (!messages.length || !messages[messages.length - 1]?.content) && (
           <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
             <div
               style={{
