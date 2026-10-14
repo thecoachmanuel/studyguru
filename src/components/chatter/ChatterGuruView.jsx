@@ -35,6 +35,8 @@ export default function ChatterGuruView({
   const docFileInputRef = useRef(null);
   const chatBottomRef = useRef(null);
   const inputRef = useRef(null);
+  const quizGenCountRef = useRef(0);
+  const flashcardsGenCountRef = useRef(0);
 
   const GURU_STORAGE_KEY = 'studycord_guru_chat_history_v2';
 
@@ -206,12 +208,17 @@ export default function ChatterGuruView({
     const targetDocId = docId || selectedDocId || activeDoc?.doc_id || activeDoc?.id;
     const targetDocName = docName || activeDoc?.filename || 'the active study document';
 
+    const isRegen = quizGenCountRef.current > 0;
+    quizGenCountRef.current += 1;
+
     setMessages((prev) => [
       ...prev,
       {
         id: `u-quiz-${Date.now()}`,
         role: 'user',
-        content: `Generate a 5-question multiple choice quiz on ${targetDocName}.`,
+        content: isRegen
+          ? `Generate a fresh, new 5-question CBT quiz on ${targetDocName}.`
+          : `Generate a 5-question multiple choice quiz on ${targetDocName}.`,
         timestamp: 'Now',
       },
     ]);
@@ -220,7 +227,11 @@ export default function ChatterGuruView({
       const res = await fetch('/api/rag/mcq', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ documentId: targetDocId, count: 5 }),
+        body: JSON.stringify({
+          documentId: targetDocId,
+          count: 5,
+          regenerate: isRegen,
+        }),
       });
 
       const data = await res.json();
@@ -240,7 +251,7 @@ export default function ChatterGuruView({
         throw new Error('No questions synthesized');
       }
     } catch {
-      // 5-Question interactive quiz fallback derived from study material
+      // 5-Question interactive CBT quiz fallback derived from study material
       setMessages((prev) => [
         ...prev,
         {
@@ -319,12 +330,17 @@ export default function ChatterGuruView({
     const targetDocId = docId || selectedDocId || activeDoc?.doc_id || activeDoc?.id;
     const targetDocName = docName || activeDoc?.filename || 'the active study document';
 
+    const isRegen = flashcardsGenCountRef.current > 0;
+    flashcardsGenCountRef.current += 1;
+
     setMessages((prev) => [
       ...prev,
       {
         id: `u-cards-${Date.now()}`,
         role: 'user',
-        content: `Create flashcards for active recall from ${targetDocName}.`,
+        content: isRegen
+          ? `Create a fresh set of new study flashcards for active recall from ${targetDocName}.`
+          : `Create flashcards for active recall from ${targetDocName}.`,
         timestamp: 'Now',
       },
     ]);
@@ -333,7 +349,10 @@ export default function ChatterGuruView({
       const res = await fetch('/api/rag/flashcards', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ documentId: targetDocId }),
+        body: JSON.stringify({
+          documentId: targetDocId,
+          regenerate: isRegen,
+        }),
       });
       const data = await res.json();
       const cards = data.flashcards || data.cards || [];
@@ -361,6 +380,8 @@ export default function ChatterGuruView({
             { front: 'Stokes’ Theorem Formula', back: '∮_C F · dr = ∬_S (∇ × F) · dS' },
             { front: 'Pre-LN vs Post-LN benefit', back: 'Pre-LN yields well-behaved gradient norms, allowing training stability without warmup.' },
             { front: 'Eigenvalue Characteristic Equation', back: 'det(A - λI) = 0 defines the characteristic equation for eigenvalues λ.' },
+            { front: 'Bayes Theorem Conditional Formula', back: 'P(A|B) = [P(B|A) · P(A)] / P(B)' },
+            { front: 'Heisenberg Uncertainty Principle', back: 'Δx · Δp ≥ ℏ / 2' },
           ],
           timestamp: 'Just now',
         },
@@ -375,12 +396,12 @@ export default function ChatterGuruView({
     const text = textToSend || inputText;
     if (!text.trim() || loading) return;
 
-    if (text.includes('Quiz')) {
+    if (text.toLowerCase().includes('quiz') || text.toLowerCase().includes('mcq') || text.toLowerCase().includes('cbt')) {
       handleGenerateMCQ();
       setInputText('');
       return;
     }
-    if (text.includes('Flashcards')) {
+    if (text.toLowerCase().includes('flashcard') || text.toLowerCase().includes('flash card')) {
       handleGenerateFlashcards();
       setInputText('');
       return;
@@ -394,14 +415,8 @@ export default function ChatterGuruView({
     };
 
     const aiMsgId = `g-${Date.now()}`;
-    const initialAiMsg = {
-      id: aiMsgId,
-      role: 'assistant',
-      content: '',
-      timestamp: 'Just now',
-    };
-
-    setMessages((prev) => [...prev, userMsg, initialAiMsg]);
+    // Do NOT push initial empty assistant message to avoid empty ghost box
+    setMessages((prev) => [...prev, userMsg]);
     setInputText('');
     setLoading(true);
 
@@ -441,9 +456,21 @@ export default function ChatterGuruView({
           const chunk = decoder.decode(value, { stream: true });
           accumulated += chunk;
           setLoading(false);
-          setMessages((prev) =>
-            prev.map((m) => (m.id === aiMsgId ? { ...m, content: accumulated } : m))
-          );
+          setMessages((prev) => {
+            const exists = prev.some((m) => m.id === aiMsgId);
+            if (exists) {
+              return prev.map((m) => (m.id === aiMsgId ? { ...m, content: accumulated } : m));
+            }
+            return [
+              ...prev,
+              {
+                id: aiMsgId,
+                role: 'assistant',
+                content: accumulated,
+                timestamp: 'Just now',
+              },
+            ];
+          });
         }
 
         if (!accumulated.trim()) {
@@ -451,28 +478,35 @@ export default function ChatterGuruView({
         }
       } else {
         const data = await res.json();
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === aiMsgId
-              ? {
-                  ...m,
-                  content: data.reply || data.answer || 'Tutoring session active. Ask any specific question!',
-                }
-              : m
-          )
-        );
+        setLoading(false);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: aiMsgId,
+            role: 'assistant',
+            content: data.reply || data.answer || 'Tutoring session active. Ask any specific question!',
+            timestamp: 'Just now',
+          },
+        ]);
       }
     } catch {
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === aiMsgId
-            ? {
-                ...m,
-                content: `Here is the study breakdown for **"${text}"**:\n\n1. **Core Concept**: Break the problem down into first principles and define given parameters.\n2. **Key Theorems / Equations**: Check that all boundary conditions and invariants hold.\n3. **Active Practice**: Try explaining the solution steps aloud to test your mastery!`,
-              }
-            : m
-        )
-      );
+      const fallbackContent = `Here is the study breakdown for **"${text}"**:\n\n1. **Core Concept**: Break the problem down into first principles and define given parameters.\n2. **Key Theorems / Equations**: Check that all boundary conditions and invariants hold.\n3. **Active Practice**: Try explaining the solution steps aloud to test your mastery!`;
+      setLoading(false);
+      setMessages((prev) => {
+        const exists = prev.some((m) => m.id === aiMsgId);
+        if (exists) {
+          return prev.map((m) => (m.id === aiMsgId ? { ...m, content: fallbackContent } : m));
+        }
+        return [
+          ...prev,
+          {
+            id: aiMsgId,
+            role: 'assistant',
+            content: fallbackContent,
+            timestamp: 'Just now',
+          },
+        ];
+      });
     } finally {
       setLoading(false);
     }
@@ -496,15 +530,11 @@ export default function ChatterGuruView({
     const currentScrollTop = e.currentTarget.scrollTop;
     const delta = currentScrollTop - lastScrollTopRef.current;
 
-    // Scrolling down (reading new content): hide bottom nav to expand reading and compose area
-    if (delta > 6 && currentScrollTop > 30) {
+    // Subtle target note bar collapse on scroll without hiding bottom navigation
+    if (delta > 8 && currentScrollTop > 40) {
       setTargetBarHidden(true);
-      onHideNavChange?.(true);
-    }
-    // Scrolling up or near top: restore bottom nav and target bar
-    else if (delta < -6 || currentScrollTop <= 15) {
+    } else if (delta < -8 || currentScrollTop <= 15) {
       setTargetBarHidden(false);
-      onHideNavChange?.(false);
     }
     lastScrollTopRef.current = currentScrollTop;
   };
@@ -926,7 +956,7 @@ export default function ChatterGuruView({
                       color: isUser ? '#fff' : 'var(--chatter-primary)',
                     }}
                   >
-                    {isUser ? 'You' : 'StudyGuru AI'}
+                    {isUser ? 'You' : 'StudyCord AI'}
                   </span>
                   {!isUser && <TwitterVerifiedBadge />}
                   <span style={{ fontSize: 11, color: 'var(--chatter-light-text)' }}>
@@ -937,14 +967,14 @@ export default function ChatterGuruView({
                 {/* Message Bubble */}
                 <div
                   style={{
-                    padding: isUser ? '11px 16px' : '13px 18px',
+                    padding: isUser ? '11px 16px' : '14px 18px',
                     borderRadius: isUser ? '18px 18px 4px 18px' : '4px 18px 18px 18px',
                     background: isUser ? 'var(--chatter-primary)' : 'var(--chatter-sheet)',
                     color: isUser ? '#0E0E0E' : '#fff',
                     border: isUser ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
                     fontWeight: isUser ? 600 : 400,
-                    fontSize: 14,
-                    lineHeight: 1.55,
+                    fontSize: isUser ? 14.5 : 15.5,
+                    lineHeight: 1.65,
                     boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
                     whiteSpace: isUser ? 'pre-wrap' : undefined,
                   }}
@@ -955,30 +985,20 @@ export default function ChatterGuruView({
                     <ChatMarkdownMessage content={m.content} />
                   )}
 
-                  {/* Interactive Quiz Component */}
+                  {/* Interactive CBT Quiz Component */}
                   {m.quizData && (
-                    <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--chatter-primary)' }}>
-                        📝 Practice Knowledge Quiz ({m.quizData.length} Questions)
-                      </div>
-                      {m.quizData.map((q, qIndex) => (
-                        <QuizCard key={qIndex} questionObj={q} index={qIndex} />
-                      ))}
-                    </div>
+                    <CbtQuizCard
+                      questions={m.quizData}
+                      onRegenerate={() => handleGenerateMCQ(selectedDocId)}
+                    />
                   )}
 
-                  {/* Interactive Flashcards Component */}
+                  {/* Interactive One-by-One Flashcards Component */}
                   {m.flashcardsData && (
-                    <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--chatter-primary)' }}>
-                        🃏 Study Flashcards for Active Recall
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
-                        {m.flashcardsData.map((card, cIndex) => (
-                          <FlashCard key={cIndex} card={card} />
-                        ))}
-                      </div>
-                    </div>
+                    <FlashcardDeck
+                      cards={m.flashcardsData}
+                      onRegenerate={() => handleGenerateFlashcards(selectedDocId)}
+                    />
                   )}
                 </div>
               </div>
@@ -986,7 +1006,7 @@ export default function ChatterGuruView({
           );
         })}
 
-        {loading && (!messages.length || !messages[messages.length - 1]?.content) && (
+        {loading && (
           <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
             <div
               style={{
@@ -1003,7 +1023,7 @@ export default function ChatterGuruView({
               }}
             >
               <span className="chatter-audiospace-live-dot" />
-              <span>StudyGuru is analyzing notes & synthesizing response...</span>
+              <span>StudyCord AI is analyzing notes & synthesizing response...</span>
             </div>
           </div>
         )}
@@ -1169,115 +1189,791 @@ export default function ChatterGuruView({
   );
 }
 
-// Subcomponent: Interactive Multiple Choice Question
-function QuizCard({ questionObj, index }) {
-  const [selectedOption, setSelectedOption] = useState(null);
+// Subcomponent: CBT Standard Examination & Quiz Component
+function CbtQuizCard({ questions = [], onRegenerate }) {
+  const [currentQIndex, setCurrentQIndex] = useState(0);
+  const [selectedAnswers, setSelectedAnswers] = useState({});
+  const [isSubmitted, setIsSubmitted] = useState(false);
+
+  if (!Array.isArray(questions) || questions.length === 0) return null;
+
+  const totalQuestions = questions.length;
+  const currentQ = questions[currentQIndex] || questions[0];
+
+  const handleSelectOption = (opt) => {
+    if (isSubmitted) return;
+    setSelectedAnswers((prev) => ({
+      ...prev,
+      [currentQIndex]: opt,
+    }));
+  };
+
+  const answeredCount = Object.keys(selectedAnswers).length;
+
+  let correctCount = 0;
+  if (isSubmitted) {
+    questions.forEach((q, idx) => {
+      if (selectedAnswers[idx] === q.correct_answer) {
+        correctCount += 1;
+      }
+    });
+  }
+
+  const percentage = Math.round((correctCount / totalQuestions) * 100);
+
+  const handleSubmitQuiz = () => {
+    setIsSubmitted(true);
+  };
+
+  const handleRetake = () => {
+    setSelectedAnswers({});
+    setIsSubmitted(false);
+    setCurrentQIndex(0);
+  };
 
   return (
     <div
       style={{
-        background: '#141414',
-        borderRadius: 14,
-        padding: 14,
-        border: '1px solid rgba(255, 255, 255, 0.06)',
+        background: '#121212',
+        borderRadius: 20,
+        padding: 16,
+        border: '1px solid rgba(255, 255, 255, 0.08)',
+        marginTop: 12,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 14,
       }}
     >
-      <div style={{ fontSize: 13.5, fontWeight: 700, color: '#fff', marginBottom: 10 }}>
-        {questionObj.question}
+      {/* Top CBT Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 14, fontWeight: 800, color: '#fff' }}>
+            📝 CBT Assessment
+          </span>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              padding: '2px 8px',
+              borderRadius: 12,
+              background: isSubmitted ? 'rgba(64, 227, 120, 0.15)' : 'rgba(255, 255, 255, 0.08)',
+              color: isSubmitted ? 'var(--chatter-primary)' : 'var(--chatter-light-text)',
+            }}
+          >
+            {isSubmitted ? 'Completed' : `Answered: ${answeredCount}/${totalQuestions}`}
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {onRegenerate && (
+            <button
+              type="button"
+              onClick={onRegenerate}
+              title="Generate new quiz questions from document"
+              style={{
+                padding: '4px 10px',
+                borderRadius: 12,
+                background: 'rgba(255, 255, 255, 0.06)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                color: 'var(--chatter-light-text)',
+                fontSize: 11.5,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              ↺ New Quiz
+            </button>
+          )}
+          {isSubmitted && (
+            <button
+              type="button"
+              onClick={handleRetake}
+              style={{
+                padding: '4px 10px',
+                borderRadius: 12,
+                background: 'rgba(64, 227, 120, 0.15)',
+                border: '1px solid rgba(64, 227, 120, 0.3)',
+                color: 'var(--chatter-primary)',
+                fontSize: 11.5,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              Retake
+            </button>
+          )}
+        </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {questionObj.options?.map((opt, i) => {
-          const isSelected = selectedOption === opt;
-          const isCorrect = opt === questionObj.correct_answer;
-          let btnBg = 'rgba(255, 255, 255, 0.05)';
-          let border = '1px solid rgba(255, 255, 255, 0.08)';
-          let color = '#D4D4D4';
+      {/* CBT Question Palette (Numbered questions bar) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
+        {questions.map((q, idx) => {
+          const isCurrent = currentQIndex === idx;
+          const isAnswered = selectedAnswers[idx] !== undefined;
+          let pillBg = 'rgba(255, 255, 255, 0.06)';
+          let pillColor = 'var(--chatter-light-text)';
+          let pillBorder = '1px solid rgba(255, 255, 255, 0.08)';
 
-          if (selectedOption) {
-            if (isCorrect) {
-              btnBg = 'rgba(64, 227, 120, 0.2)';
-              border = '1.5px solid var(--chatter-primary)';
-              color = 'var(--chatter-primary)';
-            } else if (isSelected && !isCorrect) {
-              btnBg = 'rgba(255, 57, 57, 0.2)';
-              border = '1.5px solid var(--chatter-red)';
-              color = 'var(--chatter-red)';
-            }
+          if (isSubmitted) {
+            const isCorrect = selectedAnswers[idx] === q.correct_answer;
+            pillBg = isCorrect ? 'rgba(64, 227, 120, 0.2)' : 'rgba(255, 57, 57, 0.2)';
+            pillColor = isCorrect ? 'var(--chatter-primary)' : 'var(--chatter-red)';
+            pillBorder = isCorrect ? '1.5px solid var(--chatter-primary)' : '1.5px solid var(--chatter-red)';
+          } else if (isAnswered) {
+            pillBg = 'rgba(64, 227, 120, 0.15)';
+            pillColor = 'var(--chatter-primary)';
+          }
+
+          if (isCurrent) {
+            pillBorder = '2px solid var(--chatter-primary)';
           }
 
           return (
             <button
-              key={i}
+              key={idx}
               type="button"
-              onClick={() => setSelectedOption(opt)}
+              onClick={() => setCurrentQIndex(idx)}
               style={{
-                textAlign: 'left',
-                padding: '9px 12px',
+                width: 32,
+                height: 32,
                 borderRadius: 10,
-                background: btnBg,
-                border,
-                color,
+                background: pillBg,
+                border: pillBorder,
+                color: pillColor,
                 fontSize: 12.5,
-                fontWeight: 600,
-                cursor: selectedOption ? 'default' : 'pointer',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                cursor: 'pointer',
                 transition: 'all 0.15s ease',
               }}
             >
-              {opt}
+              {idx + 1}
             </button>
           );
         })}
       </div>
 
-      {selectedOption && questionObj.explanation && (
-        <div style={{ marginTop: 10, fontSize: 11.5, color: 'var(--chatter-light-text)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 8 }}>
-          💡 <strong>Explanation:</strong> {questionObj.explanation}
+      {/* Score Card Banner if submitted */}
+      {isSubmitted && (
+        <div
+          style={{
+            background: 'linear-gradient(135deg, rgba(64, 227, 120, 0.12) 0%, rgba(20, 20, 20, 0.9) 100%)',
+            border: '1.5px solid var(--chatter-primary)',
+            borderRadius: 16,
+            padding: '14px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--chatter-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Final Test Result
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#fff', marginTop: 2 }}>
+              Score: {correctCount} / {totalQuestions} <span style={{ fontSize: 16, color: 'var(--chatter-primary)' }}>({percentage}%)</span>
+            </div>
+          </div>
+          <div style={{ textAlign: 'right', fontSize: 13, fontWeight: 700, color: percentage >= 80 ? 'var(--chatter-primary)' : '#fff' }}>
+            {percentage >= 80 ? '🎯 Outstanding Mastery!' : percentage >= 60 ? '👍 Good Competency' : '📚 Review Solutions Below'}
+          </div>
         </div>
       )}
+
+      {/* Current Question Body */}
+      <div
+        style={{
+          background: '#181818',
+          borderRadius: 16,
+          padding: 16,
+          border: '1px solid rgba(255, 255, 255, 0.06)',
+        }}
+      >
+        <div style={{ fontSize: 11.5, color: 'var(--chatter-light-text)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>
+          Question {currentQIndex + 1} of {totalQuestions}
+        </div>
+        <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', lineHeight: 1.5, marginBottom: 14 }}>
+          {currentQ.question}
+        </div>
+
+        {/* Options */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {currentQ.options?.map((opt, i) => {
+            const letter = String.fromCharCode(65 + i); // 'A', 'B', 'C', 'D'
+            const isSelected = selectedAnswers[currentQIndex] === opt;
+            const isCorrect = opt === currentQ.correct_answer;
+
+            let optBg = 'rgba(255, 255, 255, 0.04)';
+            let optBorder = '1px solid rgba(255, 255, 255, 0.08)';
+            let optColor = '#E0E0E0';
+
+            if (isSubmitted) {
+              if (isCorrect) {
+                optBg = 'rgba(64, 227, 120, 0.2)';
+                optBorder = '1.5px solid var(--chatter-primary)';
+                optColor = 'var(--chatter-primary)';
+              } else if (isSelected && !isCorrect) {
+                optBg = 'rgba(255, 57, 57, 0.2)';
+                optBorder = '1.5px solid var(--chatter-red)';
+                optColor = 'var(--chatter-red)';
+              }
+            } else if (isSelected) {
+              optBg = 'rgba(64, 227, 120, 0.15)';
+              optBorder = '1.5px solid var(--chatter-primary)';
+              optColor = 'var(--chatter-primary)';
+            }
+
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => handleSelectOption(opt)}
+                disabled={isSubmitted}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  textAlign: 'left',
+                  padding: '10px 14px',
+                  borderRadius: 12,
+                  background: optBg,
+                  border: optBorder,
+                  color: optColor,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: isSubmitted ? 'default' : 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <span
+                  style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: '50%',
+                    background: isSelected ? 'var(--chatter-primary)' : 'rgba(255, 255, 255, 0.1)',
+                    color: isSelected ? '#0E0E0E' : '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 11,
+                    fontWeight: 800,
+                    flexShrink: 0,
+                  }}
+                >
+                  {letter}
+                </span>
+                <span style={{ flex: 1 }}>{opt}</span>
+                {isSubmitted && isCorrect && <span style={{ fontSize: 13 }}>✓</span>}
+                {isSubmitted && isSelected && !isCorrect && <span style={{ fontSize: 13 }}>✗</span>}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Detailed Solution Explanation (revealed after submission) */}
+        {isSubmitted && currentQ.explanation && (
+          <div
+            style={{
+              marginTop: 14,
+              padding: '10px 14px',
+              borderRadius: 12,
+              background: 'rgba(64, 227, 120, 0.08)',
+              border: '1px solid rgba(64, 227, 120, 0.2)',
+              fontSize: 13,
+              lineHeight: 1.55,
+              color: '#fff',
+            }}
+          >
+            <div style={{ color: 'var(--chatter-primary)', fontWeight: 700, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span>💡 Solution Explanation:</span>
+            </div>
+            <div>{currentQ.explanation}</div>
+          </div>
+        )}
+      </div>
+
+      {/* CBT Action Bar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <button
+          type="button"
+          onClick={() => setCurrentQIndex((i) => Math.max(0, i - 1))}
+          disabled={currentQIndex === 0}
+          style={{
+            padding: '8px 16px',
+            borderRadius: 14,
+            background: currentQIndex === 0 ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.08)',
+            border: 'none',
+            color: currentQIndex === 0 ? 'rgba(255, 255, 255, 0.25)' : '#fff',
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: currentQIndex === 0 ? 'not-allowed' : 'pointer',
+          }}
+        >
+          ← Previous
+        </button>
+
+        {!isSubmitted ? (
+          <div style={{ display: 'flex', gap: 8 }}>
+            {currentQIndex < totalQuestions - 1 ? (
+              <button
+                type="button"
+                onClick={() => setCurrentQIndex((i) => Math.min(totalQuestions - 1, i + 1))}
+                style={{
+                  padding: '8px 18px',
+                  borderRadius: 14,
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: 'none',
+                  color: '#fff',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Next →
+              </button>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={handleSubmitQuiz}
+              style={{
+                padding: '8px 20px',
+                borderRadius: 14,
+                background: 'var(--chatter-primary)',
+                border: 'none',
+                color: '#0E0E0E',
+                fontSize: 13,
+                fontWeight: 800,
+                cursor: 'pointer',
+                boxShadow: '0 4px 14px rgba(64, 227, 120, 0.3)',
+              }}
+            >
+              Submit CBT Test ✓
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setCurrentQIndex((i) => Math.min(totalQuestions - 1, i + 1))}
+            disabled={currentQIndex === totalQuestions - 1}
+            style={{
+              padding: '8px 18px',
+              borderRadius: 14,
+              background: currentQIndex === totalQuestions - 1 ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.08)',
+              border: 'none',
+              color: currentQIndex === totalQuestions - 1 ? 'rgba(255, 255, 255, 0.25)' : '#fff',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: currentQIndex === totalQuestions - 1 ? 'not-allowed' : 'pointer',
+            }}
+          >
+            Next Question →
+          </button>
+        )}
+      </div>
     </div>
   );
 }
 
-// Subcomponent: Interactive Flip Card
-function FlashCard({ card }) {
+// Subcomponent: Interactive One-by-One Swipeable Flashcards Deck with Fullscreen Support
+function FlashcardDeck({ cards = [], onRegenerate }) {
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
-  const frontText = card?.front || card?.question || card?.concept || card?.title || 'Key Concept';
-  const backText = card?.back || card?.answer || card?.definition || card?.explanation || 'Explanation';
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const touchStartXRef = useRef(null);
 
-  return (
+  if (!Array.isArray(cards) || cards.length === 0) return null;
+
+  const currentCard = cards[currentIndex] || cards[0];
+  const frontText = currentCard.front || currentCard.question || currentCard.concept || currentCard.title || 'Key Concept';
+  const backText = currentCard.back || currentCard.answer || currentCard.definition || currentCard.explanation || 'Explanation';
+
+  const handlePrev = (e) => {
+    e?.stopPropagation?.();
+    if (currentIndex > 0) {
+      setFlipped(false);
+      setCurrentIndex((i) => i - 1);
+    }
+  };
+
+  const handleNext = (e) => {
+    e?.stopPropagation?.();
+    if (currentIndex < cards.length - 1) {
+      setFlipped(false);
+      setCurrentIndex((i) => i + 1);
+    }
+  };
+
+  const handleTouchStart = (e) => {
+    touchStartXRef.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartXRef.current === null) return;
+    const diff = e.changedTouches[0].clientX - touchStartXRef.current;
+    if (diff > 50) {
+      handlePrev();
+    } else if (diff < -50) {
+      handleNext();
+    }
+    touchStartXRef.current = null;
+  };
+
+  // Keyboard navigation when in fullscreen
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowRight') handleNext();
+      else if (e.key === 'ArrowLeft') handlePrev();
+      else if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        setFlipped((f) => !f);
+      } else if (e.key === 'Escape') {
+        setIsFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFullscreen, currentIndex, cards.length]);
+
+  const cardSurface = (fullscreen = false) => (
     <div
       onClick={() => setFlipped((f) => !f)}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
       style={{
-        background: flipped ? 'rgba(64, 227, 120, 0.08)' : '#141414',
-        border: flipped ? '1.5px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
-        borderRadius: 14,
-        padding: 14,
-        minHeight: 120,
+        width: '100%',
+        minHeight: fullscreen ? 360 : 220,
+        borderRadius: 20,
+        background: flipped ? 'linear-gradient(135deg, #18281d 0%, #111a14 100%)' : 'linear-gradient(135deg, #1f1f1f 0%, #151515 100%)',
+        border: flipped ? '1.5px solid var(--chatter-primary)' : '1.5px solid rgba(255, 255, 255, 0.12)',
+        boxShadow: flipped ? '0 12px 32px rgba(64, 227, 120, 0.2)' : '0 10px 28px rgba(0,0,0,0.4)',
+        padding: fullscreen ? '28px 32px' : '20px 22px',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
         cursor: 'pointer',
-        transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+        transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
         userSelect: 'none',
+        position: 'relative',
       }}
     >
+      {/* Top Header of Card */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 11, color: flipped ? 'var(--chatter-primary)' : 'var(--chatter-light-text)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-          {flipped ? '💡 ANSWER' : '❓ QUESTION'}
-        </span>
-        <span style={{ fontSize: 10.5, color: 'var(--chatter-light-text)' }}>
-          Tap to {flipped ? 'see front' : 'flip'} 🔄
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 800,
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+              padding: '3px 8px',
+              borderRadius: 8,
+              background: flipped ? 'rgba(64, 227, 120, 0.2)' : 'rgba(255, 255, 255, 0.08)',
+              color: flipped ? 'var(--chatter-primary)' : '#fff',
+            }}
+          >
+            {flipped ? '💡 Answer / Concept' : '❓ Question / Prompt'}
+          </span>
+        </div>
+        <div style={{ fontSize: 11.5, color: 'var(--chatter-light-text)', display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span>Tap card to flip 🔄</span>
+        </div>
       </div>
 
-      <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff', margin: '10px 0', lineHeight: 1.5 }}>
+      {/* Main Card Content */}
+      <div
+        style={{
+          margin: '24px 0',
+          fontSize: fullscreen ? 22 : 16,
+          fontWeight: 650,
+          color: '#FFFFFF',
+          lineHeight: 1.6,
+          textAlign: 'center',
+          wordBreak: 'break-word',
+        }}
+      >
         {flipped ? backText : frontText}
       </div>
 
-      <div style={{ fontSize: 11, color: flipped ? 'var(--chatter-primary)' : 'var(--chatter-light-text)', display: 'flex', alignItems: 'center', gap: 4 }}>
-        <span>{flipped ? '✓ Tap to reverse' : '• Active recall prompt'}</span>
+      {/* Card Footer Hint */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11.5, color: 'var(--chatter-light-text)' }}>
+        <span>{flipped ? '✓ Tap to view question' : '• Active recall prompt'}</span>
+        <span>Swipe or use arrows</span>
       </div>
+    </div>
+  );
+
+  return (
+    <div
+      style={{
+        background: '#121212',
+        borderRadius: 20,
+        padding: 16,
+        border: '1px solid rgba(255, 255, 255, 0.08)',
+        marginTop: 12,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 14,
+      }}
+    >
+      {/* Header with counter and fullscreen button */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 13.5, fontWeight: 800, color: '#fff' }}>
+            🃏 Flashcard {currentIndex + 1} of {cards.length}
+          </span>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              padding: '2px 8px',
+              borderRadius: 12,
+              background: 'rgba(64, 227, 120, 0.15)',
+              color: 'var(--chatter-primary)',
+            }}
+          >
+            Active Recall
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {onRegenerate && (
+            <button
+              type="button"
+              onClick={onRegenerate}
+              title="Generate new flashcards from document"
+              style={{
+                padding: '4px 10px',
+                borderRadius: 12,
+                background: 'rgba(255, 255, 255, 0.06)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                color: 'var(--chatter-light-text)',
+                fontSize: 11.5,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              ↺ New Set
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setIsFullscreen(true)}
+            title="Expand to Fullscreen"
+            style={{
+              padding: '4px 10px',
+              borderRadius: 12,
+              background: 'rgba(64, 227, 120, 0.15)',
+              border: '1px solid rgba(64, 227, 120, 0.3)',
+              color: 'var(--chatter-primary)',
+              fontSize: 12,
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              cursor: 'pointer',
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+            </svg>
+            <span>Expand</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Progress Bar */}
+      <div style={{ width: '100%', height: 4, borderRadius: 2, background: 'rgba(255, 255, 255, 0.08)', overflow: 'hidden' }}>
+        <div
+          style={{
+            height: '100%',
+            width: `${((currentIndex + 1) / cards.length) * 100}%`,
+            background: 'var(--chatter-primary)',
+            transition: 'width 0.2s ease',
+          }}
+        />
+      </div>
+
+      {/* Single Flashcard */}
+      {cardSurface(false)}
+
+      {/* Navigation Controls */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
+        <button
+          type="button"
+          onClick={handlePrev}
+          disabled={currentIndex === 0}
+          style={{
+            padding: '8px 16px',
+            borderRadius: 14,
+            background: currentIndex === 0 ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.08)',
+            border: 'none',
+            color: currentIndex === 0 ? 'rgba(255, 255, 255, 0.25)' : '#fff',
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: currentIndex === 0 ? 'not-allowed' : 'pointer',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          ← Previous
+        </button>
+
+        {/* Dots */}
+        <div style={{ display: 'flex', gap: 5 }}>
+          {cards.map((_, i) => (
+            <div
+              key={i}
+              onClick={() => {
+                setFlipped(false);
+                setCurrentIndex(i);
+              }}
+              style={{
+                width: i === currentIndex ? 18 : 6,
+                height: 6,
+                borderRadius: 3,
+                background: i === currentIndex ? 'var(--chatter-primary)' : 'rgba(255, 255, 255, 0.2)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+            />
+          ))}
+        </div>
+
+        <button
+          type="button"
+          onClick={handleNext}
+          disabled={currentIndex === cards.length - 1}
+          style={{
+            padding: '8px 16px',
+            borderRadius: 14,
+            background: currentIndex === cards.length - 1 ? 'rgba(255, 255, 255, 0.04)' : 'var(--chatter-primary)',
+            border: 'none',
+            color: currentIndex === cards.length - 1 ? 'rgba(255, 255, 255, 0.25)' : '#0E0E0E',
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: currentIndex === cards.length - 1 ? 'not-allowed' : 'pointer',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          Next →
+        </button>
+      </div>
+
+      {/* Fullscreen Overlay Modal */}
+      {isFullscreen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 99999,
+            background: 'rgba(10, 10, 10, 0.96)',
+            backdropFilter: 'blur(16px)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            padding: '24px 20px',
+          }}
+        >
+          {/* Top Fullscreen Bar */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: 700, margin: '0 auto', width: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 16, fontWeight: 800, color: '#fff' }}>
+                Card {currentIndex + 1} of {cards.length}
+              </span>
+              <span style={{ fontSize: 12, color: 'var(--chatter-primary)', background: 'rgba(64, 227, 120, 0.15)', padding: '3px 10px', borderRadius: 12, fontWeight: 700 }}>
+                Fullscreen Study Mode
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsFullscreen(false)}
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: 'none',
+                color: '#fff',
+                fontSize: 18,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+              }}
+              title="Close Fullscreen (Esc)"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Centered Large Card */}
+          <div style={{ maxWidth: 700, margin: 'auto', width: '100%' }}>
+            {cardSurface(true)}
+          </div>
+
+          {/* Bottom Fullscreen Controls */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: 700, margin: '0 auto', width: '100%' }}>
+            <button
+              type="button"
+              onClick={handlePrev}
+              disabled={currentIndex === 0}
+              style={{
+                padding: '12px 24px',
+                borderRadius: 16,
+                background: currentIndex === 0 ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.12)',
+                border: 'none',
+                color: currentIndex === 0 ? 'rgba(255, 255, 255, 0.25)' : '#fff',
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: currentIndex === 0 ? 'not-allowed' : 'pointer',
+              }}
+            >
+              ← Previous (Left)
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setFlipped((f) => !f)}
+              style={{
+                padding: '12px 28px',
+                borderRadius: 16,
+                background: 'rgba(64, 227, 120, 0.15)',
+                border: '1.5px solid var(--chatter-primary)',
+                color: 'var(--chatter-primary)',
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              {flipped ? 'Show Question (Space)' : 'Reveal Answer (Space)'}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleNext}
+              disabled={currentIndex === cards.length - 1}
+              style={{
+                padding: '12px 24px',
+                borderRadius: 16,
+                background: currentIndex === cards.length - 1 ? 'rgba(255, 255, 255, 0.05)' : 'var(--chatter-primary)',
+                border: 'none',
+                color: currentIndex === cards.length - 1 ? 'rgba(255, 255, 255, 0.25)' : '#0E0E0E',
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: currentIndex === cards.length - 1 ? 'not-allowed' : 'pointer',
+              }}
+            >
+              Next → (Right)
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

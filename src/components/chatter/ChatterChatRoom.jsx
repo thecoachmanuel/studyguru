@@ -7,12 +7,23 @@ import { TwitterVerifiedBadge } from './ChatterFeedView';
 
 const STUDY_EMOJIS = ['👍', '💡', '❓', '🔥', '✅'];
 
+function formatLastSeen(dateStr) {
+  if (!dateStr) return 'recently';
+  const diffMinutes = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000);
+  if (diffMinutes < 1) return 'just now';
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffHours < 48) return 'yesterday';
+  return `${Math.floor(diffHours / 24)}d ago`;
+}
+
 function normalizeMessage(m, currentUserId) {
   if (!m) return null;
   const rawSenderId = m.sender_id || m.user_id || m.profiles?.id || m.author_id || (m.profiles?._id ? String(m.profiles._id) : '');
   const senderId = rawSenderId ? String(rawSenderId) : '';
   const senderName = m.sender_name || m.profiles?.name || m.profiles?.username || m.author || (senderId === String(currentUserId) ? 'You' : 'Scholar');
-  const senderAvatar = m.sender_avatar || m.profiles?.avatar_url || m.profiles?.image || null;
+  const senderAvatar = m.sender_avatar || m.author_avatar || m.avatar_url || m.profiles?.avatar_url || m.profiles?.image || null;
   const attachmentUrl = m.attachment_url || m.attachments?.[0]?.file_url || m.attachments?.[0]?.url || m.attachment?.file_url || null;
   const createdAt = m.createdAt || m.created_at || new Date().toISOString();
 
@@ -37,13 +48,22 @@ export default function ChatterChatRoom({
   serverName,
   userId,
   profile,
+  partnerUser = null,
+  partnerAvatar = null,
   isPartnerOnline = true,
+  partnerLastSeen = null,
   onBack,
   onStartAudioCall,
   onStartVideoCall,
   onStartDM,
   onLeaveRoom,
 }) {
+  const [partnerDetails, setPartnerDetails] = useState(partnerUser || null);
+
+  useEffect(() => {
+    if (partnerUser) setPartnerDetails(partnerUser);
+  }, [partnerUser]);
+
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [inputText, setInputText] = useState('');
@@ -365,6 +385,11 @@ export default function ChatterChatRoom({
     }
   };
 
+  const displayRoomTitle = channelType === 'dm'
+    ? (partnerDetails?.name || partnerDetails?.username || channelName || 'Study Partner')
+    : (serverName || (channelName && !channelName.startsWith('#') ? channelName : 'Study Room'));
+  const currentPartnerAvatar = partnerAvatar || partnerDetails?.avatar_url || partnerDetails?.image || null;
+
   return (
     <div
       style={{
@@ -412,8 +437,8 @@ export default function ChatterChatRoom({
           <div style={{ position: 'relative' }}>
             <div
               style={{
-                width: 42,
-                height: 42,
+                width: 44,
+                height: 44,
                 borderRadius: 14,
                 background: '#242424',
                 color: channelType === 'voice' ? 'var(--chatter-primary)' : '#fff',
@@ -422,9 +447,25 @@ export default function ChatterChatRoom({
                 justifyContent: 'center',
                 fontSize: 16,
                 fontWeight: 700,
+                overflow: 'hidden',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
               }}
             >
-              {channelType === 'voice' ? '🎙️' : channelType === 'dm' ? (channelName?.[0]?.toUpperCase() || 'U') : '#'}
+              {channelType === 'dm' ? (
+                currentPartnerAvatar ? (
+                  <img
+                    src={currentPartnerAvatar}
+                    alt={displayRoomTitle}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <span>{(displayRoomTitle?.[0] || 'U').toUpperCase()}</span>
+                )
+              ) : channelType === 'voice' ? (
+                '🎙️'
+              ) : (
+                '📚'
+              )}
             </div>
             {channelType === 'dm' && (
               isPartnerOnline ? (
@@ -433,10 +474,11 @@ export default function ChatterChatRoom({
                     position: 'absolute',
                     bottom: -1,
                     right: -1,
-                    width: 10,
-                    height: 10,
+                    width: 11,
+                    height: 11,
                     borderRadius: '50%',
-                    background: 'var(--chatter-primary)',
+                    background: '#22c55e',
+                    boxShadow: '0 0 6px rgba(34, 197, 94, 0.7)',
                     border: '2px solid var(--chatter-sheet)',
                   }}
                   title="Online"
@@ -450,7 +492,7 @@ export default function ChatterChatRoom({
                     width: 10,
                     height: 10,
                     borderRadius: '50%',
-                    background: 'rgba(255, 255, 255, 0.3)',
+                    background: 'rgba(255, 255, 255, 0.35)',
                     border: '2px solid var(--chatter-sheet)',
                   }}
                   title="Offline"
@@ -462,18 +504,22 @@ export default function ChatterChatRoom({
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
               <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#fff' }}>
-                {channelName?.startsWith('#') ? channelName : channelName || 'Study Conversation'}
+                {displayRoomTitle}
               </h3>
               {channelType === 'dm' && <TwitterVerifiedBadge />}
             </div>
             {channelType === 'dm' ? (
               <div style={{ fontSize: 11.5, color: isPartnerOnline ? 'var(--chatter-primary)' : 'var(--chatter-light-text)', fontWeight: 500 }}>
-                <span>{isPartnerOnline ? 'Active now' : 'Offline · Last seen recently'}</span>
+                <span>
+                  {isPartnerOnline
+                    ? 'Active now'
+                    : `Offline · Last seen ${formatLastSeen(partnerLastSeen || partnerDetails?.last_seen || partnerDetails?.updatedAt)}`}
+                </span>
               </div>
             ) : (
               <div style={{ fontSize: 11.5, color: 'var(--chatter-light-text)', display: 'flex', alignItems: 'center', gap: 5 }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgba(255, 255, 255, 0.4)' }} />
-                <span>{serverName ? `${serverName} · Discussion` : 'Study Channel'}</span>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--chatter-primary)' }} />
+                <span>{roomMembers.length > 0 ? `${roomMembers.length} active scholars` : 'Live study room'}</span>
               </div>
             )}
           </div>
@@ -600,144 +646,183 @@ export default function ChatterChatRoom({
             (profile?.name && m.sender_name === profile.name) ||
             (profile?.username && m.sender_name === profile.username) ||
             (userId && m.sender_id && String(m.sender_id).includes(String(userId)));
+          const peerAvatar = m.sender_avatar || (channelType === 'dm' ? currentPartnerAvatar : null);
           return (
             <div
               key={m.id}
               style={{
                 display: 'flex',
-                flexDirection: 'column',
-                alignItems: isMe ? 'flex-end' : 'flex-start',
+                flexDirection: isMe ? 'row-reverse' : 'row',
+                alignItems: 'flex-end',
+                gap: 8,
+                alignSelf: isMe ? 'flex-end' : 'flex-start',
+                maxWidth: '85%',
                 position: 'relative',
               }}
             >
-              {/* Author name above peer message */}
               {!isMe && (
-                <span style={{ fontSize: 11.5, color: 'var(--chatter-light-text)', fontWeight: 600, marginBottom: 4, marginLeft: 4 }}>
-                  {m.sender_name || 'Scholar'}
-                </span>
+                <div
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    background: '#242424',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--chatter-primary)',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    flexShrink: 0,
+                    marginBottom: 2,
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                  }}
+                >
+                  {peerAvatar ? (
+                    <img src={peerAvatar} alt={m.sender_name || 'Scholar'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <span>{(m.sender_name?.[0] || 'S').toUpperCase()}</span>
+                  )}
+                </div>
               )}
 
-              {/* Message Bubble matching Chatter ChatTag */}
               <div
                 style={{
-                  maxWidth: '75%',
-                  padding: '12px 16px',
-                  borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                  background: isMe ? 'var(--chatter-primary)' : 'var(--chatter-sheet)',
-                  color: isMe ? '#0E0E0E' : '#FFFFFF',
-                  fontWeight: isMe ? 600 : 400,
-                  fontSize: 14.5,
-                  lineHeight: 1.5,
-                  boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
-                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: isMe ? 'flex-end' : 'flex-start',
                   position: 'relative',
                 }}
-                onClick={() => setReactionMenuMessageId(reactionMenuMessageId === m.id ? null : m.id)}
               >
-                {/* Image attachment */}
-                {m.attachment_url && (
-                  <div style={{ marginBottom: 8, borderRadius: 12, overflow: 'hidden', maxHeight: 240 }}>
-                    <img src={m.attachment_url} alt="Attachment" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                {/* Author name above peer message in rooms */}
+                {!isMe && channelType !== 'dm' && (
+                  <span style={{ fontSize: 11.5, color: 'var(--chatter-light-text)', fontWeight: 600, marginBottom: 4, marginLeft: 4 }}>
+                    {m.sender_name || 'Scholar'}
+                  </span>
+                )}
+
+                {/* Message Bubble matching Chatter ChatTag */}
+                <div
+                  style={{
+                    padding: '12px 16px',
+                    borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+                    background: isMe ? 'var(--chatter-primary)' : 'var(--chatter-sheet)',
+                    color: isMe ? '#0E0E0E' : '#FFFFFF',
+                    fontWeight: isMe ? 600 : 400,
+                    fontSize: 14.5,
+                    lineHeight: 1.5,
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
+                    cursor: 'pointer',
+                    position: 'relative',
+                  }}
+                  onClick={() => setReactionMenuMessageId(reactionMenuMessageId === m.id ? null : m.id)}
+                >
+                  {/* Image attachment */}
+                  {m.attachment_url && (
+                    <div style={{ marginBottom: 8, borderRadius: 12, overflow: 'hidden', maxHeight: 240 }}>
+                      <img src={m.attachment_url} alt="Attachment" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    </div>
+                  )}
+
+                  <div>{m.content}</div>
+
+                  {/* Timestamp & read status */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'flex-end',
+                      gap: 4,
+                      fontSize: 10.5,
+                      color: isMe ? 'rgba(14, 14, 14, 0.7)' : 'var(--chatter-light-text)',
+                      marginTop: 4,
+                    }}
+                  >
+                    <span>
+                      {m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
+                    </span>
+                    {isMe && (
+                      <span
+                        style={{
+                          fontSize: 11.5,
+                          fontWeight: 800,
+                          color: m.is_read ? 'var(--chatter-primary)' : 'rgba(255, 255, 255, 0.45)',
+                          marginLeft: 3,
+                        }}
+                        title={m.is_read ? 'Read' : 'Delivered'}
+                      >
+                        {m.is_read ? '✓✓' : '✓'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Reaction Emojis Picker Popup */}
+                {reactionMenuMessageId === m.id && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: -36,
+                      [isMe ? 'right' : 'left']: 0,
+                      background: 'var(--chatter-sheet)',
+                      border: '1px solid rgba(255, 255, 255, 0.12)',
+                      borderRadius: 24,
+                      padding: '4px 8px',
+                      display: 'flex',
+                      gap: 6,
+                      zIndex: 40,
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                    }}
+                  >
+                    {STUDY_EMOJIS.map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={() => handleToggleReaction(m.id, emoji)}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          fontSize: 16,
+                          cursor: 'pointer',
+                          padding: '2px 4px',
+                          transition: 'transform 0.12s ease',
+                        }}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
                   </div>
                 )}
 
-                <div>{m.content}</div>
-
-                {/* Timestamp & read status */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'flex-end',
-                    gap: 4,
-                    fontSize: 10.5,
-                    color: isMe ? 'rgba(14, 14, 14, 0.7)' : 'var(--chatter-light-text)',
-                    marginTop: 4,
-                  }}
-                >
-                  <span>
-                    {m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
-                  </span>
-                  {isMe && (
-                    <span
-                      style={{
-                        fontSize: 11.5,
-                        fontWeight: 800,
-                        color: m.is_read ? 'var(--chatter-primary)' : 'rgba(255, 255, 255, 0.45)',
-                        marginLeft: 3,
-                      }}
-                      title={m.is_read ? 'Read' : 'Delivered'}
-                    >
-                      {m.is_read ? '✓✓' : '✓'}
-                    </span>
-                  )}
-                </div>
+                {/* Active Reaction Pills below message */}
+                {m.reactions && m.reactions.length > 0 && (
+                  <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+                    {m.reactions.map((r, rIdx) => (
+                      <button
+                        key={rIdx}
+                        type="button"
+                        onClick={() => handleToggleReaction(m.id, r.emoji)}
+                        style={{
+                          background: 'var(--chatter-sheet)',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          borderRadius: 12,
+                          padding: '2px 6px',
+                          fontSize: 11,
+                          color: '#fff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 3,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <span>{r.emoji}</span>
+                        <span style={{ fontWeight: 700, color: 'var(--chatter-primary)' }}>{r.count}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-
-              {/* Reaction Emojis Picker Popup */}
-              {reactionMenuMessageId === m.id && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: -36,
-                    [isMe ? 'right' : 'left']: 0,
-                    background: 'var(--chatter-sheet)',
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
-                    borderRadius: 24,
-                    padding: '4px 8px',
-                    display: 'flex',
-                    gap: 6,
-                    zIndex: 40,
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-                  }}
-                >
-                  {STUDY_EMOJIS.map((emoji) => (
-                    <button
-                      key={emoji}
-                      type="button"
-                      onClick={() => handleToggleReaction(m.id, emoji)}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        fontSize: 16,
-                        cursor: 'pointer',
-                        padding: '2px 4px',
-                        transition: 'transform 0.12s ease',
-                      }}
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {/* Active Reaction Pills below message */}
-              {m.reactions && m.reactions.length > 0 && (
-                <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
-                  {m.reactions.map((r, rIdx) => (
-                    <button
-                      key={rIdx}
-                      type="button"
-                      onClick={() => handleToggleReaction(m.id, r.emoji)}
-                      style={{
-                        background: 'var(--chatter-sheet)',
-                        border: '1px solid rgba(255, 255, 255, 0.08)',
-                        borderRadius: 12,
-                        padding: '2px 6px',
-                        fontSize: 11,
-                        color: '#fff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 3,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <span>{r.emoji}</span>
-                      <span style={{ fontWeight: 700, color: 'var(--chatter-primary)' }}>{r.count}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
           );
         })}

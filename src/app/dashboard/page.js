@@ -197,6 +197,8 @@ export default function DashboardPage() {
   const [audioSpaceModalOpen, setAudioSpaceModalOpen] = useState(false);
   const [userProfileModalTarget, setUserProfileModalTarget] = useState(null);
   const [targetPostId, setTargetPostId] = useState(null);
+  const [filterTag, setFilterTag] = useState(null);
+  const [activePartnerUser, setActivePartnerUser] = useState(null);
 
   // Shared following state synchronized across Feed, Profile Modal, and Profile View
   const [followingMap, setFollowingMap] = useState({});
@@ -1036,6 +1038,7 @@ export default function DashboardPage() {
         activeVoiceChannelName={activeVoiceChannelName}
         onLeaveVoice={leaveVoiceSession}
         onOpenSettings={() => setSettingsOpen(true)}
+        onLogout={handleLogout}
       />
 
       {/* ── Content View ── */}
@@ -1059,6 +1062,8 @@ export default function DashboardPage() {
                 followingMap={followingMap}
                 onToggleFollow={handleToggleFollow}
                 targetPostId={targetPostId}
+                filterTag={filterTag}
+                onSelectTag={setFilterTag}
               />
             </div>
           </div>
@@ -1066,6 +1071,10 @@ export default function DashboardPage() {
             onOpenSearch={() => setSearchModalOpen(true)}
             onOpenRooms={() => setChatterTab('rooms')}
             onOpenGuru={() => setChatterTab('guru')}
+            onSelectTag={(tag) => {
+              setFilterTag(tag);
+              setChatterTab('feed');
+            }}
             followingMap={followingMap}
             onToggleFollow={handleToggleFollow}
             onOpenUserProfile={(scholar) => setUserProfileModalTarget(scholar)}
@@ -1090,9 +1099,11 @@ export default function DashboardPage() {
                 activeServerId={activeServerId}
                 onSelectServer={(sId, cId, cName) => {
                   handleSelectServer(sId);
+                  const selectedServer = servers.find((s) => s.id === sId);
+                  const roomName = selectedServer?.name || cName || 'Study Room';
                   if (cId) {
                     setActiveChannelId(cId);
-                    if (cName) setActiveChannelName(cName);
+                    setActiveChannelName(roomName);
                     setActiveChannelType('text');
                   }
                   setChatterTab('chats');
@@ -1116,6 +1127,10 @@ export default function DashboardPage() {
             onOpenSearch={() => setSearchModalOpen(true)}
             onOpenRooms={() => setChatterTab('rooms')}
             onOpenGuru={() => setChatterTab('guru')}
+            onSelectTag={(tag) => {
+              setFilterTag(tag);
+              setChatterTab('feed');
+            }}
             followingMap={followingMap}
             onToggleFollow={handleToggleFollow}
             onOpenUserProfile={(scholar) => setUserProfileModalTarget(scholar)}
@@ -1126,7 +1141,7 @@ export default function DashboardPage() {
 
       {/* StudyCord AI: Permanently mounted in background so chat thinking & streaming persist across navigation */}
       <div
-        className={`chatter-guru-wrapper ${guruNavHidden ? 'chatter-guru-wrapper--nav-hidden' : ''}`}
+        className="chatter-guru-wrapper"
         style={{
           display: chatterTab === 'guru' ? 'flex' : 'none',
           flex: 1,
@@ -1137,8 +1152,6 @@ export default function DashboardPage() {
         <ChatterGuruView
           channelName={activeChannelName}
           serverId={activeServerId}
-          onHideNavChange={setGuruNavHidden}
-          isNavHidden={guruNavHidden}
         />
       </div>
 
@@ -1199,11 +1212,16 @@ export default function DashboardPage() {
               servers={servers}
               activeServerId={activeServerId}
               activeChannelId={activeChannelId}
-              onSelectChannel={(sId, cId, cName, cType) => {
+              onSelectChannel={(sId, cId, cName, cType, partnerData) => {
                 setActiveServerId(sId);
                 setActiveChannelId(cId);
                 setActiveChannelName(cName);
                 setActiveChannelType(cType || 'text');
+                if (partnerData) {
+                  setActivePartnerUser(partnerData);
+                } else {
+                  setActivePartnerUser(null);
+                }
               }}
               onOpenDMsModal={() => setNewDMSheetOpen(true)}
               unreadCounts={unreadCounts}
@@ -1222,7 +1240,14 @@ export default function DashboardPage() {
                 serverName={activeServerName}
                 userId={user?.id}
                 profile={profile}
-                onBack={() => setActiveChannelId(null)}
+                partnerUser={activePartnerUser}
+                partnerAvatar={activePartnerUser?.avatar_url}
+                isPartnerOnline={activePartnerUser?.online}
+                partnerLastSeen={activePartnerUser?.last_seen}
+                onBack={() => {
+                  setActiveChannelId(null);
+                  setActivePartnerUser(null);
+                }}
                 onStartDM={handleStartDM}
                 onLeaveRoom={(leftServerId) => {
                   setServers((prev) => prev.filter((s) => s.id !== leftServerId));
@@ -1319,7 +1344,7 @@ export default function DashboardPage() {
             setChatterTab(tab);
           }}
           unreadChatsCount={Object.values(unreadCounts).reduce((a, b) => a + b, 0)}
-          isHidden={chatterTab === 'guru' && guruNavHidden}
+          isHidden={false}
         />
       )}
 

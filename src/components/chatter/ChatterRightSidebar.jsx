@@ -7,6 +7,7 @@ export default function ChatterRightSidebar({
   onOpenSearch,
   onOpenRooms,
   onOpenGuru,
+  onSelectTag,
   followingMap = {},
   onToggleFollow,
   onOpenUserProfile,
@@ -172,7 +173,7 @@ export default function ChatterRightSidebar({
           {trendingTopics.map((item) => (
             <div
               key={item.tag}
-              onClick={onOpenRooms}
+              onClick={() => onSelectTag?.(item.tag)}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -180,6 +181,7 @@ export default function ChatterRightSidebar({
                 cursor: 'pointer',
                 transition: 'opacity 0.12s ease',
               }}
+              title={`Filter posts by ${item.tag}`}
             >
               <span style={{ fontSize: 12, color: 'var(--chatter-light-text)', fontWeight: 500 }}>
                 Trending in {item.category}

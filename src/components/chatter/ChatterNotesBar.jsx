@@ -5,69 +5,58 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 export default function ChatterNotesBar({
   user,
   profile,
+  followingMap = {},
   onOpenLiveSpaces,
 }) {
   const [userNote, setUserNote] = useState(null);
   const [notes, setNotes] = useState([
     {
-      id: 'note-1',
+      id: 'note-sarah',
       author: {
-        id: 'u-elena',
-        name: 'Elena Rostova',
-        username: 'elena_cs',
-        avatar_url: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&auto=format&fit=crop&q=80',
+        id: 'u-sarah',
+        name: 'Sarah Chen',
+        username: 'schen_ai',
+        avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&auto=format&fit=crop&q=80',
       },
-      text: 'Graph Theory & BFS drill 🌲',
-      emoji: '🌲',
-      timestamp: '25m ago',
+      text: 'Reviewing vector line integrals & Stokes Theorem 📐',
+      emoji: '📐',
+      timestamp: '35m ago',
     },
     {
-      id: 'note-2',
+      id: 'note-alex',
       author: {
-        id: 'u-kenji',
-        name: 'Kenji Sato',
-        username: 'kenji_bio',
-        avatar_url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&auto=format&fit=crop&q=80',
+        id: 'u-alex',
+        name: 'Alex Rivera',
+        username: 'arivera_cs',
+        avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
       },
-      text: 'MCAT biochem amino acids 🧬',
-      emoji: '🧬',
+      text: 'Flashcards on Self-Attention & Transformer Q, K, V matrices 🧠',
+      emoji: '🧠',
       timestamp: '1h ago',
     },
     {
-      id: 'note-3',
+      id: 'note-jordan',
       author: {
-        id: 'u-sarah',
-        name: 'Sarah Connor',
-        username: 'sarah_premed',
-        avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80',
+        id: 'u-jordan',
+        name: 'Jordan Lee',
+        username: 'jlee_stats',
+        avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
       },
-      text: 'Pomodoro round 3: Focus ⏳',
-      emoji: '⏳',
+      text: 'Applied statistics: Markov Chains & stationary dist 📊',
+      emoji: '📊',
       timestamp: '2h ago',
     },
     {
-      id: 'note-4',
+      id: 'note-maya',
       author: {
-        id: 'u-david',
-        name: 'David Kim',
-        username: 'david_algo',
-        avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
+        id: 'u-maya',
+        name: 'Maya Patel',
+        username: 'mpatel_math',
+        avatar_url: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&auto=format&fit=crop&q=80',
       },
-      text: 'Linear Algebra eigenbasis 📐',
-      emoji: '📐',
+      text: 'Abstract algebra: Ring isomorphisms and ideal kernels 🔬',
+      emoji: '🔬',
       timestamp: '3h ago',
-    },
-    {
-      id: 'note-5',
-      author: {
-        id: 'u-mia',
-        name: 'Mia Chen',
-        username: 'mia_design',
-        avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
-      },
-      text: 'Working on OS kernel labs 💻',
-      emoji: '💻',
-      timestamp: '4h ago',
     },
   ]);
 
@@ -129,16 +118,35 @@ export default function ChatterNotesBar({
     }));
   }, [notes, viewedNoteIds]);
 
-  // Unviewed authors appear first; fully-viewed authors are pushed to the end
+  // Priority sorting:
+  // 1. Followed scholars that have unviewed notes
+  // 2. Other scholars that have unviewed notes
+  // 3. Followed scholars whose notes have been viewed
+  // 4. Other viewed notes
   const sortedAuthorGroups = useMemo(() => {
-    const unviewed = authorGroups.filter((g) => !g.isFullyViewed);
-    const fullyViewed = authorGroups.filter((g) => g.isFullyViewed);
-    return [...unviewed, ...fullyViewed];
-  }, [authorGroups]);
+    return [...authorGroups].sort((a, b) => {
+      const aFollow = Boolean(followingMap[a.authorId] || a.notes.some((n) => n.is_following));
+      const bFollow = Boolean(followingMap[b.authorId] || b.notes.some((n) => n.is_following));
+      const aUnviewed = a.hasUnviewed;
+      const bUnviewed = b.hasUnviewed;
 
-  // Load user's saved status note on mount
+      if (aUnviewed && bUnviewed) {
+        if (aFollow && !bFollow) return -1;
+        if (!aFollow && bFollow) return 1;
+        return 0;
+      }
+      if (aUnviewed && !bUnviewed) return -1;
+      if (!aUnviewed && bUnviewed) return 1;
+
+      if (aFollow && !bFollow) return -1;
+      if (!aFollow && bFollow) return 1;
+      return 0;
+    });
+  }, [authorGroups, followingMap]);
+
+  // Load user's saved status note and real community note statuses on mount
   useEffect(() => {
-    fetch('/api/user/status')
+    fetch('/api/user/status?feed=true')
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data?.status?.text) {
@@ -148,6 +156,9 @@ export default function ChatterNotesBar({
             emoji: data.status.emoji || '📚',
             timestamp: 'Today',
           });
+        }
+        if (Array.isArray(data?.notes) && data.notes.length > 0) {
+          setNotes(data.notes);
         }
       })
       .catch(() => {});

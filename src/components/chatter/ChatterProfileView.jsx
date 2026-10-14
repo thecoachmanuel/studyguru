@@ -43,6 +43,9 @@ export default function ChatterProfileView({
   const [studyHours, setStudyHours] = useState(
     typeof profile?.study_hours === 'number' ? profile.study_hours : 0
   );
+  const [loadingStats, setLoadingStats] = useState(
+    typeof profile?.followers_count !== 'number'
+  );
 
   const avatarInputRef = useRef(null);
   const bannerInputRef = useRef(null);
@@ -54,7 +57,10 @@ export default function ChatterProfileView({
   }, [followingMap, profile?.following_count]);
 
   useEffect(() => {
-    if (typeof profile?.followers_count === 'number') setFollowersCount(profile.followers_count);
+    if (typeof profile?.followers_count === 'number') {
+      setFollowersCount(profile.followers_count);
+      setLoadingStats(false);
+    }
     if (typeof profile?.day_streak === 'number') setDayStreak(profile.day_streak);
     if (typeof profile?.study_hours === 'number') setStudyHours(profile.study_hours);
   }, [profile?.followers_count, profile?.day_streak, profile?.study_hours]);
@@ -94,6 +100,8 @@ export default function ChatterProfileView({
         }
       } catch (err) {
         console.warn('Profile load notice:', err);
+      } finally {
+        if (mounted) setLoadingStats(false);
       }
     };
 
@@ -593,22 +601,38 @@ export default function ChatterProfileView({
           }}
         >
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-            <strong style={{ color: '#fff', fontWeight: 800, fontSize: 15.5 }}>{followersCount}</strong>
+            {loadingStats ? (
+              <span style={{ display: 'inline-block', width: 26, height: 16, borderRadius: 4, background: 'rgba(255, 255, 255, 0.15)', animation: 'pulse 1.2s infinite ease-in-out' }} />
+            ) : (
+              <strong style={{ color: '#fff', fontWeight: 800, fontSize: 15.5 }}>{followersCount}</strong>
+            )}
             <span>Followers</span>
           </div>
           <span style={{ opacity: 0.35 }}>·</span>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-            <strong style={{ color: '#fff', fontWeight: 800, fontSize: 15.5 }}>{followingCount}</strong>
+            {loadingStats ? (
+              <span style={{ display: 'inline-block', width: 26, height: 16, borderRadius: 4, background: 'rgba(255, 255, 255, 0.15)', animation: 'pulse 1.2s infinite ease-in-out' }} />
+            ) : (
+              <strong style={{ color: '#fff', fontWeight: 800, fontSize: 15.5 }}>{followingCount}</strong>
+            )}
             <span>Following</span>
           </div>
           <span style={{ opacity: 0.35 }}>·</span>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-            <strong style={{ color: 'var(--chatter-primary)', fontWeight: 800, fontSize: 15.5 }}>{studyHours}h</strong>
+            {loadingStats ? (
+              <span style={{ display: 'inline-block', width: 28, height: 16, borderRadius: 4, background: 'rgba(64, 227, 120, 0.25)', animation: 'pulse 1.2s infinite ease-in-out' }} />
+            ) : (
+              <strong style={{ color: 'var(--chatter-primary)', fontWeight: 800, fontSize: 15.5 }}>{studyHours}h</strong>
+            )}
             <span>Study Hours</span>
           </div>
           <span style={{ opacity: 0.35 }}>·</span>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-            <strong style={{ color: '#FEF08A', fontWeight: 800, fontSize: 15.5 }}>{dayStreak}🔥</strong>
+            {loadingStats ? (
+              <span style={{ display: 'inline-block', width: 28, height: 16, borderRadius: 4, background: 'rgba(254, 240, 138, 0.25)', animation: 'pulse 1.2s infinite ease-in-out' }} />
+            ) : (
+              <strong style={{ color: '#FEF08A', fontWeight: 800, fontSize: 15.5 }}>{dayStreak}🔥</strong>
+            )}
             <span>Streak</span>
           </div>
         </div>

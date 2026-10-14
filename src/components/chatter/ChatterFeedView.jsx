@@ -30,6 +30,8 @@ export default function ChatterFeedView({
   followingMap = {},
   onToggleFollow,
   targetPostId = null,
+  filterTag = null,
+  onSelectTag,
 }) {
   const [posts, setPosts] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
@@ -58,9 +60,19 @@ export default function ChatterFeedView({
   const [visibleCount, setVisibleCount] = useState(10);
   const loadMoreRef = useRef(null);
 
-  // Prioritize posts of followed users, followed by chronological recency
+  // Filter by active trending topic / tag if selected, and prioritize followed users
   const sortedPosts = useMemo(() => {
-    return [...posts].sort((a, b) => {
+    let list = [...posts];
+    if (filterTag) {
+      const cleanTag = filterTag.toLowerCase().replace(/^#/, '');
+      list = list.filter((p) => {
+        const postTag = (p.tag || '').toLowerCase().replace(/^#/, '');
+        const text = (p.text || '').toLowerCase();
+        return postTag === cleanTag || text.includes(`#${cleanTag}`) || text.includes(cleanTag);
+      });
+    }
+
+    return list.sort((a, b) => {
       const aId = a.author?.id || a.author_id;
       const bId = b.author?.id || b.author_id;
       const aFollowing = Boolean(aId && activeFollowing[aId]);
@@ -71,7 +83,7 @@ export default function ChatterFeedView({
       const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
       return timeB - timeA;
     });
-  }, [posts, activeFollowing]);
+  }, [posts, activeFollowing, filterTag]);
 
   // 10 posts at a time chunked loading
   const visiblePosts = useMemo(() => {
@@ -486,7 +498,44 @@ export default function ChatterFeedView({
       )}
 
       {/* ── 1. Top Chatter Study Notes & Stories Carousel ── */}
-      <ChatterNotesBar user={{ id: userId }} profile={profile} onOpenLiveSpaces={onOpenLiveSpaces} />
+      <ChatterNotesBar user={{ id: userId }} profile={profile} followingMap={activeFollowing} onOpenLiveSpaces={onOpenLiveSpaces} />
+
+      {/* Active Hashtag Filter Banner */}
+      {filterTag && (
+        <div
+          style={{
+            margin: '8px 16px 4px',
+            padding: '8px 14px',
+            background: 'rgba(64, 227, 120, 0.12)',
+            border: '1px solid rgba(64, 227, 120, 0.3)',
+            borderRadius: 14,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: 'var(--chatter-primary)' }}>
+            <span>Filtered by {filterTag.startsWith('#') ? filterTag : `#${filterTag}`}</span>
+            <span style={{ fontSize: 11, color: '#D4D4D4', fontWeight: 500 }}>({sortedPosts.length} {sortedPosts.length === 1 ? 'post' : 'posts'})</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => onSelectTag?.(null)}
+            style={{
+              background: 'rgba(255, 255, 255, 0.1)',
+              border: 'none',
+              color: '#fff',
+              borderRadius: 10,
+              padding: '3px 9px',
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            ✕ Clear Filter
+          </button>
+        </div>
+      )}
 
       {/* ── 2. Chatter Social Posts Stream (Chunked infinite scroll) ── */}
       <div style={{ marginTop: 8 }}>
@@ -558,8 +607,18 @@ export default function ChatterFeedView({
                     </button>
                   )}
 
-                  {/* Tag Pill */}
-                  <span className="chatter-hashtag">{post.tag}</span>
+                  {/* Tag Pill with Click-to-Filter */}
+                  <span
+                    className="chatter-hashtag"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelectTag?.(post.tag);
+                    }}
+                    style={{ cursor: 'pointer' }}
+                    title={`Filter by ${post.tag}`}
+                  >
+                    {post.tag}
+                  </span>
 
                   {/* Author Post Options Menu (Edit / Delete) */}
                   {isMe && (

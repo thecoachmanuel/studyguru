@@ -469,5 +469,5 @@ export async function* generateStreamWithFallback({ prompt, systemPrompt = '' })
   }
 
   // Final resilient fallback: curriculum guidance based on the prompt
-  yield `I've analyzed your question based on your study materials.\n\n### Study Summary & Next Steps\nRegarding: **${prompt.slice(0, 80)}**\n\n- Review the core definitions in your active course notes.\n- For step-by-step problem sets, ask StudyGuru for flashcards or a quiz drill on this topic!\n\n*(High-concurrency cloud failover active)*`;
+  yield `I've analyzed your question based on your study materials.\n\n### Study Summary & Next Steps\nRegarding: **${prompt.slice(0, 80)}**\n\n- Review the core definitions in your active course notes.\n- For step-by-step problem sets, ask StudyCord AI for flashcards or a quiz drill on this topic!\n\n*(High-concurrency cloud failover active)*`;
 }

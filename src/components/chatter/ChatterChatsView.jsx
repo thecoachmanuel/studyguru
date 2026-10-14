@@ -89,7 +89,8 @@ export default function ChatterChatsView({
             name: c.other_user?.name || c.other_user?.username || 'Study Partner',
             username: c.other_user?.username || 'partner',
             avatar_url: c.other_user?.avatar_url || null,
-            online: c.other_user?.status?.state ? c.other_user.status.state === 'online' : true,
+            online: c.other_user?.status?.state ? c.other_user.status.state === 'online' : (c.other_user?.online ?? true),
+            last_seen: c.other_user?.last_seen || c.other_user?.status?.last_seen || c.other_user?.updated_at || null,
           },
           lastMessage: lastMsgText,
           timestamp: timeStr,
@@ -119,7 +120,8 @@ export default function ChatterChatsView({
             name: c.other_user?.name || c.other_user?.username || 'Study Partner',
             username: c.other_user?.username || 'partner',
             avatar_url: c.other_user?.avatar_url || null,
-            online: c.other_user?.status?.state ? c.other_user.status.state === 'online' : true,
+            online: c.other_user?.status?.state ? c.other_user.status.state === 'online' : (c.other_user?.online ?? true),
+            last_seen: c.other_user?.last_seen || c.other_user?.status?.last_seen || c.other_user?.updated_at || null,
           },
           message: c.last_message?.content || 'Hi! Would you like to collaborate and study together?',
           timestamp: timeStr,
@@ -127,26 +129,16 @@ export default function ChatterChatsView({
       });
   }, [conversations, currentUserId]);
 
-  // Aggregate channels from all joined servers
-  const allChannels = useMemo(() => {
-    return servers.flatMap((server) =>
-      (server.channels || []).map((ch) => ({
-        ...ch,
-        serverName: server.name,
-        serverId: server.id,
-      }))
-    );
-  }, [servers]);
-
-  const filteredChannels = useMemo(() => {
+  // Filter study rooms directly (elevating room name and removing sub-channels)
+  const filteredRooms = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    if (!q) return allChannels;
-    return allChannels.filter(
-      (c) =>
-        (c.name || '').toLowerCase().includes(q) ||
-        (c.serverName || '').toLowerCase().includes(q)
+    if (!q) return servers;
+    return servers.filter(
+      (s) =>
+        (s.name || '').toLowerCase().includes(q) ||
+        (s.description || '').toLowerCase().includes(q)
     );
-  }, [allChannels, searchQuery]);
+  }, [servers, searchQuery]);
 
   const filteredDMs = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -183,7 +175,7 @@ export default function ChatterChatsView({
         );
         // Switch to direct chats and select the new chat
         setActiveSegment(0);
-        onSelectChannel?.(null, req.id, req.user.name, 'dm');
+        onSelectChannel?.(null, req.id, req.user.name, 'dm', req.user);
       }
     } catch (err) {
       console.warn('Accept request error:', err);
@@ -266,7 +258,7 @@ export default function ChatterChatsView({
           <input
             type="text"
             placeholder={
-              activeSegment === 0 ? 'Search direct conversations...' : activeSegment === 1 ? 'Search study channels...' : 'Search study requests...'
+              activeSegment === 0 ? 'Search direct conversations...' : activeSegment === 1 ? 'Search study rooms...' : 'Search study requests...'
             }
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -351,7 +343,7 @@ export default function ChatterChatsView({
               {filteredDMs.map((dm) => (
                 <div
                   key={dm.id}
-                  onClick={() => onSelectChannel?.(null, dm.id, dm.user.name, 'dm')}
+                  onClick={() => onSelectChannel?.(null, dm.id, dm.user.name, 'dm', dm.user)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -460,22 +452,25 @@ export default function ChatterChatsView({
         </div>
       )}
 
-      {/* 3b. Segment 1: Study Rooms (Channels) */}
+      {/* 3b. Segment 1: Study Rooms (Direct Room Entity) */}
       {activeSegment === 1 && (
         <div style={{ padding: '0 16px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {filteredChannels.length === 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {filteredRooms.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '30px 10px', color: 'var(--chatter-light-text)', background: 'var(--chatter-sheet)', borderRadius: 16 }}>
-                No study channels found.
+                No study rooms found.
               </div>
             ) : (
-              filteredChannels.map((channel) => {
-                const isSelected = activeChannelId === channel.id;
-                const unread = unreadCounts[channel.id] || 0;
+              filteredRooms.map((room) => {
+                const primaryChannel = room.channels?.find((c) => c.type === 'text') || room.channels?.[0] || { id: room.id, type: 'text' };
+                const isSelected = activeServerId === room.id;
+                const unread = room.channels?.reduce((acc, c) => acc + (unreadCounts[c.id] || 0), 0) || (unreadCounts[room.id] || 0);
+                const memberCount = Array.isArray(room.members) ? room.members.length : (room.members_count || 1);
+
                 return (
                   <div
-                    key={channel.id}
-                    onClick={() => onSelectChannel(channel.serverId, channel.id, channel.name, channel.type)}
+                    key={room.id}
+                    onClick={() => onSelectChannel(room.id, primaryChannel.id, room.name, primaryChannel.type || 'text')}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -491,27 +486,33 @@ export default function ChatterChatsView({
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <div
                         style={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 12,
+                          width: 44,
+                          height: 44,
+                          borderRadius: 14,
                           background: '#242424',
-                          color: channel.type === 'voice' ? 'var(--chatter-primary)' : '#fff',
+                          color: 'var(--chatter-primary)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontSize: 16,
+                          fontSize: 18,
                           fontWeight: 700,
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          overflow: 'hidden',
                         }}
                       >
-                        {channel.type === 'voice' ? '🎙️' : '#'}
+                        {room.icon_url ? (
+                          <img src={room.icon_url} alt={room.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <span>📚</span>
+                        )}
                       </div>
 
                       <div>
-                        <h4 style={{ fontSize: 14.5, fontWeight: 700, color: '#fff', margin: '0 0 2px 0' }}>
-                          {channel.name}
+                        <h4 style={{ fontSize: 15, fontWeight: 700, color: '#fff', margin: '0 0 2px 0' }}>
+                          {room.name}
                         </h4>
                         <div style={{ fontSize: 12, color: 'var(--chatter-light-text)' }}>
-                          {channel.serverName} · {channel.type === 'voice' ? 'Voice Channel' : 'Text Discussion'}
+                          {room.description ? room.description : `${memberCount} ${memberCount === 1 ? 'scholar' : 'scholars'} · Live Study Room`}
                         </div>
                       </div>
                     </div>

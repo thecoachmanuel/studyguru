@@ -34,6 +34,11 @@ export default function ChatterUserProfileModal({
     };
   });
 
+  const hasInitialFollowers = typeof targetUser?.followers_count === 'number' || typeof targetUser?.followersCount === 'number';
+  const hasInitialHours = typeof targetUser?.study_hours === 'number' || typeof targetUser?.studyHours === 'number';
+  const hasInitialStreak = typeof targetUser?.day_streak === 'number' || typeof targetUser?.dayStreak === 'number';
+  const [loadingProfile, setLoadingProfile] = useState(!hasInitialFollowers);
+
   // Sync when targetUser prop changes
   useEffect(() => {
     if (targetUser) {
@@ -54,6 +59,10 @@ export default function ChatterUserProfileModal({
         study_hours: incomingHours !== undefined ? incomingHours : prev.study_hours,
         day_streak: incomingStreak !== undefined ? incomingStreak : prev.day_streak,
       }));
+
+      if (incomingFollowers === undefined) {
+        setLoadingProfile(true);
+      }
     }
   }, [targetUser]);
 
@@ -76,16 +85,18 @@ export default function ChatterUserProfileModal({
             username: (data.username && data.username !== 'scholar') ? data.username : (prev.username || data.username),
             avatar_url: data.avatar_url || prev.avatar_url,
             banner_url: data.banner_url || prev.banner_url,
-            bio: (data.bio && !data.bio.startsWith('📚 Studying & collaborating on StudyCord · Always open')) ? data.bio : (prev.bio || data.bio),
-            // Only update counts if valid numbers and not downgrading to 0 when initial was populated
+            bio: data.bio || prev.bio,
             followers_count: typeof data.followers_count === 'number' ? data.followers_count : prev.followers_count,
             following_count: typeof data.following_count === 'number' ? data.following_count : prev.following_count,
-            study_hours: typeof data.study_hours === 'number' && data.study_hours > 0 ? data.study_hours : (prev.study_hours || data.study_hours || 0),
-            day_streak: typeof data.day_streak === 'number' && data.day_streak > 0 ? data.day_streak : (prev.day_streak || data.day_streak || 1),
+            study_hours: typeof data.study_hours === 'number' ? data.study_hours : (prev.study_hours || data.study_hours || 0),
+            day_streak: typeof data.day_streak === 'number' ? data.day_streak : (prev.day_streak || data.day_streak || 1),
           }));
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (active) setLoadingProfile(false);
+      });
 
     return () => {
       active = false;
@@ -241,9 +252,16 @@ export default function ChatterUserProfileModal({
             @{liveUser.username || liveUser.name?.toLowerCase().replace(/\s+/g, '_')}
           </div>
 
-          <p style={{ fontSize: 15, color: '#D4D4D4', lineHeight: 1.55, margin: '0 0 16px 0' }}>
-            {liveUser.bio || '🎓 Studying and preparing for upcoming semester exams · Sharing notes on mathematics & computer science.'}
-          </p>
+          {loadingProfile && !liveUser.bio ? (
+            <div style={{ margin: '0 0 16px 0', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ height: 14, width: '92%', borderRadius: 4, background: 'rgba(255, 255, 255, 0.08)', animation: 'pulse 1.2s infinite ease-in-out' }} />
+              <div style={{ height: 14, width: '68%', borderRadius: 4, background: 'rgba(255, 255, 255, 0.08)', animation: 'pulse 1.2s infinite ease-in-out' }} />
+            </div>
+          ) : (
+            <p style={{ fontSize: 15, color: '#D4D4D4', lineHeight: 1.55, margin: '0 0 16px 0' }}>
+              {liveUser.bio || '🎓 Studying and preparing for upcoming semester exams · Sharing notes on mathematics & computer science.'}
+            </p>
+          )}
 
           {/* Stats Bar */}
           <div
@@ -255,15 +273,27 @@ export default function ChatterUserProfileModal({
             }}
           >
             <div style={{ background: '#141414', borderRadius: 14, padding: '12px 10px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-              <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--chatter-primary)' }}>{displayFollowers}</div>
+              {loadingProfile && !hasInitialFollowers ? (
+                <div style={{ height: 19, width: 34, borderRadius: 5, margin: '0 auto', background: 'rgba(64, 227, 120, 0.2)', animation: 'pulse 1.2s infinite ease-in-out' }} />
+              ) : (
+                <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--chatter-primary)' }}>{displayFollowers}</div>
+              )}
               <div style={{ fontSize: 13, color: 'var(--chatter-light-text)', marginTop: 2, fontWeight: 500 }}>Followers</div>
             </div>
             <div style={{ background: '#141414', borderRadius: 14, padding: '12px 10px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-              <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--chatter-primary)' }}>{studyHours}</div>
+              {loadingProfile && !hasInitialHours ? (
+                <div style={{ height: 19, width: 34, borderRadius: 5, margin: '0 auto', background: 'rgba(64, 227, 120, 0.2)', animation: 'pulse 1.2s infinite ease-in-out' }} />
+              ) : (
+                <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--chatter-primary)' }}>{studyHours}</div>
+              )}
               <div style={{ fontSize: 13, color: 'var(--chatter-light-text)', marginTop: 2, fontWeight: 500 }}>Study Hours</div>
             </div>
             <div style={{ background: '#141414', borderRadius: 14, padding: '12px 10px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-              <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--chatter-primary)' }}>{dayStreak}</div>
+              {loadingProfile && !hasInitialStreak ? (
+                <div style={{ height: 19, width: 34, borderRadius: 5, margin: '0 auto', background: 'rgba(64, 227, 120, 0.2)', animation: 'pulse 1.2s infinite ease-in-out' }} />
+              ) : (
+                <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--chatter-primary)' }}>{dayStreak}</div>
+              )}
               <div style={{ fontSize: 13, color: 'var(--chatter-light-text)', marginTop: 2, fontWeight: 500 }}>Day Streak</div>
             </div>
           </div>
