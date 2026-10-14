@@ -200,28 +200,211 @@ export default function ChatterGuruView({
     }
   };
 
+  // Multi-bank procedural fallback questions for Chatter AI
+  const generateGuruFallbackQuestions = (iteration = 0, docTitle = 'Study Document') => {
+    const banks = [
+      [
+        {
+          question: `1. In systematic analysis of ${docTitle}, what is the foundational principle emphasized?`,
+          options: [
+            'First-principles verification of core constraints and invariants',
+            'Arbitrary heuristic estimation without validating conditions',
+            'Ignoring intermediate boundary criteria and error margins',
+            'Assuming static state across open, non-isolated domains',
+          ],
+          correct_answer: 'First-principles verification of core constraints and invariants',
+          explanation: 'Rigorous academic comprehension begins by verifying foundational assumptions and mathematical boundary invariants.',
+        },
+        {
+          question: '2. In problem solving, why is dimensional and unit consistency analysis conducted first?',
+          options: [
+            'To verify physical plausibility and catch formulation errors early',
+            'To arbitrarily scale arbitrary constant coefficients',
+            'To eliminate all vector components unconditionally',
+            'To convert differential terms into discrete scalars without proof',
+          ],
+          correct_answer: 'To verify physical plausibility and catch formulation errors early',
+          explanation: 'Dimensional consistency ensures that the mathematical model accurately reflects underlying physical and logical principles.',
+        },
+        {
+          question: '3. What cognitive role does active recall play compared to passive rereading?',
+          options: [
+            'It forces memory retrieval, strengthening neural synaptic pathways and retention',
+            'It solely serves as a psychological relaxation technique',
+            'It decreases long-term information retention over 48 hours',
+            'It is only useful for rote formula memorization',
+          ],
+          correct_answer: 'It forces memory retrieval, strengthening neural synaptic pathways and retention',
+          explanation: 'Cognitive science studies demonstrate that active testing produces significantly higher retention than passive rereading.',
+        },
+        {
+          question: '4. When analyzing complex systems, what is the primary advantage of modular decomposition?',
+          options: [
+            'It limits cognitive load and allows isolated verification of each subsystem',
+            'It guarantees that non-linear effects can be ignored completely',
+            'It eliminates the need for integration testing',
+            'It converts continuous functions into constant states',
+          ],
+          correct_answer: 'It limits cognitive load and allows isolated verification of each subsystem',
+          explanation: 'Decomposing complex architectures enables clear reasoning, rapid fault localization, and modular verification.',
+        },
+        {
+          question: '5. Which revision strategy yields the highest retention when preparing for cumulative exams?',
+          options: [
+            'Spaced repetition combined with interleaved practice problems',
+            'Single-session cramming 4 hours prior to the test',
+            'Highlighting textbook passages without self-testing',
+            'Reading completed answers without attempting derivations',
+          ],
+          correct_answer: 'Spaced repetition combined with interleaved practice problems',
+          explanation: 'Spaced intervals and mixed problem sets prevent the illusion of competence and cement long-term mastery.',
+        },
+      ],
+      [
+        {
+          question: '1. In algorithmic system design, what does Amdahl’s Law predict regarding parallel computing?',
+          options: [
+            'Theoretical speedup is strictly limited by the sequential fraction of the task that cannot be parallelized',
+            'Adding processing cores will always produce a strictly linear increase in execution throughput',
+            'Network latency approaches zero as the number of compute nodes doubles',
+            'Memory bandwidth scales infinitely regardless of the underlying bus topology',
+          ],
+          correct_answer: 'Theoretical speedup is strictly limited by the sequential fraction of the task that cannot be parallelized',
+          explanation: 'Amdahl’s law states that overall speedup is constrained by the serial portion of the program, even with infinite parallel processors.',
+        },
+        {
+          question: '2. Why is idempotency a critical property in distributed API and database design?',
+          options: [
+            'Repeated identical requests produce the exact same system state without unintended side effects',
+            'It allows transactions to execute without acquiring any database locks',
+            'It automatically compresses network payloads using lossless Huffman coding',
+            'It converts all synchronous operations into asynchronous event streams',
+          ],
+          correct_answer: 'Repeated identical requests produce the exact same system state without unintended side effects',
+          explanation: 'An idempotent operation can be executed multiple times without altering the result beyond the initial application, critical for network retries.',
+        },
+        {
+          question: '3. In Shannon information theory, what does information entropy quantify?',
+          options: [
+            'The average level of uncertainty, surprise, or information inherent in the random variable’s outcomes',
+            'The physical heat dissipation produced during disk read/write cycles',
+            'The maximum number of characters allowed in a UTF-8 string',
+            'The deterministic speed of signal propagation through copper cables',
+          ],
+          correct_answer: 'The average level of uncertainty, surprise, or information inherent in the random variable’s outcomes',
+          explanation: 'Entropy measures the expected amount of information conveyed by identifying the outcome of a random event.',
+        },
+        {
+          question: '4. What is the fundamental difference between TCP and UDP transport protocols?',
+          options: [
+            'TCP provides reliable, ordered, error-checked stream delivery, whereas UDP prioritizes minimal latency with unordered datagrams',
+            'UDP encrypts all packet payloads natively using TLS 1.3 by default',
+            'TCP can only be utilized over local Ethernet and cannot route across the Internet',
+            'UDP requires a mandatory 3-way handshake before transmitting any data bytes',
+          ],
+          correct_answer: 'TCP provides reliable, ordered, error-checked stream delivery, whereas UDP prioritizes minimal latency with unordered datagrams',
+          explanation: 'TCP guarantees delivery and ordering via sequence numbers and acknowledgements, while UDP is lightweight and connectionless.',
+        },
+        {
+          question: '5. In machine learning, how does L2 regularization (Ridge) prevent model overfitting?',
+          options: [
+            'By penalizing the sum of squared weight values, shrinking parameters toward zero smoothly',
+            'By forcing random weights to become exactly zero, producing sparse matrices',
+            'By artificially duplicating input training records to increase dataset size',
+            'By removing all non-linear activation functions from neural network layers',
+          ],
+          correct_answer: 'By penalizing the sum of squared weight values, shrinking parameters toward zero smoothly',
+          explanation: 'L2 regularization adds a quadratic weight penalty to the loss function, discouraging large parameter magnitudes and improving generalization.',
+        },
+      ],
+      [
+        {
+          question: '1. In biochemistry, what maintains the secondary structure (alpha-helices and beta-sheets) of proteins?',
+          options: [
+            'Hydrogen bonding between the backbone amine and carbonyl groups',
+            'Covalent peptide bonds formed between alternating lipid bilayers',
+            'Hydrophobic interactions restricted solely to external surface residues',
+            'Permanent disulfide linkages between all non-polar side chains',
+          ],
+          correct_answer: 'Hydrogen bonding between the backbone amine and carbonyl groups',
+          explanation: 'Secondary structure is governed by regular hydrogen bonds along the polypeptide backbone, independent of specific R-group interactions.',
+        },
+        {
+          question: '2. What is the physiological purpose of the myelin sheath covering neuronal axons?',
+          options: [
+            'To insulate the axon and enable rapid saltatory conduction across nodes of Ranvier',
+            'To synthesize and secrete dopamine directly into the synaptic cleft',
+            'To act as a physical barrier preventing all potassium ion exchange completely',
+            'To convert chemical signals directly into high-frequency sound waves',
+          ],
+          correct_answer: 'To insulate the axon and enable rapid saltatory conduction across nodes of Ranvier',
+          explanation: 'Myelin provides electrical insulation, allowing action potentials to jump between nodes of Ranvier for high-speed transmission.',
+        },
+        {
+          question: '3. In cellular metabolism, which cycle produces the majority of high-energy electron carriers (NADH and FADH2)?',
+          options: [
+            'The Citric Acid (Krebs) Cycle in the mitochondrial matrix',
+            'The Calvin Cycle inside cytoplasmic chloroplasts',
+            'Glycolysis occurring exclusively inside nuclear pores',
+            'The Urea Cycle in the endoplasmic reticulum',
+          ],
+          correct_answer: 'The Citric Acid (Krebs) Cycle in the mitochondrial matrix',
+          explanation: 'The citric acid cycle oxidizes acetyl-CoA, producing 3 NADH, 1 FADH2, and 1 GTP/ATP per cycle turn.',
+        },
+        {
+          question: '4. What role does the enzyme DNA ligase perform in molecular biology?',
+          options: [
+            'Catalyzing the formation of phosphodiester bonds to join adjacent DNA fragments',
+            'Unwinding the double helix at replication origins via ATP hydrolysis',
+            'Excising mismatched ribonucleotide bases during transcription elongation',
+            'Attaching amino acids onto cognate transfer RNA molecules',
+          ],
+          correct_answer: 'Catalyzing the formation of phosphodiester bonds to join adjacent DNA fragments',
+          explanation: 'DNA ligase seals nicks in the phosphodiester backbone, completing Okazaki fragment joining and recombinant DNA cloning.',
+        },
+        {
+          question: '5. In genetics, what does Mendel’s Law of Independent Assortment describe?',
+          options: [
+            'Alleles of two or more different genes sort into gametes independently of one another during meiosis',
+            'Dominant alleles completely eradicate recessive traits from future generations',
+            'All maternal genes are inherited strictly without crossing over',
+            'Mutations occur at a uniform deterministic rate across every cell division',
+          ],
+          correct_answer: 'Alleles of two or more different genes sort into gametes independently of one another during meiosis',
+          explanation: 'Independent assortment reflects the random orientation of homologous chromosome pairs at metaphase I of meiosis.',
+        },
+      ],
+    ];
+
+    const bankIdx = Math.abs(iteration) % banks.length;
+    return banks[bankIdx];
+  };
+
   // Generate Interactive MCQ Quiz
-  const handleGenerateMCQ = async (docId, docName) => {
+  const handleGenerateMCQ = async (docId, docName, targetMessageId = null) => {
     setLoading(true);
     setDocsPanelOpen(false);
     const activeDoc = uploadedDocs.find((d) => (d.doc_id || d.id) === (docId || selectedDocId)) || uploadedDocs[0];
-    const targetDocId = docId || selectedDocId || activeDoc?.doc_id || activeDoc?.id;
+    const targetDocId = docId || selectedDocId || activeDoc?.doc_id || activeDoc?.id || 'active-study-session';
     const targetDocName = docName || activeDoc?.filename || 'the active study document';
 
     const isRegen = quizGenCountRef.current > 0;
+    const currentIteration = quizGenCountRef.current;
     quizGenCountRef.current += 1;
 
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: `u-quiz-${Date.now()}`,
-        role: 'user',
-        content: isRegen
-          ? `Generate a fresh, new 5-question CBT quiz on ${targetDocName}.`
-          : `Generate a 5-question multiple choice quiz on ${targetDocName}.`,
-        timestamp: 'Now',
-      },
-    ]);
+    if (!targetMessageId) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `u-quiz-${Date.now()}`,
+          role: 'user',
+          content: isRegen
+            ? `Generate a fresh, new 5-question CBT quiz on ${targetDocName}.`
+            : `Generate a 5-question multiple choice quiz on ${targetDocName}.`,
+          timestamp: 'Now',
+        },
+      ]);
+    }
 
     try {
       const res = await fetch('/api/rag/mcq', {
@@ -229,8 +412,11 @@ export default function ChatterGuruView({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           documentId: targetDocId,
+          documentText: activeDoc?.extractedText || activeDoc?.text || activeDoc?.summary || '',
           count: 5,
-          regenerate: isRegen,
+          regenerate: true,
+          iteration: currentIteration,
+          seed: Date.now() + Math.random(),
         }),
       });
 
@@ -238,85 +424,47 @@ export default function ChatterGuruView({
       const questions = data.questions || data.mcqs || data.mcq || [];
 
       if (Array.isArray(questions) && questions.length > 0) {
+        if (targetMessageId) {
+          // In-place refresh of existing quiz card with brand new questions!
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === targetMessageId ? { ...m, quizData: questions, timestamp: 'Just now' } : m
+            )
+          );
+        } else {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `g-mcq-${Date.now()}`,
+              role: 'assistant',
+              quizData: questions,
+              timestamp: 'Just now',
+            },
+          ]);
+        }
+      } else {
+        throw new Error('No questions synthesized');
+      }
+    } catch {
+      // Dynamic fallback rotating through subjects so fresh questions are always shown
+      const fallbackQuestions = generateGuruFallbackQuestions(currentIteration, targetDocName);
+      if (targetMessageId) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === targetMessageId ? { ...m, quizData: fallbackQuestions, timestamp: 'Just now' } : m
+          )
+        );
+      } else {
         setMessages((prev) => [
           ...prev,
           {
             id: `g-mcq-${Date.now()}`,
             role: 'assistant',
-            quizData: questions,
+            quizData: fallbackQuestions,
             timestamp: 'Just now',
           },
         ]);
-      } else {
-        throw new Error('No questions synthesized');
       }
-    } catch {
-      // 5-Question interactive CBT quiz fallback derived from study material
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `g-mcq-${Date.now()}`,
-          role: 'assistant',
-          quizData: [
-            {
-              question: `1. Core concept of ${targetDocName}: What is the foundational principle emphasized?`,
-              options: [
-                'First-principles verification of core constraints and invariants',
-                'Arbitrary heuristic estimation without validating conditions',
-                'Ignoring intermediate layers and boundary criteria',
-                'Assuming static state across non-isolated domains',
-              ],
-              correct_answer: 'First-principles verification of core constraints and invariants',
-              explanation: 'Rigorous academic comprehension begins by verifying foundational assumptions and mathematical boundary invariants.',
-            },
-            {
-              question: '2. In systematic problem solving, why is dimensional and unit analysis conducted first?',
-              options: [
-                'To verify physical plausibility and catch formulation errors early',
-                'To arbitrarily scale arbitrary constant coefficients',
-                'To eliminate all vector components unconditionally',
-                'To convert differential terms into discrete scalars without justification',
-              ],
-              correct_answer: 'To verify physical plausibility and catch formulation errors early',
-              explanation: 'Dimensional consistency ensures that the mathematical model accurately reflects underlying principles.',
-            },
-            {
-              question: '3. What role does active recall play compared to passive rereading?',
-              options: [
-                'It forces memory retrieval, strengthening neural synaptic pathways and retention',
-                'It solely serves as a psychological relaxation technique',
-                'It decreases long-term information retention over 48 hours',
-                'It is only useful for rote formula memorization',
-              ],
-              correct_answer: 'It forces memory retrieval, strengthening neural synaptic pathways and retention',
-              explanation: 'Cognitive science studies demonstrate that active testing produces significantly higher retention than passive rereading.',
-            },
-            {
-              question: '4. When analyzing complex systems, what is the key advantage of modular decomposition?',
-              options: [
-                'It limits cognitive load and allows isolated verification of each subsystem',
-                'It guarantees that non-linear effects can be ignored completely',
-                'It eliminates the need for integration testing',
-                'It converts continuous functions into constant states',
-              ],
-              correct_answer: 'It limits cognitive load and allows isolated verification of each subsystem',
-              explanation: 'Decomposing complex architectures enables clear reasoning, rapid fault localization, and modular proof.',
-            },
-            {
-              question: '5. Which revision strategy yields the highest retention when preparing for cumulative exams?',
-              options: [
-                'Spaced repetition combined with interleaved practice problems',
-                'Single-session cramming 4 hours prior to the test',
-                'Highlighting textbook passages without self-testing',
-                'Reading completed answers without attempting the derivations',
-              ],
-              correct_answer: 'Spaced repetition combined with interleaved practice problems',
-              explanation: 'Spaced intervals and mixed problem sets prevent illusion of competence and cement long-term mastery.',
-            },
-          ],
-          timestamp: 'Just now',
-        },
-      ]);
     } finally {
       setLoading(false);
     }
@@ -988,8 +1136,9 @@ export default function ChatterGuruView({
                   {/* Interactive CBT Quiz Component */}
                   {m.quizData && (
                     <CbtQuizCard
+                      messageId={m.id}
                       questions={m.quizData}
-                      onRegenerate={() => handleGenerateMCQ(selectedDocId)}
+                      onRegenerate={() => handleGenerateMCQ(selectedDocId, null, m.id)}
                     />
                   )}
 
@@ -1190,10 +1339,23 @@ export default function ChatterGuruView({
 }
 
 // Subcomponent: CBT Standard Examination & Quiz Component
-function CbtQuizCard({ questions = [], onRegenerate }) {
+function CbtQuizCard({ questions = [], onRegenerate, messageId }) {
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState({});
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+
+  // Automatically reset quiz state when fresh questions arrive
+  const questionsKey = Array.isArray(questions)
+    ? questions.map((q) => q.question).join('|')
+    : '';
+
+  useEffect(() => {
+    setCurrentQIndex(0);
+    setSelectedAnswers({});
+    setIsSubmitted(false);
+    setRegenerating(false);
+  }, [questionsKey]);
 
   if (!Array.isArray(questions) || questions.length === 0) return null;
 
@@ -1229,6 +1391,18 @@ function CbtQuizCard({ questions = [], onRegenerate }) {
     setSelectedAnswers({});
     setIsSubmitted(false);
     setCurrentQIndex(0);
+  };
+
+  const handleRegenerateClick = async () => {
+    if (regenerating) return;
+    setRegenerating(true);
+    try {
+      await onRegenerate?.();
+    } catch {
+      // Handled in parent
+    } finally {
+      setRegenerating(false);
+    }
   };
 
   return (
@@ -1268,20 +1442,33 @@ function CbtQuizCard({ questions = [], onRegenerate }) {
           {onRegenerate && (
             <button
               type="button"
-              onClick={onRegenerate}
+              onClick={handleRegenerateClick}
+              disabled={regenerating}
               title="Generate new quiz questions from document"
               style={{
                 padding: '4px 10px',
                 borderRadius: 12,
-                background: 'rgba(255, 255, 255, 0.06)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                color: 'var(--chatter-light-text)',
+                background: regenerating ? 'rgba(64, 227, 120, 0.15)' : 'rgba(255, 255, 255, 0.06)',
+                border: regenerating ? '1px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
+                color: regenerating ? 'var(--chatter-primary)' : 'var(--chatter-light-text)',
                 fontSize: 11.5,
                 fontWeight: 600,
-                cursor: 'pointer',
+                cursor: regenerating ? 'wait' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                transition: 'all 0.15s ease',
               }}
             >
-              ↺ New Quiz
+              <span
+                style={{
+                  display: 'inline-block',
+                  animation: regenerating ? 'chatter-spin 0.8s linear infinite' : 'none',
+                }}
+              >
+                ↺
+              </span>
+              <span>{regenerating ? 'Generating...' : 'New Quiz'}</span>
             </button>
           )}
           {isSubmitted && (

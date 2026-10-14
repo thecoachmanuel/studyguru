@@ -999,7 +999,7 @@ export function useVoiceSession(userId, profile = null) {
     if (!isJoinedRef.current || screenTrackRef.current || screenShareBusy || cameraBusy) return;
 
     if (!navigator.mediaDevices?.getDisplayMedia) {
-      setScreenShareError('Screen sharing is not supported by this browser. Voice and camera are still connected.');
+      setScreenShareError('Screen sharing is not supported by this mobile browser or environment. You can turn on your camera to share your study workspace or notes!');
       return;
     }
 
@@ -1198,14 +1198,32 @@ export function useVoiceSession(userId, profile = null) {
     setCameraBusy(true);
     setCameraError('');
     try {
-      const cameraStream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          frameRate: { ideal: 24, max: 30 },
-        },
-      });
+      let cameraStream = null;
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            facingMode: 'user',
+            width: { ideal: 1280, max: 1920 },
+            height: { ideal: 720, max: 1080 },
+            frameRate: { ideal: 24, max: 30 },
+          },
+        });
+      } catch (err1) {
+        console.warn('[WebRTC] HD camera constraint rejected, falling back to basic user-facing:', err1);
+        try {
+          cameraStream = await navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: { facingMode: 'user' },
+          });
+        } catch (err2) {
+          console.warn('[WebRTC] User-facing camera rejected, falling back to basic video: true:', err2);
+          cameraStream = await navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: true,
+          });
+        }
+      }
       const videoTrack = cameraStream.getVideoTracks()[0];
       if (!videoTrack) {
         throw new DOMException('No camera video track was returned.', 'NotFoundError');
@@ -1370,7 +1388,25 @@ export function useVoiceSession(userId, profile = null) {
   }, [joinedChannelId, joinedServerId, userId, isMuted, profile]);
 
   // ---------- join voice ----------
-  const handleJoin = async (channelId, channelName, serverId) => {
+  const handleJoin = async (arg1, arg2, arg3) => {
+    let channelId = arg1;
+    let channelName = arg2;
+    let serverId = arg3;
+
+    if (typeof arg1 === 'object' && arg1 !== null) {
+      channelId = arg1.channelId || arg1.id;
+      channelName = arg1.channelName || arg1.name;
+      serverId = arg1.serverId;
+    }
+
+    // Swapped arguments safeguard: if called as (serverId, channelId, channelName)
+    if (serverId && typeof channelName === 'string' && (channelName.startsWith('c-') || channelName.startsWith('dm-') || channelName.length === 24 || channelName.includes('-'))) {
+      const tempChannelId = channelName;
+      channelName = typeof serverId === 'string' ? serverId : 'Study Room';
+      serverId = channelId;
+      channelId = tempChannelId;
+    }
+
     if (!channelId || !userId) return;
     setJoining(true);
     setError('');
@@ -1778,7 +1814,24 @@ export function useVoiceSession(userId, profile = null) {
     });
   }, [participants, joinedChannelId, micConnected, userId, createPeerConnection, negotiatePeer, cleanupPeerConnection, cleanupAllCalls]);
 
-  // Real-time participant & signaling subscriptions are handled via Pusher and HTTP polling above.
+  // Convenient aliases for UI toggle buttons across desktop and mobile
+  const toggleMic = handleToggleMute;
+
+  const toggleCamera = useCallback(async () => {
+    if (cameraEnabledRef.current || cameraTrackRef.current) {
+      await handleTurnCameraOff();
+    } else {
+      await handleTurnCameraOn();
+    }
+  }, [handleTurnCameraOn, handleTurnCameraOff]);
+
+  const toggleScreenShare = useCallback(async (opts) => {
+    if (screenTrackRef.current) {
+      await handleStopScreenShare();
+    } else {
+      await handleStartScreenShare(opts);
+    }
+  }, [handleStartScreenShare, handleStopScreenShare]);
 
   return {
     joinedChannelId,
@@ -1796,6 +1849,9 @@ export function useVoiceSession(userId, profile = null) {
     handleJoin,
     handleLeave,
     handleToggleMute,
+    toggleMic,
+    toggleCamera,
+    toggleScreenShare,
     connectionStatuses,
     turnWarning,
     cameraEnabled,

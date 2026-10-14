@@ -1116,7 +1116,7 @@ export default function DashboardPage() {
                   setActiveChannelName(cName);
                   setActiveChannelType('voice');
                   setAudioSpaceModalOpen(true);
-                  voiceSession?.handleJoin?.(sId, cId, cName);
+                  voiceSession?.handleJoin?.(cId, cName, sId);
                 }}
                 isJoinedInVoiceRoom={isJoinedInVoiceRoom}
                 activeVoiceChannelName={activeVoiceChannelName}
@@ -1258,14 +1258,22 @@ export default function DashboardPage() {
                 }}
                 onStartAudioCall={() => {
                   setAudioSpaceModalOpen(true);
-                  voiceSession?.handleJoin?.(activeServerId || 'direct-space', activeChannelId, activeChannelName || 'Study Room');
+                  const targetChannelId = activeChannelId || activeServerId || 'general-study';
+                  const targetChannelName = activeChannelName || 'Study Room';
+                  const targetServerId = activeServerId || 'direct-space';
+                  voiceSession?.handleJoin?.(targetChannelId, targetChannelName, targetServerId);
                 }}
-                onStartVideoCall={() => {
+                onStartVideoCall={async () => {
                   setAudioSpaceModalOpen(true);
-                  voiceSession?.handleJoin?.(activeServerId || 'direct-space', activeChannelId, activeChannelName || 'Study Room');
-                  if (!voiceSession?.cameraEnabled) {
-                    voiceSession?.toggleCamera?.();
-                  }
+                  const targetChannelId = activeChannelId || activeServerId || 'general-study';
+                  const targetChannelName = activeChannelName || 'Study Room';
+                  const targetServerId = activeServerId || 'direct-space';
+                  await voiceSession?.handleJoin?.(targetChannelId, targetChannelName, targetServerId);
+                  setTimeout(() => {
+                    if (!voiceSession?.cameraEnabled) {
+                      voiceSession?.toggleCamera?.();
+                    }
+                  }, 300);
                 }}
               />
             </div>

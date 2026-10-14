@@ -437,6 +437,8 @@ export default function RightPanel({
               doc_id: targetIdentity.documentId,
               documentId: targetIdentity.documentId,
               regenerate,
+              iteration: Math.floor(Math.random() * 1000),
+              seed: Date.now() + Math.random(),
               documentText: uploadedDoc?.text || '',
               documentTitle: uploadedDoc?.filename || '',
               filename: uploadedDoc?.filename || '',

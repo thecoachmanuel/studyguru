@@ -17,19 +17,58 @@ export default function ChatterAudioSpaceModal({
     participants = [],
     micConnected,
     loading,
+    joining,
     error,
+    setError,
     handleLeave,
-    toggleMic,
+    handleToggleMute,
+    toggleMic = handleToggleMute,
     cameraEnabled,
+    handleTurnCameraOn,
+    handleTurnCameraOff,
     toggleCamera,
     cameraBusy,
+    cameraError,
+    setCameraError,
     isScreenSharing,
+    handleStartScreenShare,
+    handleStopScreenShare,
     toggleScreenShare,
     screenShareBusy,
+    screenShareError,
+    setScreenShareError,
+    autoplayWarning,
     localVideoStream,
     localScreenStream,
     remoteStreams = {},
   } = voiceSession || {};
+
+  const onToggleMic = () => {
+    if (toggleMic) toggleMic();
+    else if (handleToggleMute) handleToggleMute();
+  };
+
+  const onToggleCamera = async () => {
+    if (cameraBusy) return;
+    if (toggleCamera) {
+      await toggleCamera();
+    } else if (cameraEnabled) {
+      await handleTurnCameraOff?.();
+    } else {
+      await handleTurnCameraOn?.();
+    }
+  };
+
+  const onToggleScreenShare = async () => {
+    if (screenShareBusy) return;
+    if (toggleScreenShare) {
+      await toggleScreenShare();
+    } else if (isScreenSharing) {
+      await handleStopScreenShare?.();
+    } else {
+      await handleStartScreenShare?.();
+    }
+  };
 
   // Find local user in participants
   const localParticipant = participants.find((p) => p.userId === userId) || {
@@ -52,6 +91,7 @@ export default function ChatterAudioSpaceModal({
   useEffect(() => {
     if (localVideoRef.current && (localVideoStream || localScreenStream)) {
       localVideoRef.current.srcObject = localScreenStream || localVideoStream;
+      localVideoRef.current.play?.().catch(() => {});
     }
   }, [localVideoStream, localScreenStream]);
 
@@ -132,6 +172,46 @@ export default function ChatterAudioSpaceModal({
 
       {/* ── 2. Stage Area: Speakers & Video Tiles ── */}
       <main style={{ flex: 1, overflowY: 'auto', padding: '24px 20px', maxWidth: 840, width: '100%', margin: '0 auto' }}>
+        {/* Floating Error / Notification Banner */}
+        {(screenShareError || cameraError || error || autoplayWarning) && (
+          <div
+            style={{
+              padding: '10px 16px',
+              borderRadius: 14,
+              background: 'rgba(255, 57, 57, 0.15)',
+              border: '1px solid rgba(255, 57, 57, 0.3)',
+              color: '#FF6B6B',
+              fontSize: 13,
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 18,
+              gap: 10,
+            }}
+          >
+            <span>{screenShareError || cameraError || error || autoplayWarning}</span>
+            <button
+              type="button"
+              onClick={() => {
+                setScreenShareError?.('');
+                setCameraError?.('');
+                setError?.('');
+              }}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#fff',
+                fontSize: 14,
+                cursor: 'pointer',
+                padding: '0 6px',
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* Live Video Grid Area when Camera, Screen, or Remote Streams are active */}
         {(cameraEnabled || isScreenSharing || Object.keys(remoteStreams).length > 0) && (
           <div style={{ marginBottom: 26 }}>
@@ -395,7 +475,7 @@ export default function ChatterAudioSpaceModal({
           {/* Mic Toggle Button */}
           <button
             type="button"
-            onClick={toggleMic}
+            onClick={onToggleMic}
             style={{
               width: 50,
               height: 50,
@@ -433,7 +513,7 @@ export default function ChatterAudioSpaceModal({
           {/* Camera Toggle Button */}
           <button
             type="button"
-            onClick={toggleCamera}
+            onClick={onToggleCamera}
             disabled={cameraBusy}
             style={{
               width: 50,
@@ -459,7 +539,7 @@ export default function ChatterAudioSpaceModal({
           {/* Screen Share Toggle Button */}
           <button
             type="button"
-            onClick={toggleScreenShare}
+            onClick={onToggleScreenShare}
             disabled={screenShareBusy}
             style={{
               width: 50,
@@ -512,14 +592,40 @@ export default function ChatterAudioSpaceModal({
 
 function RemoteVideoTile({ remoteUserId, stream, participant, isSpeaking }) {
   const videoRef = useRef(null);
+  const [hasVideo, setHasVideo] = useState(false);
 
   useEffect(() => {
-    if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream;
+    if (!stream) {
+      setHasVideo(false);
+      return;
     }
+
+    const checkVideo = () => {
+      const vTracks = stream.getVideoTracks ? stream.getVideoTracks() : [];
+      const live = vTracks.some((t) => t.enabled && t.readyState === 'live');
+      setHasVideo(live);
+    };
+
+    checkVideo();
+
+    stream.addEventListener?.('addtrack', checkVideo);
+    stream.addEventListener?.('removetrack', checkVideo);
+
+    const interval = setInterval(checkVideo, 1000);
+
+    return () => {
+      stream.removeEventListener?.('addtrack', checkVideo);
+      stream.removeEventListener?.('removetrack', checkVideo);
+      clearInterval(interval);
+    };
   }, [stream]);
 
-  const hasVideoTrack = stream?.getVideoTracks?.()?.some((t) => t.enabled && t.readyState === 'live');
+  useEffect(() => {
+    if (videoRef.current && stream && hasVideo) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.play?.().catch(() => {});
+    }
+  }, [stream, hasVideo]);
 
   return (
     <div
@@ -538,14 +644,20 @@ function RemoteVideoTile({ remoteUserId, stream, participant, isSpeaking }) {
         aspectRatio: '16/9',
       }}
     >
-      {hasVideoTrack ? (
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-        />
-      ) : (
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          display: hasVideo ? 'block' : 'none',
+        }}
+      />
+
+      {!hasVideo && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
           {participant?.avatar_url ? (
             <img
