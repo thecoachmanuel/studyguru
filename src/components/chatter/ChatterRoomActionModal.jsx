@@ -111,8 +111,8 @@ export default function ChatterRoomActionModal({
           animation: 'fadeIn 0.15s ease',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0, color: '#fff' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+          <h2 style={{ fontSize: 21, fontWeight: 800, margin: 0, color: '#fff' }}>
             {mode === 'create' ? 'Create Study Room' : 'Join Study Room'}
           </h2>
           <button
@@ -122,7 +122,7 @@ export default function ChatterRoomActionModal({
               background: 'transparent',
               border: 'none',
               color: 'var(--chatter-light-text)',
-              fontSize: 18,
+              fontSize: 20,
               cursor: 'pointer',
               padding: 4,
             }}
@@ -139,7 +139,7 @@ export default function ChatterRoomActionModal({
               background: 'rgba(255, 57, 57, 0.15)',
               border: '1px solid rgba(255, 57, 57, 0.3)',
               color: 'var(--chatter-red)',
-              fontSize: 12.5,
+              fontSize: 14,
               marginBottom: 16,
             }}
           >
@@ -149,8 +149,8 @@ export default function ChatterRoomActionModal({
 
         {mode === 'create' ? (
           <form onSubmit={handleCreate}>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--chatter-light-text)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <div style={{ marginBottom: 18 }}>
+              <label style={{ display: 'block', fontSize: 13.5, fontWeight: 700, color: 'var(--chatter-light-text)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 Room Name
               </label>
               <input
@@ -165,7 +165,7 @@ export default function ChatterRoomActionModal({
                   borderRadius: 14,
                   padding: '12px 14px',
                   color: '#fff',
-                  fontSize: 14,
+                  fontSize: 15.5,
                   outline: 'none',
                   boxSizing: 'border-box',
                 }}
@@ -179,12 +179,12 @@ export default function ChatterRoomActionModal({
                 type="button"
                 onClick={onClose}
                 style={{
-                  padding: '10px 18px',
+                  padding: '10px 20px',
                   borderRadius: 20,
                   background: 'rgba(255, 255, 255, 0.08)',
                   border: 'none',
                   color: '#fff',
-                  fontSize: 13,
+                  fontSize: 14.5,
                   fontWeight: 600,
                   cursor: 'pointer',
                 }}
@@ -195,12 +195,12 @@ export default function ChatterRoomActionModal({
                 type="submit"
                 disabled={loading || !roomName.trim()}
                 style={{
-                  padding: '10px 22px',
+                  padding: '10px 24px',
                   borderRadius: 20,
                   background: 'var(--chatter-primary)',
                   border: 'none',
                   color: '#0E0E0E',
-                  fontSize: 13,
+                  fontSize: 14.5,
                   fontWeight: 700,
                   cursor: loading || !roomName.trim() ? 'not-allowed' : 'pointer',
                   opacity: loading || !roomName.trim() ? 0.6 : 1,
@@ -212,12 +212,12 @@ export default function ChatterRoomActionModal({
           </form>
         ) : (
           <form onSubmit={handleJoin}>
-            <p style={{ fontSize: 13, color: 'var(--chatter-light-text)', margin: '0 0 16px 0', lineHeight: 1.5 }}>
+            <p style={{ fontSize: 14.5, color: 'var(--chatter-light-text)', margin: '0 0 16px 0', lineHeight: 1.55 }}>
               Enter the Room ID or the 8-character invite code shared by your classmate to join their study space immediately.
             </p>
 
             <div style={{ marginBottom: 20 }}>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--chatter-light-text)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              <label style={{ display: 'block', fontSize: 13.5, fontWeight: 700, color: 'var(--chatter-light-text)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 Room ID or Invite Code
               </label>
               <input
@@ -232,7 +232,7 @@ export default function ChatterRoomActionModal({
                   borderRadius: 14,
                   padding: '12px 14px',
                   color: '#fff',
-                  fontSize: 14,
+                  fontSize: 15.5,
                   outline: 'none',
                   boxSizing: 'border-box',
                 }}
@@ -245,12 +245,12 @@ export default function ChatterRoomActionModal({
                 type="button"
                 onClick={onClose}
                 style={{
-                  padding: '10px 18px',
+                  padding: '10px 20px',
                   borderRadius: 20,
                   background: 'rgba(255, 255, 255, 0.08)',
                   border: 'none',
                   color: '#fff',
-                  fontSize: 13,
+                  fontSize: 14.5,
                   fontWeight: 600,
                   cursor: 'pointer',
                 }}
@@ -261,12 +261,12 @@ export default function ChatterRoomActionModal({
                 type="submit"
                 disabled={loading || !joinCode.trim()}
                 style={{
-                  padding: '10px 22px',
+                  padding: '10px 24px',
                   borderRadius: 20,
                   background: 'var(--chatter-primary)',
                   border: 'none',
                   color: '#0E0E0E',
-                  fontSize: 13,
+                  fontSize: 14.5,
                   fontWeight: 700,
                   cursor: loading || !joinCode.trim() ? 'not-allowed' : 'pointer',
                   opacity: loading || !joinCode.trim() ? 0.6 : 1,

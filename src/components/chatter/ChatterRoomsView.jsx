@@ -153,9 +153,9 @@ export default function ChatterRoomsView({
               type="button"
               onClick={() => setSelectedInterest(tag)}
               style={{
-                padding: '7px 16px',
+                padding: '8px 18px',
                 borderRadius: 20,
-                fontSize: 13,
+                fontSize: 14,
                 fontWeight: 600,
                 whiteSpace: 'nowrap',
                 border: 'none',
@@ -175,9 +175,9 @@ export default function ChatterRoomsView({
       <div style={{ padding: '16px 16px 8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <h2 style={{ fontSize: 21, fontWeight: 800, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
               <span>Study Rooms</span>
-              <span style={{ fontSize: 12, background: 'rgba(64, 227, 120, 0.16)', color: 'var(--chatter-primary)', padding: '2px 8px', borderRadius: 12, fontWeight: 700 }}>
+              <span style={{ fontSize: 13, background: 'rgba(64, 227, 120, 0.16)', color: 'var(--chatter-primary)', padding: '3px 9px', borderRadius: 12, fontWeight: 700 }}>
                 {filteredServers.length}
               </span>
             </h2>
@@ -187,12 +187,12 @@ export default function ChatterRoomsView({
               type="button"
               onClick={onJoinServer}
               style={{
-                padding: '6px 13px',
+                padding: '7px 15px',
                 borderRadius: 16,
                 background: 'rgba(255, 255, 255, 0.08)',
                 border: 'none',
                 color: '#fff',
-                fontSize: 12,
+                fontSize: 13.5,
                 fontWeight: 600,
                 cursor: 'pointer',
               }}
@@ -203,12 +203,12 @@ export default function ChatterRoomsView({
               type="button"
               onClick={onCreateServer}
               style={{
-                padding: '6px 14px',
+                padding: '7px 16px',
                 borderRadius: 16,
                 background: 'var(--chatter-primary)',
                 border: 'none',
                 color: '#0E0E0E',
-                fontSize: 12,
+                fontSize: 13.5,
                 fontWeight: 700,
                 cursor: 'pointer',
               }}
@@ -217,7 +217,7 @@ export default function ChatterRoomsView({
             </button>
           </div>
         </div>
-        <p style={{ fontSize: 12.5, color: 'var(--chatter-light-text)', margin: '0 0 14px 0' }}>
+        <p style={{ fontSize: 14.5, lineHeight: 1.5, color: 'var(--chatter-light-text)', margin: '0 0 16px 0' }}>
           Collaborative course groups, textbook revision channels, and shared study materials.
         </p>
 
@@ -232,19 +232,19 @@ export default function ChatterRoomsView({
               marginBottom: 16,
             }}
           >
-            <div style={{ fontSize: 24, marginBottom: 8 }}>📚</div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>No study rooms under #{selectedInterest}</div>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>📚</div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: '#fff' }}>No study rooms under #{selectedInterest}</div>
             <button
               type="button"
               onClick={() => setSelectedInterest('All')}
               style={{
-                marginTop: 10,
-                padding: '5px 14px',
+                marginTop: 12,
+                padding: '7px 16px',
                 borderRadius: 14,
                 background: 'rgba(255, 255, 255, 0.08)',
                 border: 'none',
                 color: 'var(--chatter-primary)',
-                fontSize: 12,
+                fontSize: 13.5,
                 fontWeight: 600,
                 cursor: 'pointer',
               }}
@@ -286,13 +286,13 @@ export default function ChatterRoomsView({
                         <img
                           src={server.icon_url}
                           alt={server.name}
-                          style={{ width: 44, height: 44, borderRadius: 14, objectFit: 'cover', flexShrink: 0 }}
+                          style={{ width: 48, height: 48, borderRadius: 14, objectFit: 'cover', flexShrink: 0 }}
                         />
                       ) : (
                         <div
                           style={{
-                            width: 44,
-                            height: 44,
+                            width: 48,
+                            height: 48,
                             borderRadius: 14,
                             background: '#242424',
                             color: 'var(--chatter-primary)',
@@ -300,7 +300,7 @@ export default function ChatterRoomsView({
                             alignItems: 'center',
                             justifyContent: 'center',
                             fontWeight: 800,
-                            fontSize: 18,
+                            fontSize: 20,
                             flexShrink: 0,
                           }}
                         >
@@ -308,7 +308,7 @@ export default function ChatterRoomsView({
                         </div>
                       )}
                       <h4 style={{
-                        fontSize: 16.5,
+                        fontSize: 19,
                         fontWeight: 800,
                         color: '#fff',
                         margin: 0,
@@ -321,14 +321,14 @@ export default function ChatterRoomsView({
                       </h4>
                     </div>
                     {isCurrent && (
-                      <span style={{ fontSize: 12, background: 'rgba(64, 227, 120, 0.16)', color: 'var(--chatter-primary)', padding: '4px 10px', borderRadius: 12, fontWeight: 700, flexShrink: 0 }}>
+                      <span style={{ fontSize: 13, background: 'rgba(64, 227, 120, 0.16)', color: 'var(--chatter-primary)', padding: '4px 10px', borderRadius: 12, fontWeight: 700, flexShrink: 0 }}>
                         Active Room
                       </span>
                     )}
                   </div>
 
                   {/* Line 2: Followed by members number below */}
-                  <div style={{ fontSize: 13.5, color: 'var(--chatter-light-text)', display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 2 }}>
+                  <div style={{ fontSize: 15, color: 'var(--chatter-light-text)', display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 2 }}>
                     <span style={{ color: '#fff', fontWeight: 600 }}>{server.member_count || 1} members</span>
                     <span>·</span>
                     <span>{channelsCount} study channels</span>
@@ -337,7 +337,7 @@ export default function ChatterRoomsView({
                   </div>
 
                   {/* Line 3: Another next line with links for poll, copy code, copy link, and to enter the room */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', paddingTop: 10, borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', paddingTop: 12, borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
                     {/* Poll & Channels Link */}
                     <button
                       type="button"
@@ -352,21 +352,21 @@ export default function ChatterRoomsView({
                         }
                       }}
                       style={{
-                        padding: '7px 12px',
+                        padding: '8px 14px',
                         borderRadius: 12,
                         background: 'rgba(255, 255, 255, 0.06)',
                         border: '1px solid rgba(255, 255, 255, 0.08)',
                         color: '#D4D4D4',
-                        fontSize: 12.5,
+                        fontSize: 13.5,
                         fontWeight: 600,
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: 5,
+                        gap: 6,
                         transition: 'all 0.15s ease',
                       }}
                     >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
                       <span>Poll & Channels</span>
                     </button>
 
@@ -376,28 +376,28 @@ export default function ChatterRoomsView({
                       onClick={(e) => handleCopyCode(e, server)}
                       title="Copy room invite code"
                       style={{
-                        padding: '7px 12px',
+                        padding: '8px 14px',
                         borderRadius: 12,
                         background: isCopied ? 'rgba(64, 227, 120, 0.2)' : 'rgba(255, 255, 255, 0.06)',
                         border: isCopied ? '1px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
                         color: isCopied ? 'var(--chatter-primary)' : '#D4D4D4',
-                        fontSize: 12.5,
+                        fontSize: 13.5,
                         fontWeight: 600,
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: 5,
+                        gap: 6,
                         transition: 'all 0.15s ease',
                       }}
                     >
                       {isCopied ? (
                         <>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
                           <span>Copied!</span>
                         </>
                       ) : (
                         <>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                           </svg>
@@ -412,28 +412,28 @@ export default function ChatterRoomsView({
                       onClick={(e) => handleCopyLink(e, server)}
                       title="Copy direct invite link to this room"
                       style={{
-                        padding: '7px 12px',
+                        padding: '8px 14px',
                         borderRadius: 12,
                         background: copiedLinkId === server.id ? 'rgba(64, 227, 120, 0.2)' : 'rgba(255, 255, 255, 0.06)',
                         border: copiedLinkId === server.id ? '1px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
                         color: copiedLinkId === server.id ? 'var(--chatter-primary)' : '#D4D4D4',
-                        fontSize: 12.5,
+                        fontSize: 13.5,
                         fontWeight: 600,
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: 5,
+                        gap: 6,
                         transition: 'all 0.15s ease',
                       }}
                     >
                       {copiedLinkId === server.id ? (
                         <>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
                           <span>Link Copied!</span>
                         </>
                       ) : (
                         <>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
                             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
                           </svg>
@@ -452,11 +452,11 @@ export default function ChatterRoomsView({
                       }}
                       style={{
                         marginLeft: 'auto',
-                        padding: '7px 18px',
+                        padding: '8px 20px',
                         borderRadius: 14,
                         background: 'var(--chatter-primary)',
                         color: '#0E0E0E',
-                        fontSize: 13,
+                        fontSize: 15,
                         fontWeight: 800,
                         border: 'none',
                         cursor: 'pointer',
@@ -481,14 +481,14 @@ export default function ChatterRoomsView({
       <div style={{ padding: '0 16px 8px' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 }}>
           <div>
-            <h2 style={{ fontSize: 17, fontWeight: 800, color: '#fff', margin: '0 0 3px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <h2 style={{ fontSize: 21, fontWeight: 800, color: '#fff', margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
               <span>Live Audio Spaces</span>
               <span className="chatter-audiospace-live-badge">
                 <span className="chatter-audiospace-live-dot" />
                 LIVE
               </span>
             </h2>
-            <p style={{ fontSize: 12.5, color: 'var(--chatter-light-text)', margin: 0 }}>
+            <p style={{ fontSize: 14.5, lineHeight: 1.5, color: 'var(--chatter-light-text)', margin: 0 }}>
               Drop-in audio study spaces. Join as a listener or unmute to discuss topics with peers in real time.
             </p>
           </div>
@@ -496,12 +496,12 @@ export default function ChatterRoomsView({
             type="button"
             onClick={handleOpenStartSpace}
             style={{
-              padding: '7px 14px',
+              padding: '8px 16px',
               borderRadius: 16,
               background: 'rgba(64, 227, 120, 0.15)',
               border: '1px solid var(--chatter-primary)',
               color: 'var(--chatter-primary)',
-              fontSize: 12,
+              fontSize: 13.5,
               fontWeight: 700,
               cursor: 'pointer',
               whiteSpace: 'nowrap',
@@ -518,31 +518,31 @@ export default function ChatterRoomsView({
         {filteredSpaces.length === 0 ? (
           <div
             style={{
-              padding: '24px 16px',
+              padding: '28px 16px',
               textAlign: 'center',
               background: 'var(--chatter-sheet)',
               borderRadius: 16,
               border: '1px solid rgba(255, 255, 255, 0.05)',
-              marginTop: 12,
+              marginTop: 14,
             }}
           >
-            <div style={{ fontSize: 28, marginBottom: 8 }}>🎙️</div>
-            <div style={{ fontSize: 14.5, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
+            <div style={{ fontSize: 30, marginBottom: 8 }}>🎙️</div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: '#fff', marginBottom: 6 }}>
               No active live audio spaces
             </div>
-            <p style={{ fontSize: 12.5, color: 'var(--chatter-light-text)', margin: '0 0 14px 0' }}>
+            <p style={{ fontSize: 14.5, lineHeight: 1.5, color: 'var(--chatter-light-text)', margin: '0 0 16px 0' }}>
               Host a live audio space to discuss assignments, review flashcards, or study together with peers.
             </p>
             <button
               type="button"
               onClick={handleOpenStartSpace}
               style={{
-                padding: '7px 18px',
+                padding: '9px 20px',
                 borderRadius: 16,
                 background: 'var(--chatter-primary)',
                 border: 'none',
                 color: '#0E0E0E',
-                fontSize: 12.5,
+                fontSize: 14,
                 fontWeight: 700,
                 cursor: 'pointer',
               }}
@@ -555,19 +555,19 @@ export default function ChatterRoomsView({
             <div key={space.id} className="chatter-audiospace-card" style={{ marginTop: 12 }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
                 <div>
-                  <h3 style={{ fontSize: 15.5, fontWeight: 700, color: '#fff', margin: '0 0 6px 0' }}>
+                  <h3 style={{ fontSize: 18, fontWeight: 700, color: '#fff', margin: '0 0 6px 0' }}>
                     {space.title}
                   </h3>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                     {space.tags?.map((t) => (
-                      <span key={t} style={{ fontSize: 12, color: 'var(--chatter-hashtag)', fontWeight: 600 }}>
+                      <span key={t} style={{ fontSize: 13.5, color: 'var(--chatter-hashtag)', fontWeight: 600 }}>
                         {t}
                       </span>
                     ))}
                   </div>
                 </div>
 
-                <div style={{ fontSize: 12, color: 'var(--chatter-light-text)', whiteSpace: 'nowrap', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <div style={{ fontSize: 13.5, color: 'var(--chatter-light-text)', whiteSpace: 'nowrap', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
                   <span>🎙️</span> {space.listenersCount || 1} listening
                 </div>
               </div>
@@ -584,7 +584,7 @@ export default function ChatterRoomsView({
                       title={sp.name}
                     />
                   ))}
-                  <span style={{ fontSize: 12, color: 'var(--chatter-light-text)', marginLeft: 10, fontWeight: 500 }}>
+                  <span style={{ fontSize: 13.5, color: 'var(--chatter-light-text)', marginLeft: 10, fontWeight: 500 }}>
                     {(space.speakers || []).length > 0 ? space.speakers.map((s) => s.name).join(', ') + ' speaking' : 'Drop-in voice room'}
                   </span>
                 </div>
@@ -601,12 +601,12 @@ export default function ChatterRoomsView({
                     );
                   }}
                   style={{
-                    padding: '8px 16px',
+                    padding: '9px 18px',
                     borderRadius: 20,
                     background: 'var(--chatter-primary)',
                     border: 'none',
                     color: '#0E0E0E',
-                    fontSize: 12.5,
+                    fontSize: 14,
                     fontWeight: 700,
                     cursor: 'pointer',
                   }}
@@ -664,10 +664,10 @@ export default function ChatterRoomsView({
             >
               🎙️
             </div>
-            <h3 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: '0 0 8px 0' }}>
+            <h3 style={{ fontSize: 20, fontWeight: 800, color: '#fff', margin: '0 0 8px 0' }}>
               Hosting Prerequisite
             </h3>
-            <p style={{ fontSize: 13.5, color: '#b5b5b5', lineHeight: 1.5, margin: '0 0 18px 0' }}>
+            <p style={{ fontSize: 15, color: '#b5b5b5', lineHeight: 1.55, margin: '0 0 18px 0' }}>
               To ensure focused, high-quality study sessions and prevent spam, users need at least <strong style={{ color: '#fff' }}>5 followers</strong> on StudyCord to host public Live Audio Spaces.
             </p>
 
@@ -675,12 +675,12 @@ export default function ChatterRoomsView({
               style={{
                 background: 'rgba(255, 255, 255, 0.05)',
                 borderRadius: 14,
-                padding: '12px 16px',
+                padding: '14px 18px',
                 marginBottom: 20,
                 textAlign: 'left',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14.5, marginBottom: 8 }}>
                 <span style={{ color: '#b5b5b5' }}>Your Followers Progress:</span>
                 <span style={{ fontWeight: 800, color: 'var(--chatter-primary)' }}>{userFollowers} / 5</span>
               </div>
@@ -697,7 +697,7 @@ export default function ChatterRoomsView({
               </div>
             </div>
 
-            <p style={{ fontSize: 12, color: 'var(--chatter-light-text)', margin: '0 0 20px 0', textAlign: 'left' }}>
+            <p style={{ fontSize: 13.5, color: 'var(--chatter-light-text)', margin: '0 0 20px 0', textAlign: 'left', lineHeight: 1.5 }}>
               💡 Tip: Post revision notes in the StudyCord Feed or join study group channels to connect with peers and unlock space hosting!
             </p>
 
@@ -707,12 +707,12 @@ export default function ChatterRoomsView({
                 onClick={() => setPrereqModalOpen(false)}
                 style={{
                   flex: 1,
-                  padding: '11px',
+                  padding: '12px',
                   borderRadius: 14,
                   background: 'rgba(255, 255, 255, 0.08)',
                   border: 'none',
                   color: '#fff',
-                  fontSize: 13.5,
+                  fontSize: 14.5,
                   fontWeight: 600,
                   cursor: 'pointer',
                 }}
@@ -727,12 +727,12 @@ export default function ChatterRoomsView({
                   setCreateSpaceModalOpen(true);
                 }}
                 style={{
-                  padding: '11px 16px',
+                  padding: '12px 18px',
                   borderRadius: 14,
                   background: 'var(--chatter-primary)',
                   border: 'none',
                   color: '#0E0E0E',
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: 700,
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
@@ -773,8 +773,8 @@ export default function ChatterRoomsView({
               boxShadow: '0 24px 64px rgba(0,0,0,0.8)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <h3 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+              <h3 style={{ fontSize: 20, fontWeight: 800, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span>🎙️ Start Audio Space</span>
               </h3>
               <button
@@ -784,7 +784,7 @@ export default function ChatterRoomsView({
                   background: 'transparent',
                   border: 'none',
                   color: '#979797',
-                  fontSize: 18,
+                  fontSize: 20,
                   cursor: 'pointer',
                 }}
               >
@@ -793,8 +793,8 @@ export default function ChatterRoomsView({
             </div>
 
             <form onSubmit={handleCreateSpaceSubmit}>
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#b5b5b5', marginBottom: 6 }}>
+              <div style={{ marginBottom: 18 }}>
+                <label style={{ display: 'block', fontSize: 13.5, fontWeight: 700, color: '#b5b5b5', marginBottom: 6 }}>
                   Space Topic / Title
                 </label>
                 <input
@@ -806,20 +806,20 @@ export default function ChatterRoomsView({
                   autoFocus
                   style={{
                     width: '100%',
-                    padding: '11px 14px',
+                    padding: '12px 14px',
                     borderRadius: 14,
                     background: 'var(--chatter-black)',
                     border: '1px solid rgba(255, 255, 255, 0.12)',
                     color: '#fff',
-                    fontSize: 14,
+                    fontSize: 15,
                     outline: 'none',
                     boxSizing: 'border-box',
                   }}
                 />
               </div>
 
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#b5b5b5', marginBottom: 6 }}>
+              <div style={{ marginBottom: 22 }}>
+                <label style={{ display: 'block', fontSize: 13.5, fontWeight: 700, color: '#b5b5b5', marginBottom: 6 }}>
                   Subject Category
                 </label>
                 <select
@@ -827,12 +827,12 @@ export default function ChatterRoomsView({
                   onChange={(e) => setNewSpaceCategory(e.target.value)}
                   style={{
                     width: '100%',
-                    padding: '11px 14px',
+                    padding: '12px 14px',
                     borderRadius: 14,
                     background: 'var(--chatter-black)',
                     border: '1px solid rgba(255, 255, 255, 0.12)',
                     color: '#fff',
-                    fontSize: 14,
+                    fontSize: 15,
                     outline: 'none',
                     boxSizing: 'border-box',
                     cursor: 'pointer',
@@ -854,12 +854,12 @@ export default function ChatterRoomsView({
                   onClick={() => setCreateSpaceModalOpen(false)}
                   style={{
                     flex: 1,
-                    padding: '12px',
+                    padding: '13px',
                     borderRadius: 14,
                     background: 'rgba(255, 255, 255, 0.08)',
                     border: 'none',
                     color: '#fff',
-                    fontSize: 14,
+                    fontSize: 15,
                     fontWeight: 600,
                     cursor: 'pointer',
                   }}
@@ -871,12 +871,12 @@ export default function ChatterRoomsView({
                   disabled={!newSpaceTitle.trim()}
                   style={{
                     flex: 1.4,
-                    padding: '12px',
+                    padding: '13px',
                     borderRadius: 14,
                     background: newSpaceTitle.trim() ? 'var(--chatter-primary)' : 'rgba(255, 255, 255, 0.1)',
                     border: 'none',
                     color: newSpaceTitle.trim() ? '#0E0E0E' : '#777',
-                    fontSize: 14,
+                    fontSize: 15,
                     fontWeight: 700,
                     cursor: newSpaceTitle.trim() ? 'pointer' : 'not-allowed',
                   }}

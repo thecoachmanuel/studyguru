@@ -503,13 +503,13 @@ export default function ChatterChatRoom({
 
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#fff' }}>
+              <h3 style={{ fontSize: 18.5, fontWeight: 700, margin: 0, color: '#fff' }}>
                 {displayRoomTitle}
               </h3>
               {channelType === 'dm' && <TwitterVerifiedBadge />}
             </div>
             {channelType === 'dm' ? (
-              <div style={{ fontSize: 11.5, color: isPartnerOnline ? 'var(--chatter-primary)' : 'var(--chatter-light-text)', fontWeight: 500 }}>
+              <div style={{ fontSize: 13.5, color: isPartnerOnline ? 'var(--chatter-primary)' : 'var(--chatter-light-text)', fontWeight: 500 }}>
                 <span>
                   {isPartnerOnline
                     ? 'Active now'
@@ -517,7 +517,7 @@ export default function ChatterChatRoom({
                 </span>
               </div>
             ) : (
-              <div style={{ fontSize: 11.5, color: 'var(--chatter-light-text)', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <div style={{ fontSize: 13.5, color: 'var(--chatter-light-text)', display: 'flex', alignItems: 'center', gap: 5 }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--chatter-primary)' }} />
                 <span>{roomMembers.length > 0 ? `${roomMembers.length} active scholars` : 'Live study room'}</span>
               </div>
@@ -544,7 +544,7 @@ export default function ChatterChatRoom({
                   alignItems: 'center',
                   gap: 6,
                   cursor: 'pointer',
-                  fontSize: 12.5,
+                  fontSize: 13.5,
                   fontWeight: 600,
                   transition: 'all 0.15s ease',
                 }}
@@ -663,8 +663,8 @@ export default function ChatterChatRoom({
               {!isMe && (
                 <div
                   style={{
-                    width: 32,
-                    height: 32,
+                    width: 34,
+                    height: 34,
                     borderRadius: '50%',
                     background: '#242424',
                     overflow: 'hidden',
@@ -673,7 +673,7 @@ export default function ChatterChatRoom({
                     justifyContent: 'center',
                     color: 'var(--chatter-primary)',
                     fontWeight: 700,
-                    fontSize: 13,
+                    fontSize: 14,
                     flexShrink: 0,
                     marginBottom: 2,
                     border: '1px solid rgba(255, 255, 255, 0.08)',
@@ -697,7 +697,7 @@ export default function ChatterChatRoom({
               >
                 {/* Author name above peer message in rooms */}
                 {!isMe && channelType !== 'dm' && (
-                  <span style={{ fontSize: 11.5, color: 'var(--chatter-light-text)', fontWeight: 600, marginBottom: 4, marginLeft: 4 }}>
+                  <span style={{ fontSize: 13.5, color: 'var(--chatter-light-text)', fontWeight: 600, marginBottom: 4, marginLeft: 4 }}>
                     {m.sender_name || 'Scholar'}
                   </span>
                 )}
@@ -710,8 +710,8 @@ export default function ChatterChatRoom({
                     background: isMe ? 'var(--chatter-primary)' : 'var(--chatter-sheet)',
                     color: isMe ? '#0E0E0E' : '#FFFFFF',
                     fontWeight: isMe ? 600 : 400,
-                    fontSize: 14.5,
-                    lineHeight: 1.5,
+                    fontSize: 16,
+                    lineHeight: 1.55,
                     boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
                     cursor: 'pointer',
                     position: 'relative',
@@ -734,7 +734,7 @@ export default function ChatterChatRoom({
                       alignItems: 'center',
                       justifyContent: 'flex-end',
                       gap: 4,
-                      fontSize: 10.5,
+                      fontSize: 12,
                       color: isMe ? 'rgba(14, 14, 14, 0.7)' : 'var(--chatter-light-text)',
                       marginTop: 4,
                     }}
@@ -745,7 +745,7 @@ export default function ChatterChatRoom({
                     {isMe && (
                       <span
                         style={{
-                          fontSize: 11.5,
+                          fontSize: 13,
                           fontWeight: 800,
                           color: m.is_read ? 'var(--chatter-primary)' : 'rgba(255, 255, 255, 0.45)',
                           marginLeft: 3,
@@ -783,9 +783,9 @@ export default function ChatterChatRoom({
                         style={{
                           background: 'transparent',
                           border: 'none',
-                          fontSize: 16,
+                          fontSize: 18,
                           cursor: 'pointer',
-                          padding: '2px 4px',
+                          padding: '3px 5px',
                           transition: 'transform 0.12s ease',
                         }}
                       >
@@ -807,12 +807,12 @@ export default function ChatterChatRoom({
                           background: 'var(--chatter-sheet)',
                           border: '1px solid rgba(255, 255, 255, 0.08)',
                           borderRadius: 12,
-                          padding: '2px 6px',
-                          fontSize: 11,
+                          padding: '3px 7px',
+                          fontSize: 13,
                           color: '#fff',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: 3,
+                          gap: 4,
                           cursor: 'pointer',
                         }}
                       >
@@ -879,10 +879,10 @@ export default function ChatterChatRoom({
             }}
           >
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>
+              <div style={{ fontSize: 14.5, fontWeight: 700, color: '#fff' }}>
                 Message Request
               </div>
-              <div style={{ fontSize: 11.5, color: 'var(--chatter-light-text)' }}>
+              <div style={{ fontSize: 13.5, color: 'var(--chatter-light-text)' }}>
                 {channelName || 'This user'} sent you a message request. Accept to reply.
               </div>
             </div>
@@ -892,12 +892,12 @@ export default function ChatterChatRoom({
                 onClick={() => handleRespondRequest('accept')}
                 disabled={requestActionLoading}
                 style={{
-                  padding: '6px 14px',
+                  padding: '7px 15px',
                   borderRadius: 16,
                   background: 'var(--chatter-primary)',
                   border: 'none',
                   color: '#0E0E0E',
-                  fontSize: 12,
+                  fontSize: 13.5,
                   fontWeight: 700,
                   cursor: 'pointer',
                 }}
@@ -909,12 +909,12 @@ export default function ChatterChatRoom({
                 onClick={() => handleRespondRequest('decline')}
                 disabled={requestActionLoading}
                 style={{
-                  padding: '6px 12px',
+                  padding: '7px 13px',
                   borderRadius: 16,
                   background: 'rgba(255, 57, 57, 0.15)',
                   border: 'none',
                   color: 'var(--chatter-red)',
-                  fontSize: 12,
+                  fontSize: 13.5,
                   fontWeight: 600,
                   cursor: 'pointer',
                 }}
@@ -928,12 +928,12 @@ export default function ChatterChatRoom({
         {channelType === 'dm' && dmRequestStatus === 'pending' && requestedBy && String(requestedBy) === String(userId) && (
           <div
             style={{
-              padding: '9px 14px',
+              padding: '10px 14px',
               background: 'rgba(64, 227, 120, 0.1)',
               border: '1px solid rgba(64, 227, 120, 0.25)',
               borderRadius: 12,
               marginBottom: 10,
-              fontSize: 12,
+              fontSize: 13.5,
               color: 'var(--chatter-primary)',
               fontWeight: 600,
               display: 'flex',
@@ -1010,7 +1010,7 @@ export default function ChatterChatRoom({
               background: 'transparent',
               border: 'none',
               color: '#fff',
-              fontSize: 14,
+              fontSize: 15.5,
               outline: 'none',
             }}
           />
@@ -1085,10 +1085,10 @@ export default function ChatterChatRoom({
               }}
             >
               <div>
-                <h3 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 2px 0', color: '#fff' }}>
+                <h3 style={{ fontSize: 19, fontWeight: 800, margin: '0 0 2px 0', color: '#fff' }}>
                   Room Members
                 </h3>
-                <div style={{ fontSize: 12, color: 'var(--chatter-light-text)' }}>
+                <div style={{ fontSize: 13.5, color: 'var(--chatter-light-text)' }}>
                   {roomMembers.length} {roomMembers.length === 1 ? 'scholar' : 'scholars'} in {serverName || 'room'}
                 </div>
               </div>
@@ -1099,14 +1099,14 @@ export default function ChatterChatRoom({
                   background: 'rgba(255, 255, 255, 0.08)',
                   border: 'none',
                   color: '#fff',
-                  width: 32,
-                  height: 32,
+                  width: 34,
+                  height: 34,
                   borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   cursor: 'pointer',
-                  fontSize: 14,
+                  fontSize: 15,
                 }}
               >
                 ✕
@@ -1116,11 +1116,11 @@ export default function ChatterChatRoom({
             {/* Members List */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
               {loadingMembers ? (
-                <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--chatter-light-text)', fontSize: 13 }}>
+                <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--chatter-light-text)', fontSize: 14.5 }}>
                   Loading room members...
                 </div>
               ) : roomMembers.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--chatter-light-text)', fontSize: 13 }}>
+                <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--chatter-light-text)', fontSize: 14.5 }}>
                   No other members found in this room.
                 </div>
               ) : (
@@ -1151,13 +1151,13 @@ export default function ChatterChatRoom({
                             <img
                               src={mUser.avatar_url}
                               alt={mName}
-                              style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }}
+                              style={{ width: 42, height: 42, borderRadius: '50%', objectFit: 'cover' }}
                             />
                           ) : (
                             <div
                               style={{
-                                width: 40,
-                                height: 40,
+                                width: 42,
+                                height: 42,
                                 borderRadius: '50%',
                                 background: '#242424',
                                 color: 'var(--chatter-primary)',
@@ -1165,7 +1165,7 @@ export default function ChatterChatRoom({
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 fontWeight: 700,
-                                fontSize: 15,
+                                fontSize: 16,
                               }}
                             >
                               {mName[0]?.toUpperCase() || 'S'}
@@ -1190,7 +1190,7 @@ export default function ChatterChatRoom({
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <span
                               style={{
-                                fontSize: 13.5,
+                                fontSize: 15.5,
                                 fontWeight: 700,
                                 color: '#fff',
                                 whiteSpace: 'nowrap',
@@ -1201,21 +1201,21 @@ export default function ChatterChatRoom({
                               {mName}
                             </span>
                             {isCurrent && (
-                              <span style={{ fontSize: 10.5, color: 'var(--chatter-primary)', fontWeight: 600 }}>
+                              <span style={{ fontSize: 12, color: 'var(--chatter-primary)', fontWeight: 600 }}>
                                 (You)
                               </span>
                             )}
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ fontSize: 11.5, color: 'var(--chatter-light-text)' }}>
+                            <span style={{ fontSize: 13.5, color: 'var(--chatter-light-text)' }}>
                               @{mUsername}
                             </span>
                             <span
                               style={{
-                                fontSize: 9.5,
+                                fontSize: 11,
                                 textTransform: 'uppercase',
                                 letterSpacing: '0.04em',
-                                padding: '1px 6px',
+                                padding: '1px 7px',
                                 borderRadius: 8,
                                 fontWeight: 700,
                                 background:
@@ -1253,12 +1253,12 @@ export default function ChatterChatRoom({
                             });
                           }}
                           style={{
-                            padding: '6px 14px',
+                            padding: '7px 15px',
                             borderRadius: 14,
                             background: 'rgba(64, 227, 120, 0.14)',
                             border: '1px solid rgba(64, 227, 120, 0.35)',
                             color: 'var(--chatter-primary)',
-                            fontSize: 12,
+                            fontSize: 13.5,
                             fontWeight: 700,
                             cursor: 'pointer',
                             display: 'flex',
@@ -1268,7 +1268,7 @@ export default function ChatterChatRoom({
                             transition: 'all 0.15s ease',
                           }}
                         >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                           </svg>
                           <span>Chat</span>
@@ -1290,13 +1290,13 @@ export default function ChatterChatRoom({
                 }}
                 style={{
                   width: '100%',
-                  padding: '11px',
+                  padding: '12px',
                   borderRadius: 14,
                   background: 'rgba(239, 68, 68, 0.12)',
                   border: '1px solid rgba(239, 68, 68, 0.25)',
                   color: '#f87171',
                   fontWeight: 700,
-                  fontSize: 13,
+                  fontSize: 15,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -1304,7 +1304,7 @@ export default function ChatterChatRoom({
                   gap: 8,
                 }}
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                   <polyline points="16 17 21 12 16 7" />
                   <line x1="21" y1="12" x2="9" y2="12" />
@@ -1365,10 +1365,10 @@ export default function ChatterChatRoom({
               </svg>
             </div>
 
-            <h3 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: '0 0 8px 0' }}>
+            <h3 style={{ fontSize: 21, fontWeight: 800, color: '#fff', margin: '0 0 8px 0' }}>
               Exit &quot;{serverName || 'Study Room'}&quot;?
             </h3>
-            <p style={{ fontSize: 13.5, color: '#D4D4D4', lineHeight: 1.5, margin: '0 0 22px 0' }}>
+            <p style={{ fontSize: 15, color: '#D4D4D4', lineHeight: 1.55, margin: '0 0 22px 0' }}>
               You will leave this study room and its channels. You can rejoin anytime using the room invite code or shared link.
             </p>
 
@@ -1378,13 +1378,13 @@ export default function ChatterChatRoom({
                 onClick={() => setConfirmLeaveOpen(false)}
                 style={{
                   flex: 1,
-                  padding: '11px',
+                  padding: '12px',
                   borderRadius: 14,
                   background: 'rgba(255, 255, 255, 0.08)',
                   border: 'none',
                   color: '#fff',
                   fontWeight: 600,
-                  fontSize: 13.5,
+                  fontSize: 15,
                   cursor: 'pointer',
                 }}
               >
@@ -1396,13 +1396,13 @@ export default function ChatterChatRoom({
                 disabled={leavingRoom}
                 style={{
                   flex: 1,
-                  padding: '11px',
+                  padding: '12px',
                   borderRadius: 14,
                   background: '#ef4444',
                   border: 'none',
                   color: '#fff',
                   fontWeight: 700,
-                  fontSize: 13.5,
+                  fontSize: 15,
                   cursor: leavingRoom ? 'not-allowed' : 'pointer',
                   opacity: leavingRoom ? 0.6 : 1,
                 }}
