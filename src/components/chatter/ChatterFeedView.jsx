@@ -622,8 +622,54 @@ export default function ChatterFeedView({
     setCreateModalOpen(false);
   };
 
+  // Native horizontal swipe gesture to switch feed tabs ("For you" <-> "Following")
+  const feedTouchStartRef = useRef(null);
+  const handleFeedTouchStart = (e) => {
+    if (e.touches && e.touches[0]) {
+      const target = e.target;
+      if (target.closest('input, textarea, select, button, .chatter-notes-strip, [data-no-swipe="true"]')) {
+        return;
+      }
+      feedTouchStartRef.current = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+        time: Date.now(),
+      };
+    }
+  };
+  const handleFeedTouchEnd = (e) => {
+    if (!feedTouchStartRef.current || !e.changedTouches || !e.changedTouches[0]) return;
+    const start = feedTouchStartRef.current;
+    const end = {
+      x: e.changedTouches[0].clientX,
+      y: e.changedTouches[0].clientY,
+      time: Date.now(),
+    };
+    feedTouchStartRef.current = null;
+    const deltaX = end.x - start.x;
+    const deltaY = end.y - start.y;
+    const duration = end.time - start.time;
+
+    // Fast horizontal swipe with horizontal dominance
+    if (duration < 550 && Math.abs(deltaX) >= 65 && Math.abs(deltaX) > Math.abs(deltaY) * 1.4) {
+      if (deltaX < 0 && activeFeedTab === 'forYou') {
+        // Swiped Left -> switch to Following
+        setTab('following');
+        if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+      } else if (deltaX > 0 && activeFeedTab === 'following') {
+        // Swiped Right -> switch to For you
+        setTab('forYou');
+        if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+      }
+    }
+  };
+
   return (
-    <div style={{ paddingBottom: 'calc(84px + env(safe-area-inset-bottom))', width: '100%', position: 'relative' }}>
+    <div
+      onTouchStart={handleFeedTouchStart}
+      onTouchEnd={handleFeedTouchEnd}
+      style={{ paddingBottom: 'calc(84px + env(safe-area-inset-bottom, 0px))', width: '100%', position: 'relative' }}
+    >
       {/* Share Toast Banner */}
       {shareToast && (
         <div

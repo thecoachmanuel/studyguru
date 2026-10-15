@@ -222,7 +222,7 @@ export default function ChatterAudioSpaceModal({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '14px 20px',
+          padding: 'calc(14px + env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px)) 14px max(20px, env(safe-area-inset-left, 0px))',
           background: 'var(--chatter-audiospace)',
           borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
         }}
@@ -803,12 +803,12 @@ export default function ChatterAudioSpaceModal({
         )}
       </main>
 
-      {/* ── 3. Chatter Bottom Floating Control Bar ── */}
+      {/* ── 3. Chatter Bottom Floating Control Bar (Safe Area Protected) ── */}
       <footer
         style={{
           background: 'var(--chatter-sheet)',
           borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-          padding: '16px 20px',
+          padding: '16px max(20px, env(safe-area-inset-right, 0px)) max(14px, calc(14px + env(safe-area-inset-bottom, 0px))) max(20px, env(safe-area-inset-left, 0px))',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',

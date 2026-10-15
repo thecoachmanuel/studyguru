@@ -2,6 +2,16 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
+  /* SAFE AREA VIEW TOKENS (iOS Notch, Dynamic Island, Home Indicator & Android Navigation Bar) */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
   /* CHATTER DESIGN SYSTEM TOKENS */
   --chatter-primary: #40E378;
   --chatter-pulsing: #A1E5B3;
@@ -9889,6 +9899,103 @@ body {
   .chatter-video-tile {
     min-height: 120px !important;
     border-radius: 16px !important;
+  }
+}
+
+/* ==========================================================================
+   PWA Native iOS & Android Adaptations + Complete Safe Area View Handling
+   ========================================================================== */
+
+/* 1. Global Touch Physics & Viewport Normalization */
+html {
+  height: 100%;
+  width: 100%;
+  overscroll-behavior-y: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overscroll-behavior-y: none;
+  -webkit-overflow-scrolling: touch;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 2. Standalone Installed PWA on iOS, Android, and Desktop */
+@media (display-mode: standalone) {
+  html, body {
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+    position: fixed;
+    inset: 0;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* Allow text selection only in user messages, notes, and inputs */
+  input, textarea, [contenteditable="true"], .chat-markdown, .chatter-post-card {
+    user-select: text !important;
+    -webkit-user-select: text !important;
+  }
+
+  #dashboard-shell,
+  .chatter-desktop-layout {
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+  }
+}
+
+/* 3. iPhone Notch, Dynamic Island, and Android Status Bar Header Protections */
+.chatter-topbar {
+  min-height: calc(52px + env(safe-area-inset-top, 0px)) !important;
+  height: calc(52px + env(safe-area-inset-top, 0px)) !important;
+  padding-top: env(safe-area-inset-top, 0px) !important;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)) !important;
+  padding-right: max(16px, env(safe-area-inset-right, 0px)) !important;
+}
+
+.chatter-mobile-brand-header {
+  padding-top: calc(10px + env(safe-area-inset-top, 0px)) !important;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)) !important;
+  padding-right: max(16px, env(safe-area-inset-right, 0px)) !important;
+}
+
+/* 4. Bottom Navigation & Home Indicator Protections */
+.chatter-tabbar {
+  min-height: calc(58px + env(safe-area-inset-bottom, 0px)) !important;
+  height: calc(58px + env(safe-area-inset-bottom, 0px)) !important;
+  padding-bottom: max(6px, env(safe-area-inset-bottom, 0px)) !important;
+  padding-left: max(8px, env(safe-area-inset-left, 0px)) !important;
+  padding-right: max(8px, env(safe-area-inset-right, 0px)) !important;
+  background: rgba(14, 14, 14, 0.94) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  backdrop-filter: blur(16px) !important;
+}
+
+/* 5. Mobile FAB positioned safely above bottom tab bar and home indicator */
+.chatter-fab {
+  bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+  right: max(18px, env(safe-area-inset-right, 0px)) !important;
+}
+
+/* 6. Landscape orientation safe area insets (notches on sides) */
+@media (orientation: landscape) and (max-width: 950px) {
+  .chatter-topbar,
+  .chatter-mobile-brand-header,
+  .chatter-guru-header,
+  .voice-meet-header {
+    padding-left: max(20px, env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(20px, env(safe-area-inset-right, 0px)) !important;
+  }
+  .chatter-tabbar,
+  .chatter-guru-compose,
+  .voice-meet-dock {
+    padding-left: max(16px, env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(16px, env(safe-area-inset-right, 0px)) !important;
   }
 }
 

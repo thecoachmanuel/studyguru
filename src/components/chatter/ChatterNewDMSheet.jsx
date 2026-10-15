@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { TwitterVerifiedBadge } from './ChatterFeedView';
 
 export default function ChatterNewDMSheet({
@@ -63,6 +63,23 @@ export default function ChatterNewDMSheet({
     return list;
   }, [members, currentUserId, dbUsers]);
 
+  // Swipe down to dismiss bottom sheet
+  const sheetTouchStartRef = useRef(null);
+  const handleSheetTouchStart = (e) => {
+    if (e.touches && e.touches[0]) {
+      sheetTouchStartRef.current = e.touches[0].clientY;
+    }
+  };
+  const handleSheetTouchEnd = (e) => {
+    if (sheetTouchStartRef.current == null || !e.changedTouches || !e.changedTouches[0]) return;
+    const deltaY = e.changedTouches[0].clientY - sheetTouchStartRef.current;
+    sheetTouchStartRef.current = null;
+    if (deltaY > 60) {
+      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+      onClose();
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -92,12 +109,17 @@ export default function ChatterNewDMSheet({
           flexDirection: 'column',
           overflow: 'hidden',
           boxShadow: '0 -16px 48px rgba(0,0,0,0.7)',
+          paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Handle bar for bottom sheet */}
-        <div style={{ padding: '10px 0 4px', display: 'flex', justifyContent: 'center' }}>
-          <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(255, 255, 255, 0.2)' }} />
+        {/* Handle bar for bottom sheet with swipe-down dismiss */}
+        <div
+          onTouchStart={handleSheetTouchStart}
+          onTouchEnd={handleSheetTouchEnd}
+          style={{ padding: '12px 0 6px', display: 'flex', justifyContent: 'center', cursor: 'grab' }}
+        >
+          <div style={{ width: 44, height: 5, borderRadius: 3, background: 'rgba(255, 255, 255, 0.25)' }} />
         </div>
 
         {/* Sheet Header */}

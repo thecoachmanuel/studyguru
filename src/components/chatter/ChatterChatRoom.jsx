@@ -120,9 +120,38 @@ export default function ChatterChatRoom({
   const [roomMembers, setRoomMembers] = useState([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [confirmLeaveOpen, setConfirmLeaveOpen] = useState(false);
-  const [leavingRoom, setLeavingRoom] = useState(false);
-
   const messagesEndRef = useRef(null);
+  const touchStartRef = useRef(null);
+
+  const handleTouchStart = (e) => {
+    if (e.touches && e.touches[0]) {
+      touchStartRef.current = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+      };
+    }
+  };
+
+  const handleTouchEnd = (e) => {
+    if (!touchStartRef.current || !e.changedTouches || !e.changedTouches[0]) return;
+    const start = touchStartRef.current;
+    const end = {
+      x: e.changedTouches[0].clientX,
+      y: e.changedTouches[0].clientY,
+    };
+    touchStartRef.current = null;
+
+    const deltaX = end.x - start.x;
+    const deltaY = end.y - start.y;
+
+    // Native iOS Edge Swipe Back gesture (from left edge)
+    if (onBack && start.x <= 48 && deltaX >= 55 && Math.abs(deltaX) > Math.abs(deltaY) * 1.3) {
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate(10);
+      }
+      onBack();
+    }
+  };
   const fileInputRef = useRef(null);
   // Track IDs of messages we sent ourselves so we can ignore their Pusher echo
   const sentMessageIdsRef = useRef(new Set());
@@ -470,6 +499,8 @@ export default function ChatterChatRoom({
 
   return (
     <div
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -479,13 +510,13 @@ export default function ChatterChatRoom({
         color: '#fff',
       }}
     >
-      {/* ── 1. Chatter Chat Header ── */}
+      {/* ── 1. Chatter Chat Header (Safe Area Protected) ── */}
       <header
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '12px 18px',
+          padding: 'calc(12px + env(safe-area-inset-top, 0px)) max(18px, env(safe-area-inset-right, 0px)) 12px max(18px, env(safe-area-inset-left, 0px))',
           background: 'var(--chatter-sheet)',
           borderBottom: '1px solid rgba(255, 255, 255, 0.07)',
           zIndex: 30,
@@ -947,7 +978,7 @@ export default function ChatterChatRoom({
       {/* ── 3. Chatter Compose Bar ── */}
       <div
         style={{
-          padding: '10px 16px calc(14px + env(safe-area-inset-bottom))',
+          padding: '10px max(16px, env(safe-area-inset-right, 0px)) max(12px, calc(10px + env(safe-area-inset-bottom, 0px))) max(16px, env(safe-area-inset-left, 0px))',
           background: 'var(--chatter-sheet)',
           borderTop: '1px solid rgba(255, 255, 255, 0.08)',
         }}

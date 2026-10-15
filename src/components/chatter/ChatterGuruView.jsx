@@ -904,8 +904,30 @@ export default function ChatterGuruView({
     }
   };
 
+  // Native iOS edge swipe to go back
+  const touchStartRef = useRef(null);
+  const handleTouchStart = (e) => {
+    if (e.touches && e.touches[0]) {
+      touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+  };
+  const handleTouchEnd = (e) => {
+    if (!touchStartRef.current || !e.changedTouches || !e.changedTouches[0]) return;
+    const start = touchStartRef.current;
+    const end = { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+    touchStartRef.current = null;
+    const deltaX = end.x - start.x;
+    const deltaY = end.y - start.y;
+    if (onBack && start.x <= 48 && deltaX >= 55 && Math.abs(deltaX) > Math.abs(deltaY) * 1.3) {
+      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+      onBack();
+    }
+  };
+
   return (
     <div
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -917,13 +939,14 @@ export default function ChatterGuruView({
         position: 'relative',
       }}
     >
-      {/* ── 1. Top Guru Header (Clean & Minimal with Max Breathing Space) ── */}
+      {/* ── 1. Top Guru Header (Safe Area Protected) ── */}
       <div
+        className="chatter-guru-header"
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '10px 16px',
+          padding: 'calc(10px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px))',
           borderBottom: '1px solid rgba(255, 255, 255, 0.07)',
           background: 'var(--chatter-sheet)',
           flexShrink: 0,
@@ -1676,7 +1699,7 @@ export default function ChatterGuruView({
       <div
         className="chatter-guru-compose"
         style={{
-          padding: '8px 14px max(8px, env(safe-area-inset-bottom, 8px))',
+          padding: '8px max(14px, env(safe-area-inset-right, 0px)) max(10px, calc(8px + env(safe-area-inset-bottom, 0px))) max(14px, env(safe-area-inset-left, 0px))',
           background: 'var(--chatter-sheet)',
           borderTop: '1px solid rgba(255, 255, 255, 0.08)',
           flexShrink: 0,

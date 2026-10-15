@@ -1075,8 +1075,68 @@ export default function DashboardPage() {
 
 
 
+  // ── Native iOS & Android Horizontal Swipe Navigation between primary tabs ──
+  const CHATTER_TABS = ['feed', 'rooms', 'guru', 'chats', 'profile'];
+  const tabTouchStartRef = useRef(null);
+
+  const handleDashboardTouchStart = (e) => {
+    // Only capture when not in an active chat room and no modal/sheet is open
+    if (activeChannelId) return;
+    if (searchModalOpen || newDMSheetOpen || serverActionModal || audioSpaceModalOpen || userProfileModalTarget || settingsOpen || userStatusModalOpen) return;
+    if (e.touches && e.touches[0]) {
+      const target = e.target;
+      if (target.closest('input, textarea, select, button, .chatter-tabbar, .chatter-notes-strip, [data-no-swipe="true"]')) {
+        return;
+      }
+      tabTouchStartRef.current = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+        time: Date.now(),
+      };
+    }
+  };
+
+  const handleDashboardTouchEnd = (e) => {
+    if (!tabTouchStartRef.current || !e.changedTouches || !e.changedTouches[0]) return;
+    const start = tabTouchStartRef.current;
+    const end = {
+      x: e.changedTouches[0].clientX,
+      y: e.changedTouches[0].clientY,
+      time: Date.now(),
+    };
+    tabTouchStartRef.current = null;
+
+    const deltaX = end.x - start.x;
+    const deltaY = end.y - start.y;
+    const duration = end.time - start.time;
+
+    // Fast horizontal swipe with horizontal dominance
+    if (duration < 550 && Math.abs(deltaX) >= 65 && Math.abs(deltaX) > Math.abs(deltaY) * 1.4) {
+      const currentIndex = CHATTER_TABS.indexOf(chatterTab);
+      if (currentIndex === -1) return;
+
+      if (deltaX < 0 && currentIndex < CHATTER_TABS.length - 1) {
+        // Swipe Left -> next tab
+        const nextTab = CHATTER_TABS[currentIndex + 1];
+        setChatterTab(nextTab);
+        if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+      } else if (deltaX > 0 && currentIndex > 0) {
+        // Swipe Right -> previous tab
+        const prevTab = CHATTER_TABS[currentIndex - 1];
+        setChatterTab(prevTab);
+        if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+      }
+    }
+  };
+
   return (
-    <div className={shellClasses} id="dashboard-shell" suppressHydrationWarning>
+    <div
+      className={shellClasses}
+      id="dashboard-shell"
+      onTouchStart={handleDashboardTouchStart}
+      onTouchEnd={handleDashboardTouchEnd}
+      suppressHydrationWarning
+    >
       {/* ── Unified Toast Notification (Faster auto-dismiss, tap/swipe to dismiss) ── */}
       {toast && (
         <div

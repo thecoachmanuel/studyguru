@@ -253,7 +253,7 @@ export default function ChatterCommentsSheet({
         {/* Sticky Compose Input */}
         <div
           style={{
-            padding: '12px 16px calc(14px + env(safe-area-inset-bottom))',
+            padding: '12px 16px max(14px, calc(12px + env(safe-area-inset-bottom, 0px)))',
             borderTop: '1px solid rgba(255, 255, 255, 0.08)',
             background: 'var(--chatter-black)',
           }}
