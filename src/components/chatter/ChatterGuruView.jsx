@@ -23,6 +23,7 @@ export default function ChatterGuruView({
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const [targetBarHidden, setTargetBarHidden] = useState(false);
+  const [quickPromptsHidden, setQuickPromptsHidden] = useState(false);
   const lastScrollTopRef = useRef(0);
 
   const MAX_DOCS = 5;
@@ -668,11 +669,13 @@ export default function ChatterGuruView({
     const currentScrollTop = e.currentTarget.scrollTop;
     const delta = currentScrollTop - lastScrollTopRef.current;
 
-    // Subtle target note bar collapse on scroll without hiding bottom navigation
+    // Smoothly collapse target bar and suggestion prompts when scrolling up
     if (delta > 8 && currentScrollTop > 40) {
       setTargetBarHidden(true);
+      setQuickPromptsHidden(true);
     } else if (delta < -8 || currentScrollTop <= 15) {
       setTargetBarHidden(false);
+      setQuickPromptsHidden(false);
     }
     lastScrollTopRef.current = currentScrollTop;
   };
@@ -1189,15 +1192,20 @@ export default function ChatterGuruView({
         <div ref={chatBottomRef} />
       </div>
 
-      {/* ── 4. Quick Prompts Rail ── */}
+      {/* ── 4. Quick Prompts Rail (smoothly collapses when scrolling up) ── */}
       <div
         style={{
           display: 'flex',
           gap: 8,
           overflowX: 'auto',
-          padding: '6px 18px',
+          padding: quickPromptsHidden ? '0 18px' : '6px 18px',
+          maxHeight: quickPromptsHidden ? 0 : 44,
+          opacity: quickPromptsHidden ? 0 : 1,
+          pointerEvents: quickPromptsHidden ? 'none' : 'auto',
+          transition: 'all 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
           scrollbarWidth: 'none',
           flexShrink: 0,
+          background: 'var(--chatter-black)',
         }}
       >
         {quickPrompts.map((p, i) => (
@@ -1233,12 +1241,13 @@ export default function ChatterGuruView({
         ))}
       </div>
 
-      {/* ── 5. Bottom Compose Input (Clean Fullscreen Chat Screen) ── */}
+      {/* ── 5. Bottom Compose Input (Clean Fullscreen Chat Screen matching DM & Room) ── */}
       <div
         className="chatter-guru-compose"
         style={{
           padding: '10px 16px calc(14px + env(safe-area-inset-bottom))',
-          background: 'var(--chatter-black)',
+          background: 'var(--chatter-sheet)',
+          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
           flexShrink: 0,
         }}
       >
@@ -1270,10 +1279,10 @@ export default function ChatterGuruView({
             display: 'flex',
             alignItems: 'center',
             gap: 10,
-            background: 'var(--chatter-sheet)',
+            background: 'var(--chatter-black)',
             borderRadius: 24,
-            padding: '6px 8px 6px 12px',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
+            padding: '6px 8px 6px 14px',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
           }}
         >
           {/* Paperclip Document Upload shortcut */}
@@ -1304,7 +1313,7 @@ export default function ChatterGuruView({
             placeholder={
               uploadedDocs.find((d) => d.doc_id === selectedDocId)
                 ? `Ask about ${uploadedDocs.find((d) => d.doc_id === selectedDocId)?.filename}...`
-                : 'Ask StudyCord AI or upload lecture notes...'
+                : 'Ask AI Guru or upload lecture notes...'
             }
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
@@ -1313,7 +1322,7 @@ export default function ChatterGuruView({
               background: 'transparent',
               border: 'none',
               color: '#fff',
-              fontSize: 14,
+              fontSize: 15.5,
               outline: 'none',
             }}
           />

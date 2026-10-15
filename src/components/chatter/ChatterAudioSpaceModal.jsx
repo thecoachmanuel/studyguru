@@ -303,6 +303,7 @@ export default function ChatterAudioSpaceModal({
                 )}
               </div>
               <div
+                className={`chatter-video-stage-grid ${totalVideos === 1 ? 'single-video' : 'multi-video'}`}
                 style={{
                   display: 'grid',
                   gridTemplateColumns:
@@ -318,6 +319,7 @@ export default function ChatterAudioSpaceModal({
                 {/* Local Video Tile */}
                 {hasLocalVideo && (
                   <div
+                    className="chatter-video-tile"
                     style={{
                       position: 'relative',
                       borderRadius: 20,
@@ -828,6 +830,7 @@ function RemoteVideoTile({ remoteUserId, stream, participant, isSpeaking, totalV
 
   return (
     <div
+      className="chatter-video-tile"
       style={{
         position: 'relative',
         borderRadius: 20,

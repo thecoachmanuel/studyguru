@@ -14,19 +14,30 @@ export default function ChatterProfileView({
   followingMap = {},
   onSelectPost,
 }) {
+  // Helper to synchronously read cached profile from localStorage
+  const cachedProfile = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem('studycord_user_profile_cache');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
   const [activeTab, setActiveTab] = useState('posts'); // 'posts' | 'notes' | 'rooms'
-  const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || '');
-  const [bannerUrl, setBannerUrl] = useState('');
-  const [bioText, setBioText] = useState('📚 Studying & collaborating on StudyCord · Always open to join study rooms & exam drills!');
+  const [avatarUrl, setAvatarUrl] = useState(() => profile?.avatar_url || cachedProfile?.avatar_url || '');
+  const [bannerUrl, setBannerUrl] = useState(() => profile?.banner_url || cachedProfile?.banner_url || '');
+  const [bioText, setBioText] = useState(() => profile?.bio || cachedProfile?.bio || '');
   const [toastMessage, setToastMessage] = useState('');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
-  const [editName, setEditName] = useState(profile?.name || '');
-  const [displayName, setDisplayName] = useState(profile?.name || '');
-  const [editUsername, setEditUsername] = useState(profile?.username || '');
-  const [displayUsername, setDisplayUsername] = useState(profile?.username || '');
-  const [editBio, setEditBio] = useState('');
+  const [editName, setEditName] = useState(() => profile?.name || cachedProfile?.name || '');
+  const [displayName, setDisplayName] = useState(() => profile?.name || cachedProfile?.name || '');
+  const [editUsername, setEditUsername] = useState(() => profile?.username || cachedProfile?.username || '');
+  const [displayUsername, setDisplayUsername] = useState(() => profile?.username || cachedProfile?.username || '');
+  const [editBio, setEditBio] = useState(() => profile?.bio || cachedProfile?.bio || '');
   const [savingProfile, setSavingProfile] = useState(false);
 
   // Dynamic real data
@@ -34,17 +45,22 @@ export default function ChatterProfileView({
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [savedNotes, setSavedNotes] = useState([]);
   const [loadingNotes, setLoadingNotes] = useState(true);
-  const [followersCount, setFollowersCount] = useState(
-    typeof profile?.followers_count === 'number' ? profile.followers_count : 0
-  );
-  const [dayStreak, setDayStreak] = useState(
-    typeof profile?.day_streak === 'number' ? profile.day_streak : 1
-  );
-  const [studyHours, setStudyHours] = useState(
-    typeof profile?.study_hours === 'number' ? profile.study_hours : 0
-  );
+
+  const initialFollowers = typeof profile?.followers_count === 'number'
+    ? profile.followers_count
+    : (typeof cachedProfile?.followers_count === 'number' ? cachedProfile.followers_count : null);
+  const initialStreak = typeof profile?.day_streak === 'number'
+    ? profile.day_streak
+    : (typeof cachedProfile?.day_streak === 'number' ? cachedProfile.day_streak : null);
+  const initialHours = typeof profile?.study_hours === 'number'
+    ? profile.study_hours
+    : (typeof cachedProfile?.study_hours === 'number' ? cachedProfile.study_hours : null);
+
+  const [followersCount, setFollowersCount] = useState(initialFollowers ?? 0);
+  const [dayStreak, setDayStreak] = useState(initialStreak ?? 1);
+  const [studyHours, setStudyHours] = useState(initialHours ?? 0);
   const [loadingStats, setLoadingStats] = useState(
-    typeof profile?.followers_count !== 'number'
+    initialFollowers === null && initialStreak === null && initialHours === null
   );
 
   const avatarInputRef = useRef(null);
@@ -53,8 +69,10 @@ export default function ChatterProfileView({
   const followingCount = useMemo(() => {
     const fromMap = Object.values(followingMap).filter(Boolean).length;
     if (fromMap > 0) return fromMap;
-    return typeof profile?.following_count === 'number' ? profile.following_count : 0;
-  }, [followingMap, profile?.following_count]);
+    if (typeof profile?.following_count === 'number') return profile.following_count;
+    if (typeof cachedProfile?.following_count === 'number') return cachedProfile.following_count;
+    return 0;
+  }, [followingMap, profile?.following_count, cachedProfile?.following_count]);
 
   useEffect(() => {
     if (typeof profile?.followers_count === 'number') {
@@ -63,7 +81,11 @@ export default function ChatterProfileView({
     }
     if (typeof profile?.day_streak === 'number') setDayStreak(profile.day_streak);
     if (typeof profile?.study_hours === 'number') setStudyHours(profile.study_hours);
-  }, [profile?.followers_count, profile?.day_streak, profile?.study_hours]);
+    if (profile?.bio) {
+      setBioText(profile.bio);
+      setEditBio(profile.bio);
+    }
+  }, [profile?.followers_count, profile?.day_streak, profile?.study_hours, profile?.bio]);
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -79,6 +101,9 @@ export default function ChatterProfileView({
         if (res.ok) {
           const data = await res.json();
           if (mounted && data) {
+            try {
+              localStorage.setItem('studycord_user_profile_cache', JSON.stringify(data));
+            } catch {}
             if (data.avatar_url) setAvatarUrl(data.avatar_url);
             if (data.banner_url) setBannerUrl(data.banner_url);
             if (data.bio) {
@@ -516,6 +541,7 @@ export default function ChatterProfileView({
           <div style={{ display: 'flex', gap: 8 }}>
             <button
               type="button"
+              className="chatter-edit-profile-desktop-btn"
               onClick={() => {
                 setEditBio(bioText);
                 setEditName(displayName || profile?.name || '');
@@ -583,9 +609,16 @@ export default function ChatterProfileView({
 
         {/* Bio Section */}
         <div style={{ margin: '0 0 16px 0' }}>
-          <p style={{ fontSize: 15, color: '#E5E5E5', lineHeight: 1.55, margin: 0 }}>
-            {bioText}
-          </p>
+          {loadingStats && !bioText ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, margin: '6px 0' }}>
+              <div style={{ height: 14, width: '85%', borderRadius: 4, background: 'rgba(255, 255, 255, 0.08)', animation: 'pulse 1.2s infinite ease-in-out' }} />
+              <div style={{ height: 14, width: '60%', borderRadius: 4, background: 'rgba(255, 255, 255, 0.08)', animation: 'pulse 1.2s infinite ease-in-out' }} />
+            </div>
+          ) : (
+            <p style={{ fontSize: 15, color: '#E5E5E5', lineHeight: 1.55, margin: 0 }}>
+              {bioText || '📚 Studying & collaborating on StudyCord · Always open to join study rooms & exam drills!'}
+            </p>
+          )}
         </div>
 
         {/* ── 3. Flutter Chatter / Twitter Style Inline Stats Row ── */}

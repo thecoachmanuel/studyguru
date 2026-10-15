@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import { TwitterVerifiedBadge } from './ChatterFeedView';
 
+// In-memory cache for scholar profiles to provide 0ms instant display without flicker
+const scholarProfileCache = new Map();
+
 export default function ChatterUserProfileModal({
   targetUser,
   currentUserId,
@@ -11,21 +14,26 @@ export default function ChatterUserProfileModal({
   followingMap = {},
   onToggleFollow,
 }) {
+  const targetId = targetUser?.id || targetUser?._id;
+  const cachedScholar = targetId ? scholarProfileCache.get(targetId) : null;
+
   const [liveUser, setLiveUser] = useState(() => {
+    const cached = cachedScholar || {};
     const rawFollowers = typeof targetUser?.followers_count === 'number'
       ? targetUser.followers_count
-      : (typeof targetUser?.followersCount === 'number' ? targetUser.followersCount : 0);
+      : (typeof targetUser?.followersCount === 'number' ? targetUser.followersCount : (typeof cached.followers_count === 'number' ? cached.followers_count : null));
     const rawFollowing = typeof targetUser?.following_count === 'number'
       ? targetUser.following_count
-      : (typeof targetUser?.followingCount === 'number' ? targetUser.followingCount : 0);
+      : (typeof targetUser?.followingCount === 'number' ? targetUser.followingCount : (typeof cached.following_count === 'number' ? cached.following_count : null));
     const rawHours = typeof targetUser?.study_hours === 'number'
       ? targetUser.study_hours
-      : (typeof targetUser?.studyHours === 'number' ? targetUser.studyHours : 0);
+      : (typeof targetUser?.studyHours === 'number' ? targetUser.studyHours : (typeof cached.study_hours === 'number' ? cached.study_hours : null));
     const rawStreak = typeof targetUser?.day_streak === 'number'
       ? targetUser.day_streak
-      : (typeof targetUser?.dayStreak === 'number' ? targetUser.dayStreak : 1);
+      : (typeof targetUser?.dayStreak === 'number' ? targetUser.dayStreak : (typeof cached.day_streak === 'number' ? cached.day_streak : null));
 
     return {
+      ...(cached || {}),
       ...(targetUser || {}),
       followers_count: rawFollowers,
       following_count: rawFollowing,
@@ -34,10 +42,10 @@ export default function ChatterUserProfileModal({
     };
   });
 
-  const hasInitialFollowers = typeof targetUser?.followers_count === 'number' || typeof targetUser?.followersCount === 'number';
-  const hasInitialHours = typeof targetUser?.study_hours === 'number' || typeof targetUser?.studyHours === 'number';
-  const hasInitialStreak = typeof targetUser?.day_streak === 'number' || typeof targetUser?.dayStreak === 'number';
-  const [loadingProfile, setLoadingProfile] = useState(!hasInitialFollowers);
+  const hasInitialFollowers = liveUser?.followers_count !== null && liveUser?.followers_count !== undefined;
+  const hasInitialHours = liveUser?.study_hours !== null && liveUser?.study_hours !== undefined;
+  const hasInitialStreak = liveUser?.day_streak !== null && liveUser?.day_streak !== undefined;
+  const [loadingProfile, setLoadingProfile] = useState(!hasInitialFollowers || !hasInitialHours || !hasInitialStreak);
 
   // Sync when targetUser prop changes
   useEffect(() => {
@@ -60,7 +68,7 @@ export default function ChatterUserProfileModal({
         day_streak: incomingStreak !== undefined ? incomingStreak : prev.day_streak,
       }));
 
-      if (incomingFollowers === undefined) {
+      if (incomingFollowers === undefined || incomingHours === undefined || incomingStreak === undefined) {
         setLoadingProfile(true);
       }
     }
@@ -78,6 +86,9 @@ export default function ChatterUserProfileModal({
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (active && data && !data.error && data.found !== false) {
+          if (targetId) {
+            scholarProfileCache.set(targetId, data);
+          }
           setLiveUser((prev) => ({
             ...prev,
             ...data,
@@ -88,8 +99,8 @@ export default function ChatterUserProfileModal({
             bio: data.bio || prev.bio,
             followers_count: typeof data.followers_count === 'number' ? data.followers_count : prev.followers_count,
             following_count: typeof data.following_count === 'number' ? data.following_count : prev.following_count,
-            study_hours: typeof data.study_hours === 'number' ? data.study_hours : (prev.study_hours || data.study_hours || 0),
-            day_streak: typeof data.day_streak === 'number' ? data.day_streak : (prev.day_streak || data.day_streak || 1),
+            study_hours: typeof data.study_hours === 'number' ? data.study_hours : (prev.study_hours ?? data.study_hours ?? 0),
+            day_streak: typeof data.day_streak === 'number' ? data.day_streak : (prev.day_streak ?? data.day_streak ?? 1),
           }));
         }
       })
@@ -101,14 +112,14 @@ export default function ChatterUserProfileModal({
     return () => {
       active = false;
     };
-  }, [targetUser?.id, isSelf]);
+  }, [targetUser?.id, isSelf, targetId]);
 
   if (!targetUser) return null;
 
   const isFollowing = !!followingMap[targetUser?.id];
   const displayFollowers = typeof liveUser?.followers_count === 'number' ? liveUser.followers_count : 0;
-  const studyHours = `${liveUser.study_hours || 0}h`;
-  const dayStreak = `${liveUser.day_streak || 1}🔥`;
+  const studyHours = `${liveUser.study_hours ?? 0}h`;
+  const dayStreak = `${liveUser.day_streak ?? 1}🔥`;
 
   const handleToggleFollow = () => {
     const willFollow = !isFollowing;
@@ -273,7 +284,7 @@ export default function ChatterUserProfileModal({
             }}
           >
             <div style={{ background: '#141414', borderRadius: 14, padding: '12px 10px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-              {loadingProfile && !hasInitialFollowers ? (
+              {liveUser.followers_count === null || (loadingProfile && !hasInitialFollowers) ? (
                 <div style={{ height: 19, width: 34, borderRadius: 5, margin: '0 auto', background: 'rgba(64, 227, 120, 0.2)', animation: 'pulse 1.2s infinite ease-in-out' }} />
               ) : (
                 <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--chatter-primary)' }}>{displayFollowers}</div>
@@ -281,7 +292,7 @@ export default function ChatterUserProfileModal({
               <div style={{ fontSize: 13, color: 'var(--chatter-light-text)', marginTop: 2, fontWeight: 500 }}>Followers</div>
             </div>
             <div style={{ background: '#141414', borderRadius: 14, padding: '12px 10px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-              {loadingProfile && !hasInitialHours ? (
+              {liveUser.study_hours === null || (loadingProfile && !hasInitialHours) ? (
                 <div style={{ height: 19, width: 34, borderRadius: 5, margin: '0 auto', background: 'rgba(64, 227, 120, 0.2)', animation: 'pulse 1.2s infinite ease-in-out' }} />
               ) : (
                 <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--chatter-primary)' }}>{studyHours}</div>
@@ -289,7 +300,7 @@ export default function ChatterUserProfileModal({
               <div style={{ fontSize: 13, color: 'var(--chatter-light-text)', marginTop: 2, fontWeight: 500 }}>Study Hours</div>
             </div>
             <div style={{ background: '#141414', borderRadius: 14, padding: '12px 10px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-              {loadingProfile && !hasInitialStreak ? (
+              {liveUser.day_streak === null || (loadingProfile && !hasInitialStreak) ? (
                 <div style={{ height: 19, width: 34, borderRadius: 5, margin: '0 auto', background: 'rgba(64, 227, 120, 0.2)', animation: 'pulse 1.2s infinite ease-in-out' }} />
               ) : (
                 <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--chatter-primary)' }}>{dayStreak}</div>

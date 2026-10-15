@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { apiRequest } from '@/lib/api';
 import { getPusherClient } from '@/lib/pusherClient';
 import { TwitterVerifiedBadge } from './ChatterFeedView';
+import { playMessageChime } from '@/lib/audioNotification';
 
 const STUDY_EMOJIS = ['👍', '💡', '❓', '🔥', '✅'];
 
@@ -225,7 +226,8 @@ export default function ChatterChatRoom({
               }
             }
 
-            // 4. Otherwise append peer message
+            // 4. Otherwise append peer message & play incoming message sound chime
+            playMessageChime();
             return [...prev, newMsg];
           });
         };
@@ -741,8 +743,9 @@ export default function ChatterChatRoom({
                         style={{
                           fontSize: 13,
                           fontWeight: 800,
-                          color: m.is_read ? 'var(--chatter-primary)' : 'rgba(255, 255, 255, 0.45)',
+                          color: m.is_read ? '#0E0E0E' : 'rgba(14, 14, 14, 0.65)',
                           marginLeft: 3,
+                          letterSpacing: '-1px',
                         }}
                         title={m.is_read ? 'Read' : 'Delivered'}
                       >

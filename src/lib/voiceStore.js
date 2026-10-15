@@ -91,12 +91,38 @@ export async function addOrUpdateParticipant({ channelId, serverId, user, isMute
         channelId,
         count: liveCount,
       });
+      if (liveCount === 1) {
+        await pusher.trigger(`server-${serverId}`, 'space-started', {
+          channelId,
+          serverId,
+          caller: participant.profiles,
+        });
+      }
     }
     await pusher.trigger('voice-counts-global', 'voice-counts-updated', {
       channelId,
       serverId: serverId || null,
       count: liveCount,
+      caller: participant.profiles,
     });
+
+    // Check if channel is a direct message conversation to notify recipient of incoming call
+    try {
+      const db = await getDatabase();
+      const conv = await db.collection('conversations').findOne({
+        $or: [{ _id: channelId }, { id: channelId }]
+      });
+      if (conv?.participant_ids && Array.isArray(conv.participant_ids)) {
+        const otherUserId = conv.participant_ids.find((pid) => String(pid) !== String(userId));
+        if (otherUserId) {
+          await pusher.trigger(`user-${otherUserId}`, 'incoming-call', {
+            channelId,
+            conversationId: channelId,
+            caller: participant.profiles,
+          });
+        }
+      }
+    } catch {}
   } catch {}
 
   return participant;

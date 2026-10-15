@@ -9648,4 +9648,23 @@ body {
   }
 }
 
+/* Hide Edit Profile text button on mobile since gear settings icon exists */
+@media (max-width: 767px) {
+  .chatter-edit-profile-desktop-btn {
+    display: none !important;
+  }
+
+  /* Video Call UI 2-by-2 Grid on Mobile viewports */
+  .chatter-video-stage-grid.multi-video {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .chatter-video-tile {
+    min-height: 120px !important;
+    border-radius: 16px !important;
+  }
+}
+
+
 

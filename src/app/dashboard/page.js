@@ -29,6 +29,7 @@ import ChatterSearchModal from '@/components/chatter/ChatterSearchModal';
 import ChatterNewDMSheet from '@/components/chatter/ChatterNewDMSheet';
 import ChatterRoomActionModal from '@/components/chatter/ChatterRoomActionModal';
 import ChatterRightSidebar from '@/components/chatter/ChatterRightSidebar';
+import { playMessageChime, startCallRingtone, stopCallRingtone, playSpaceTone } from '@/lib/audioNotification';
 
 function moveChannelLocally(channels, channelId, beforeChannelId, afterChannelId) {
   const movedChannel = channels.find((channel) => channel.id === channelId);
@@ -194,6 +195,7 @@ export default function DashboardPage() {
   const [userStatusModalOpen, setUserStatusModalOpen] = useState(false);
   const [userCurrentStatus, setUserCurrentStatus] = useState(null);
   const [audioSpaceModalOpen, setAudioSpaceModalOpen] = useState(false);
+  const [incomingCallAlert, setIncomingCallAlert] = useState(null);
   const [userProfileModalTarget, setUserProfileModalTarget] = useState(null);
   const [targetPostId, setTargetPostId] = useState(null);
   const [filterTag, setFilterTag] = useState(null);
@@ -690,6 +692,9 @@ export default function DashboardPage() {
       const convId = payload?.conversation_id || payload?.id;
       if (!convId) return;
 
+      // Play pleasant Web Audio synthesized message chime
+      playMessageChime();
+
       // If user is currently in this conversation, auto-mark as read
       if (convId === activeChannelId && typeof document !== 'undefined' && !document.hidden) {
         handleMarkChannelRead(convId);
@@ -704,6 +709,26 @@ export default function DashboardPage() {
 
       const senderName = payload.profiles?.name || payload.sender_name || 'Study Partner';
       showToast(`💬 New message from ${senderName}`);
+    };
+
+    const handleIncomingCall = (payload) => {
+      if (!payload) return;
+      const callerName = payload.caller?.full_name || payload.caller?.username || 'Study Partner';
+      startCallRingtone(15000);
+      setIncomingCallAlert({
+        channelId: payload.channelId || payload.conversationId,
+        caller: payload.caller,
+        callType: payload.callType || 'audio',
+      });
+      showToast(`📞 Incoming call from ${callerName}`);
+    };
+
+    const handleSpaceStarted = (payload) => {
+      if (!payload) return;
+      if (String(payload.caller?.id) === String(user.id)) return;
+      playSpaceTone();
+      const callerName = payload.caller?.full_name || payload.caller?.username || 'Scholar';
+      showToast(`🎙️ ${callerName} started a live study space!`);
     };
 
     const handleFollowChanged = (payload) => {
@@ -726,11 +751,15 @@ export default function DashboardPage() {
     };
 
     uChan.bind('new-direct-message', handleNewDirectMessage);
+    uChan.bind('incoming-call', handleIncomingCall);
+    uChan.bind('space-started', handleSpaceStarted);
     uChan.bind('follow-changed', handleFollowChanged);
 
     return () => {
       try {
         uChan.unbind('new-direct-message', handleNewDirectMessage);
+        uChan.unbind('incoming-call', handleIncomingCall);
+        uChan.unbind('space-started', handleSpaceStarted);
         uChan.unbind('follow-changed', handleFollowChanged);
         pusher.unsubscribe(userChannelName);
       } catch {}
@@ -781,15 +810,27 @@ export default function DashboardPage() {
       });
     };
 
+    const handleServerSpaceStarted = (payload) => {
+      if (!payload) return;
+      if (String(payload.caller?.id) === String(user.id)) return;
+      playSpaceTone();
+      const callerName = payload.caller?.full_name || payload.caller?.username || 'Scholar';
+      const currentServer = servers.find((s) => s.id === activeServerId);
+      const sName = currentServer?.name || 'this room';
+      showToast(`🎙️ ${callerName} started a live space in ${sName}!`);
+    };
+
     chan.bind('server-new-message', handleServerNewMessage);
+    chan.bind('space-started', handleServerSpaceStarted);
 
     return () => {
       try {
         chan.unbind('server-new-message', handleServerNewMessage);
+        chan.unbind('space-started', handleServerSpaceStarted);
         pusher.unsubscribe(serverChannelName);
       } catch {}
     };
-  }, [activeServerId, activeChannelId, workspace, user?.id, handleMarkChannelRead]);
+  }, [activeServerId, activeChannelId, servers, workspace, user?.id, handleMarkChannelRead, showToast]);
 
   // ──────────────────────────────────────────────
   // 6. Channel Actions
@@ -1432,6 +1473,122 @@ export default function DashboardPage() {
           showToast(`Joined study room "${joinedServer.name}"!`);
         }}
       />
+
+      {/* ── Incoming Call Popup Alert Banner ── */}
+      {incomingCallAlert && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 20,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'var(--chatter-sheet)',
+            border: '2px solid var(--chatter-primary)',
+            boxShadow: '0 12px 36px rgba(0, 0, 0, 0.8), 0 0 24px rgba(64, 227, 120, 0.4)',
+            borderRadius: 24,
+            padding: '12px 18px',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+            animation: 'chatterSlideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+            maxWidth: 'calc(100vw - 32px)',
+          }}
+        >
+          <div
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: '50%',
+              background: 'rgba(64, 227, 120, 0.2)',
+              color: 'var(--chatter-primary)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 22,
+            }}
+          >
+            📞
+          </div>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#fff' }}>
+              {incomingCallAlert.caller?.full_name || incomingCallAlert.caller?.username || 'Study Partner'}
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--chatter-primary)', fontWeight: 600 }}>
+              Incoming Study Space Call...
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginLeft: 6 }}>
+            <button
+              type="button"
+              onClick={() => {
+                stopCallRingtone();
+                const targetChannelId = incomingCallAlert.channelId || 'direct-space';
+                setIncomingCallAlert(null);
+                setAudioSpaceModalOpen(true);
+                voiceSession?.handleJoin?.(targetChannelId, 'Direct Space Call', activeServerId || 'direct-space');
+              }}
+              style={{
+                background: 'var(--chatter-primary)',
+                color: '#0E0E0E',
+                border: 'none',
+                borderRadius: 18,
+                padding: '8px 16px',
+                fontWeight: 800,
+                fontSize: 13.5,
+                cursor: 'pointer',
+              }}
+            >
+              Join
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                stopCallRingtone();
+                setIncomingCallAlert(null);
+              }}
+              style={{
+                background: 'rgba(255, 57, 57, 0.2)',
+                color: '#FF6B6B',
+                border: '1px solid rgba(255, 57, 57, 0.4)',
+                borderRadius: 18,
+                padding: '8px 14px',
+                fontWeight: 700,
+                fontSize: 13.5,
+                cursor: 'pointer',
+              }}
+            >
+              Decline
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Toast Popup ── */}
+      {toast && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 24,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'var(--chatter-sheet)',
+            color: 'var(--chatter-primary)',
+            border: '1px solid var(--chatter-primary)',
+            padding: '8px 18px',
+            borderRadius: 20,
+            fontSize: 13.5,
+            fontWeight: 700,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
+            zIndex: 9998,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
+        >
+          {toast}
+        </div>
+      )}
     </div>
   );
 }

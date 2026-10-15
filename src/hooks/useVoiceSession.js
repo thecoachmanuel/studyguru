@@ -1171,6 +1171,22 @@ export function useVoiceSession(userId, profile = null) {
     cameraEnabledRef.current = false;
     cameraStateUpdatedAtRef.current = Date.now();
 
+    // 1. INSTANT camera hardware deactivation & instant local UI update (0ms lag)
+    if (track) {
+      track.onended = null;
+      localStreamRef.current?.removeTrack(track);
+      track.stop();
+    }
+
+    setLocalVideoStream(null);
+    setCameraEnabled(false);
+    setCameraBusy(false);
+
+    if (notifyPeers) {
+      broadcastCameraState(false).catch(() => {});
+    }
+
+    // 2. Asynchronously update peer transceivers without blocking camera turn-off
     const replacements = Object.entries(peerConnectionsRef.current).map(async ([otherUserId, pc]) => {
       const cachedSender = videoSendersRef.current[otherUserId];
       const sender = pc.getTransceivers()
@@ -1190,23 +1206,9 @@ export function useVoiceSession(userId, profile = null) {
         });
       } catch (err) {
         console.error(`[WebRTC] Failed to stop camera sender for ${otherUserId}:`, err);
-        setCameraError('Camera stopped locally, but one connection could not update cleanly. Audio is still connected.');
       }
     });
-    await Promise.all(replacements);
-
-    if (track) {
-      track.onended = null;
-      localStreamRef.current?.removeTrack(track);
-      track.stop();
-    }
-
-    setLocalVideoStream(null);
-    setCameraEnabled(false);
-    setCameraBusy(false);
-    if (notifyPeers) {
-      await broadcastCameraState(false);
-    }
+    await Promise.allSettled(replacements);
   }, [broadcastCameraState, logVideoDiagnostic]);
 
   useEffect(() => {
@@ -1260,12 +1262,20 @@ export function useVoiceSession(userId, profile = null) {
         stopCameraRef.current?.();
       };
 
+      // 1. INSTANT local video stream preview (0ms lag)
+      setLocalVideoStream(new MediaStream([videoTrack]));
+      setCameraEnabled(true);
+      setCameraBusy(false);
+
+      broadcastCameraState(true).catch(() => {});
+
       logVideoDiagnostic('camera-started', null, {
         cameraTrackId: videoTrack.id,
         cameraTrackReadyState: videoTrack.readyState,
         peerConnectionCount: Object.keys(peerConnectionsRef.current).length,
       });
 
+      // 2. Connect video track to existing peers
       const replacements = await Promise.allSettled(
         Object.entries(peerConnectionsRef.current).map(async ([otherUserId, pc]) => {
           const outgoingVideoTrack = screenTrackRef.current || videoTrack;
@@ -1316,12 +1326,8 @@ export function useVoiceSession(userId, profile = null) {
         })
       );
       if (replacements.some((result) => result.status === 'rejected')) {
-        throw new Error('One or more camera senders could not be updated.');
+        console.warn('One or more remote peers could not receive camera video immediately.');
       }
-
-      setLocalVideoStream(new MediaStream([videoTrack]));
-      setCameraEnabled(true);
-      await broadcastCameraState(true);
     } catch (err) {
       console.error('[WebRTC] Camera access or track update failed:', err);
       const failedTrack = cameraTrackRef.current;
