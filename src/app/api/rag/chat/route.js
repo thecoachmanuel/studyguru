@@ -113,12 +113,14 @@ export async function POST(req) {
     const userId = session.user.id;
     const db = await getDatabase();
 
+    const isFreeChat = body.mode === 'free' || body.freeChat === true;
+
     // 1. Resolve Document Context (Whole document text + semantic vector chunks)
     let doc = null;
     let fullDocumentText = '';
     let docTitle = '';
 
-    if (documentId) {
+    if (!isFreeChat && documentId) {
       try {
         const safeDocId = safeObjectId(documentId);
         doc = await db.collection('rag_documents').findOne({
@@ -142,8 +144,8 @@ export async function POST(req) {
       }
     }
 
-    // Fallback: Check user's latest uploaded study document
-    if (!doc) {
+    // Only fallback to user's latest study document in guided mode
+    if (!isFreeChat && !doc && body.mode === 'guided') {
       try {
         doc = await db.collection('rag_documents').findOne(
           { user_id: userId },
@@ -152,8 +154,8 @@ export async function POST(req) {
       } catch {}
     }
 
-    const clientDocTitle = body.documentTitle || body.filename || body.docTitle || '';
-    const clientDocText = body.documentText || body.docText || body.fileText || '';
+    const clientDocTitle = !isFreeChat ? (body.documentTitle || body.filename || body.docTitle || '') : '';
+    const clientDocText = !isFreeChat ? (body.documentText || body.docText || body.fileText || '') : '';
 
     if (doc) {
       docTitle = doc.original_filename || doc.title || clientDocTitle || 'Study Material';
@@ -189,7 +191,7 @@ export async function POST(req) {
       : `${message} ${docTitle}`;
 
     let contextChunks = [];
-    if (doc?._id || documentId) {
+    if (!isFreeChat && (doc?._id || documentId)) {
       try {
         contextChunks = await Promise.race([
           retrieveRelevantChunks({
@@ -220,8 +222,8 @@ export async function POST(req) {
       contextText += `Relevant Document Passages:\n${contextChunks.join('\n\n---\n\n')}`;
     }
 
-    if (!contextText.trim()) {
-      contextText = `Study Document: ${docTitle || 'Study Material'}. Teach strictly from this topic.`;
+    if (!isFreeChat && !contextText.trim() && docTitle) {
+      contextText = `Study Document: ${docTitle}. Teach strictly from this topic.`;
     }
 
     // 4. Incorporate multi-turn conversation history
@@ -232,12 +234,15 @@ export async function POST(req) {
       .join('\n\n');
 
     // 5. Personal Tutor System Prompt (Grounded in doc if present, versatile academic wisdom overall)
-    const hasActiveDoc = Boolean(docTitle && (fullDocumentText || contextChunks.length > 0));
+    const hasActiveDoc = !isFreeChat && Boolean(docTitle && (fullDocumentText || contextChunks.length > 0));
 
     const systemPrompt = `You are StudyGuru AI (AI Guru), a brilliant, empathetic, and encouraging Personal Academic Tutor on StudyCord.
-Your mission is to guide the student through their academic questions and study materials using an interactive, adaptive, conversational tutoring approach.
+Your mission is to guide the student through their academic questions using an interactive, adaptive, conversational tutoring approach.
 
-${hasActiveDoc ? `ACTIVE STUDY DOCUMENT & TOPIC:
+${isFreeChat ? `FREE CHAT MODE (UNRESTRICTED ACADEMIC TUTOR):
+• You are operating in FREE CHAT MODE. Do NOT read, search, cite, or assume any uploaded document.
+• Freely answer the student's questions across ALL subjects: Computer Science, Software Engineering, Mathematics, Physics, Chemistry, Biology, Medicine, History, Philosophy, Literature, Languages, Code Debugging, Logic, or Exam Preparation.
+• Provide deep, direct, crystal-clear answers from first principles without mentioning "your document" or "your notes".` : hasActiveDoc ? `ACTIVE STUDY DOCUMENT & TOPIC:
 • Subject Document: "${docTitle}"
 • TUTORING DIRECTIVE:
   - If the student's question relates to "${docTitle}", anchor your explanations, analogies, and examples firmly in the document material below.
@@ -282,9 +287,9 @@ ${isExplicitAllAtOnce ? `
     }
     userPrompt += `Current Student Message: ${message}`;
     if (!isExplicitAllAtOnce) {
-      userPrompt += `\n\n(TUTOR INSTRUCTION: Teach conversationally. Explain ONLY the immediate next step or concept in 2-3 short, digestible paragraphs using a relatable real-world analogy. DO NOT dump the entire topic or document at once. ${docTitle ? `Ground your response in "${docTitle}".` : ''} Conclude with an engaging interactive check-in question to adapt to the student's pace.)`;
+      userPrompt += `\n\n(TUTOR INSTRUCTION: Teach conversationally. Explain ONLY the immediate next step or concept in 2-3 short, digestible paragraphs using a relatable real-world analogy. DO NOT dump the entire topic or document at once. ${hasActiveDoc ? `Ground your response in "${docTitle}".` : 'Answer freely without referring to any document.'} Conclude with an engaging interactive check-in question to adapt to the student's pace.)`;
     } else {
-      userPrompt += `\n\n(TUTOR INSTRUCTION: The student explicitly requested the whole concept/topic at once. Ground everything in the study material and provide a comprehensive, full breakdown.)`;
+      userPrompt += `\n\n(TUTOR INSTRUCTION: The student explicitly requested the whole concept/topic at once. ${hasActiveDoc ? `Ground everything in "${docTitle}".` : 'Answer freely and comprehensively.'} Provide a structured, full breakdown.)`;
     }
 
     if (wantsStream) {

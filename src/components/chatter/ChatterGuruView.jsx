@@ -24,6 +24,7 @@ export default function ChatterGuruView({
   const [loading, setLoading] = useState(false);
   const [targetBarHidden, setTargetBarHidden] = useState(false);
   const [quickPromptsHidden, setQuickPromptsHidden] = useState(false);
+  const [toggleBarHidden, setToggleBarHidden] = useState(false);
   const lastScrollTopRef = useRef(0);
 
   const MAX_DOCS = 3;
@@ -678,6 +679,7 @@ export default function ChatterGuruView({
         body: JSON.stringify({
           message: text,
           stream: true,
+          mode: isFreeChat ? 'free' : 'guided',
           serverId,
           channelName,
           documentId: docIdToSend,
@@ -774,13 +776,15 @@ export default function ChatterGuruView({
     const currentScrollTop = e.currentTarget.scrollTop;
     const delta = currentScrollTop - lastScrollTopRef.current;
 
-    // Smoothly collapse target bar and suggestion prompts when scrolling up
+    // Smoothly collapse toggle bar, target bar, and suggestion prompts when scrolling, reappear when scrolling back down
     if (delta > 8 && currentScrollTop > 40) {
       setTargetBarHidden(true);
       setQuickPromptsHidden(true);
+      setToggleBarHidden(true);
     } else if (delta < -8 || currentScrollTop <= 15) {
       setTargetBarHidden(false);
       setQuickPromptsHidden(false);
+      setToggleBarHidden(false);
     }
     lastScrollTopRef.current = currentScrollTop;
   };
@@ -910,15 +914,20 @@ export default function ChatterGuruView({
         </div>
       </div>
 
-      {/* ── 1b. Mode Toggle Pill: Free Chat vs Guided Document Study ── */}
+      {/* ── 1b. Mode Toggle Pill: Free Chat vs Guided Document Study – collapses smoothly on scroll up and reappears on scroll down ── */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '8px 16px',
+          padding: toggleBarHidden ? '0 16px' : '8px 16px',
+          maxHeight: toggleBarHidden ? 0 : 58,
+          opacity: toggleBarHidden ? 0 : 1,
+          pointerEvents: toggleBarHidden ? 'none' : 'auto',
+          transition: 'all 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
           background: 'var(--chatter-sheet)',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+          borderBottom: toggleBarHidden ? 'none' : '1px solid rgba(255, 255, 255, 0.06)',
+          overflow: 'hidden',
           flexShrink: 0,
         }}
       >

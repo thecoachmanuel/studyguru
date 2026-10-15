@@ -395,6 +395,17 @@ export default function ChatterProfileView({
         onChange={handleAvatarChange}
       />
 
+      {/* ── Page Title Header: Profile (matching Study Rooms and Chats headers) ── */}
+      <div style={{ padding: '16px 16px 8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 4 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <h2 style={{ fontSize: 22, fontWeight: 800, color: '#fff', margin: 0, letterSpacing: '-0.01em' }}>
+              Profile
+            </h2>
+          </div>
+        </div>
+      </div>
+
       {/* ── 1. Cover Banner with Edit Trigger & Settings Icon ── */}
       <div
         style={{

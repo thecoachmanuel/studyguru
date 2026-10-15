@@ -396,7 +396,7 @@ export default function ChatterRoomsView({
                             <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                           </svg>
-                          <span>Copy Code</span>
+                          <span>Code</span>
                         </>
                       )}
                     </button>
@@ -424,7 +424,7 @@ export default function ChatterRoomsView({
                       {copiedLinkId === server.id ? (
                         <>
                           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                          <span>Link Copied!</span>
+                          <span>Copied!</span>
                         </>
                       ) : (
                         <>
@@ -432,12 +432,12 @@ export default function ChatterRoomsView({
                             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
                             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
                           </svg>
-                          <span>Copy Link</span>
+                          <span>Link</span>
                         </>
                       )}
                     </button>
 
-                    {/* Enter Room button */}
+                    {/* Enter Room button (styled like Join Space button, without arrow) */}
                     <button
                       type="button"
                       onClick={(e) => {
@@ -447,22 +447,18 @@ export default function ChatterRoomsView({
                       }}
                       style={{
                         marginLeft: 'auto',
-                        padding: '8px 20px',
-                        borderRadius: 14,
+                        padding: '9px 18px',
+                        borderRadius: 20,
                         background: 'var(--chatter-primary)',
-                        color: '#0E0E0E',
-                        fontSize: 15,
-                        fontWeight: 800,
                         border: 'none',
+                        color: '#0E0E0E',
+                        fontSize: 14,
+                        fontWeight: 700,
                         cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        boxShadow: '0 2px 10px rgba(64, 227, 120, 0.25)',
+                        transition: 'all 0.15s ease',
                       }}
                     >
-                      <span>Enter Room</span>
-                      <span>→</span>
+                      Enter Room
                     </button>
                   </div>
                 </div>

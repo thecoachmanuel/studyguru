@@ -213,6 +213,45 @@ export default function ChatterChatsView({
 
   return (
     <div style={{ paddingBottom: 'calc(84px + env(safe-area-inset-bottom))', width: '100%' }}>
+      {/* ── Page Title Header: Chats ── */}
+      <div style={{ padding: '16px 16px 8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <h2 style={{ fontSize: 22, fontWeight: 800, color: '#fff', margin: 0, letterSpacing: '-0.01em' }}>
+              Chats
+            </h2>
+            {conversations.length > 0 && (
+              <span style={{ fontSize: 13, background: 'rgba(64, 227, 120, 0.16)', color: 'var(--chatter-primary)', padding: '3px 10px', borderRadius: 12, fontWeight: 700 }}>
+                {conversations.length}
+              </span>
+            )}
+          </div>
+          {onOpenDMsModal && (
+            <button
+              type="button"
+              onClick={onOpenDMsModal}
+              style={{
+                padding: '8px 16px',
+                borderRadius: 14,
+                background: 'var(--chatter-primary)',
+                border: 'none',
+                color: '#0E0E0E',
+                fontSize: 13.5,
+                fontWeight: 750,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                boxShadow: '0 2px 10px rgba(64, 227, 120, 0.25)',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span>+ New Chat</span>
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* ── 1. Cupertino-style Sliding Segmented Control ── */}
       <div className="chatter-segment-control">
         <button
