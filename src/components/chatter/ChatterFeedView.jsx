@@ -1349,7 +1349,21 @@ export default function ChatterFeedView({
               <button
                 type="button"
                 onClick={() => setCreateModalOpen(false)}
-                style={{ background: 'transparent', border: 'none', color: '#979797', cursor: 'pointer', fontSize: 18 }}
+                aria-label="Close"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: 'none',
+                  color: '#fff',
+                  width: 38,
+                  height: 38,
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 18,
+                  cursor: 'pointer',
+                  transition: 'background 0.15s ease',
+                }}
               >
                 ✕
               </button>
@@ -1583,7 +1597,21 @@ export default function ChatterFeedView({
               <button
                 type="button"
                 onClick={() => setEditingPost(null)}
-                style={{ background: 'none', border: 'none', color: '#fff', fontSize: 18, cursor: 'pointer' }}
+                aria-label="Close"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: 'none',
+                  color: '#fff',
+                  width: 38,
+                  height: 38,
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 18,
+                  cursor: 'pointer',
+                  transition: 'background 0.15s ease',
+                }}
               >
                 ✕
               </button>

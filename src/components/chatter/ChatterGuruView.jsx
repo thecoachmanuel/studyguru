@@ -93,21 +93,29 @@ export default function ChatterGuruView({
   const quizGenCountRef = useRef(0);
   const flashcardsGenCountRef = useRef(0);
 
-  // Load persisted AI guru messages on initial mount
+  // Load persisted AI guru messages on initial mount with strict isolation
   useEffect(() => {
     try {
       const savedFree = localStorage.getItem(FREE_STORAGE_KEY);
       if (savedFree) {
         const parsed = JSON.parse(savedFree);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setFreeMessages(parsed);
+          const cleanFree = parsed.filter(
+            (m) => m && m.chatMode !== 'guided' && !m.quizData && !m.flashcardsData && !m.documentRef
+          );
+          if (cleanFree.length > 0) {
+            setFreeMessages(cleanFree);
+          }
         }
       }
       const savedGuided = localStorage.getItem(GUIDED_STORAGE_KEY);
       if (savedGuided) {
         const parsed = JSON.parse(savedGuided);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setGuidedMessages(parsed);
+          const cleanGuided = parsed.filter((m) => m && m.chatMode !== 'free');
+          if (cleanGuided.length > 0) {
+            setGuidedMessages(cleanGuided);
+          }
         }
       }
     } catch (e) {
@@ -115,22 +123,26 @@ export default function ChatterGuruView({
     }
   }, []);
 
-  // Save freeMessages to localStorage
+  // Save freeMessages to localStorage (strictly free chat items)
   useEffect(() => {
     try {
       if (freeMessages && freeMessages.length > 0) {
-        localStorage.setItem(FREE_STORAGE_KEY, JSON.stringify(freeMessages));
+        const clean = freeMessages.filter(
+          (m) => m && m.chatMode !== 'guided' && !m.quizData && !m.flashcardsData && !m.documentRef
+        );
+        localStorage.setItem(FREE_STORAGE_KEY, JSON.stringify(clean));
       }
     } catch (e) {
       console.warn('Failed to save free AI chat history:', e);
     }
   }, [freeMessages]);
 
-  // Save guidedMessages to localStorage
+  // Save guidedMessages to localStorage (strictly guided study items)
   useEffect(() => {
     try {
       if (guidedMessages && guidedMessages.length > 0) {
-        localStorage.setItem(GUIDED_STORAGE_KEY, JSON.stringify(guidedMessages));
+        const clean = guidedMessages.filter((m) => m && m.chatMode !== 'free');
+        localStorage.setItem(GUIDED_STORAGE_KEY, JSON.stringify(clean));
       }
     } catch (e) {
       console.warn('Failed to save guided AI chat history:', e);
@@ -476,6 +488,9 @@ export default function ChatterGuruView({
 
   // Generate Interactive MCQ Quiz
   const handleGenerateMCQ = async (docId, docName, targetMessageId = null, customCount = null, customTopic = '', customUserPrompt = '') => {
+    if (aiModeRef.current !== 'guided') {
+      handleSwitchMode('guided');
+    }
     setLoading(true);
     setDocsPanelOpen(false);
     const activeDoc = uploadedDocs.find((d) => (d.doc_id || d.id) === (docId || selectedDocId)) || (selectedDocId === null ? uploadedDocs[0] : null);
@@ -488,11 +503,12 @@ export default function ChatterGuruView({
     quizGenCountRef.current += 1;
 
     if (!targetMessageId) {
-      setMessages((prev) => [
+      setGuidedMessages((prev) => [
         ...prev,
         {
           id: `u-quiz-${Date.now()}`,
           role: 'user',
+          chatMode: 'guided',
           content: customUserPrompt || (isRegen
             ? `Generate a fresh, new ${count}-question Quiz Assessment on ${targetDocName}.`
             : `Generate a ${count}-question multiple choice Quiz Assessment on ${targetDocName}.`),
@@ -523,17 +539,18 @@ export default function ChatterGuruView({
       if (Array.isArray(questions) && questions.length > 0) {
         if (targetMessageId) {
           // In-place refresh of existing quiz card with brand new questions!
-          setMessages((prev) =>
+          setGuidedMessages((prev) =>
             prev.map((m) =>
-              m.id === targetMessageId ? { ...m, quizData: questions, timestamp: 'Just now' } : m
+              m.id === targetMessageId ? { ...m, chatMode: 'guided', quizData: questions, timestamp: 'Just now' } : m
             )
           );
         } else {
-          setMessages((prev) => [
+          setGuidedMessages((prev) => [
             ...prev,
             {
               id: `g-mcq-${Date.now()}`,
               role: 'assistant',
+              chatMode: 'guided',
               quizData: questions,
               timestamp: 'Just now',
             },
@@ -546,17 +563,18 @@ export default function ChatterGuruView({
       // Dynamic fallback rotating through subjects so fresh questions are always shown
       const fallbackQuestions = generateGuruFallbackQuestions(currentIteration, targetDocName);
       if (targetMessageId) {
-        setMessages((prev) =>
+        setGuidedMessages((prev) =>
           prev.map((m) =>
-            m.id === targetMessageId ? { ...m, quizData: fallbackQuestions, timestamp: 'Just now' } : m
+            m.id === targetMessageId ? { ...m, chatMode: 'guided', quizData: fallbackQuestions, timestamp: 'Just now' } : m
           )
         );
       } else {
-        setMessages((prev) => [
+        setGuidedMessages((prev) => [
           ...prev,
           {
             id: `g-mcq-${Date.now()}`,
             role: 'assistant',
+            chatMode: 'guided',
             quizData: fallbackQuestions,
             timestamp: 'Just now',
           },
@@ -569,6 +587,9 @@ export default function ChatterGuruView({
 
   // Generate Flashcards
   const handleGenerateFlashcards = async (docId, docName, customCount = null, customTopic = '', customUserPrompt = '') => {
+    if (aiModeRef.current !== 'guided') {
+      handleSwitchMode('guided');
+    }
     setLoading(true);
     setDocsPanelOpen(false);
     const activeDoc = uploadedDocs.find((d) => (d.doc_id || d.id) === (docId || selectedDocId)) || (selectedDocId === null ? uploadedDocs[0] : null);
@@ -579,11 +600,12 @@ export default function ChatterGuruView({
     const isRegen = flashcardsGenCountRef.current > 0;
     flashcardsGenCountRef.current += 1;
 
-    setMessages((prev) => [
+    setGuidedMessages((prev) => [
       ...prev,
       {
         id: `u-cards-${Date.now()}`,
         role: 'user',
+        chatMode: 'guided',
         content: customUserPrompt || (isRegen
           ? `Create a fresh set of ${count} new study flashcards from ${targetDocName}.`
           : `Create ${count} flashcards from ${targetDocName}.`),
@@ -607,11 +629,12 @@ export default function ChatterGuruView({
       const cards = data.flashcards || data.cards || [];
 
       if (cards.length > 0) {
-        setMessages((prev) => [
+        setGuidedMessages((prev) => [
           ...prev,
           {
             id: `g-cards-${Date.now()}`,
             role: 'assistant',
+            chatMode: 'guided',
             flashcardsData: cards,
             timestamp: 'Just now',
           },
@@ -620,11 +643,12 @@ export default function ChatterGuruView({
         throw new Error('No flashcards returned');
       }
     } catch {
-      setMessages((prev) => [
+      setGuidedMessages((prev) => [
         ...prev,
         {
           id: `g-cards-${Date.now()}`,
           role: 'assistant',
+          chatMode: 'guided',
           flashcardsData: [
             { front: 'Stokes’ Theorem Formula', back: '∮_C F · dr = ∬_S (∇ × F) · dS' },
             { front: 'Pre-LN vs Post-LN benefit', back: 'Pre-LN yields well-behaved gradient norms, allowing training stability without warmup.' },
@@ -708,6 +732,7 @@ export default function ChatterGuruView({
     const userMsg = {
       id: `u-${Date.now()}`,
       role: 'user',
+      chatMode: sendMode,
       content: text,
       timestamp: 'Now',
     };
@@ -727,7 +752,8 @@ export default function ChatterGuruView({
       const docTitle = isFreeChat ? '' : (activeDoc?.filename || activeDoc?.title || '');
       const docIdToSend = isFreeChat ? null : (selectedDocId || activeDoc?.doc_id || activeDoc?.id || null);
 
-      const targetSpaceHistory = sendMode === 'free' ? freeMessages : guidedMessages;
+      const targetSpaceHistory = (sendMode === 'free' ? freeMessages : guidedMessages)
+        .filter((m) => (m.chatMode ? m.chatMode === sendMode : true) && m.role && m.content && !m.quizData && !m.flashcardsData);
 
       const res = await fetch('/api/rag/chat', {
         method: 'POST',
@@ -771,6 +797,7 @@ export default function ChatterGuruView({
               {
                 id: aiMsgId,
                 role: 'assistant',
+                chatMode: sendMode,
                 content: accumulated,
                 timestamp: 'Just now',
               },
@@ -792,6 +819,7 @@ export default function ChatterGuruView({
         const replyMsg = {
           id: aiMsgId,
           role: 'assistant',
+          chatMode: sendMode,
           content: data.reply || data.answer || 'Tutoring session active. Ask any specific question!',
           timestamp: 'Just now',
         };
@@ -814,6 +842,7 @@ export default function ChatterGuruView({
           {
             id: aiMsgId,
             role: 'assistant',
+            chatMode: sendMode,
             content: fallbackContent,
             timestamp: 'Just now',
           },
@@ -1403,7 +1432,8 @@ export default function ChatterGuruView({
                 display: 'flex',
                 gap: 10,
                 alignSelf: isUser ? 'flex-end' : 'flex-start',
-                maxWidth: isUser ? '85%' : '90%',
+                maxWidth: isUser ? '85%' : (m.quizData || m.flashcardsData ? '100%' : '90%'),
+                width: (m.quizData || m.flashcardsData) ? '100%' : undefined,
                 flexDirection: isUser ? 'row-reverse' : 'row',
                 alignItems: 'flex-start',
               }}
@@ -1986,81 +2016,77 @@ function QuizAssessmentCard({ questions = [], onRegenerate, messageId }) {
       </div>
 
       {/* Quiz Action Bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-        <button
-          type="button"
-          onClick={() => setCurrentQIndex((i) => Math.max(0, i - 1))}
-          disabled={currentQIndex === 0}
-          style={{
-            padding: fullscreen ? '10px 20px' : '8px 16px',
-            borderRadius: 14,
-            background: currentQIndex === 0 ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.08)',
-            border: 'none',
-            color: currentQIndex === 0 ? 'rgba(255, 255, 255, 0.25)' : '#fff',
-            fontSize: fullscreen ? 14.5 : 13.5,
-            fontWeight: 700,
-            cursor: currentQIndex === 0 ? 'not-allowed' : 'pointer',
-          }}
-        >
-          ← Previous
-        </button>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%', marginTop: 8 }}>
+        {/* Row 1: Navigation Buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, width: '100%' }}>
+          <button
+            type="button"
+            onClick={() => setCurrentQIndex((i) => Math.max(0, i - 1))}
+            disabled={currentQIndex === 0}
+            style={{
+              padding: fullscreen ? '10px 22px' : '9px 18px',
+              borderRadius: 14,
+              background: currentQIndex === 0 ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.08)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              color: currentQIndex === 0 ? 'rgba(255, 255, 255, 0.25)' : '#fff',
+              fontSize: fullscreen ? 15 : 14,
+              fontWeight: 700,
+              cursor: currentQIndex === 0 ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            ← Previous
+          </button>
 
-        {!isSubmitted ? (
-          <div style={{ display: 'flex', gap: 8 }}>
-            {currentQIndex < totalQuestions - 1 ? (
-              <button
-                type="button"
-                onClick={() => setCurrentQIndex((i) => Math.min(totalQuestions - 1, i + 1))}
-                style={{
-                  padding: fullscreen ? '10px 22px' : '8px 18px',
-                  borderRadius: 14,
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  border: 'none',
-                  color: '#fff',
-                  fontSize: fullscreen ? 14.5 : 13.5,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                Next →
-              </button>
-            ) : null}
-
-            <button
-              type="button"
-              onClick={handleSubmitQuiz}
-              style={{
-                padding: fullscreen ? '10px 26px' : '8px 20px',
-                borderRadius: 14,
-                background: 'var(--chatter-primary)',
-                border: 'none',
-                color: '#0E0E0E',
-                fontSize: fullscreen ? 15 : 14,
-                fontWeight: 800,
-                cursor: 'pointer',
-                boxShadow: '0 4px 14px rgba(64, 227, 120, 0.3)',
-              }}
-            >
-              Submit Quiz Assessment ✓
-            </button>
-          </div>
-        ) : (
           <button
             type="button"
             onClick={() => setCurrentQIndex((i) => Math.min(totalQuestions - 1, i + 1))}
             disabled={currentQIndex === totalQuestions - 1}
             style={{
-              padding: fullscreen ? '10px 22px' : '8px 18px',
+              padding: fullscreen ? '10px 22px' : '9px 18px',
               borderRadius: 14,
-              background: currentQIndex === totalQuestions - 1 ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.08)',
-              border: 'none',
+              background: currentQIndex === totalQuestions - 1 ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.1)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
               color: currentQIndex === totalQuestions - 1 ? 'rgba(255, 255, 255, 0.25)' : '#fff',
-              fontSize: fullscreen ? 14.5 : 13.5,
+              fontSize: fullscreen ? 15 : 14,
               fontWeight: 700,
               cursor: currentQIndex === totalQuestions - 1 ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
             }}
           >
-            Next Question →
+            Next →
+          </button>
+        </div>
+
+        {/* Row 2: Submit Quiz Assessment on its own separate line below */}
+        {!isSubmitted && (
+          <button
+            type="button"
+            onClick={handleSubmitQuiz}
+            style={{
+              width: '100%',
+              padding: fullscreen ? '12px 24px' : '11px 20px',
+              borderRadius: 14,
+              background: 'var(--chatter-primary)',
+              border: 'none',
+              color: '#0E0E0E',
+              fontSize: fullscreen ? 15.5 : 14.5,
+              fontWeight: 800,
+              cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(64, 227, 120, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              transition: 'transform 0.12s ease',
+            }}
+          >
+            <span>Submit Quiz Assessment</span>
+            <span>✓</span>
           </button>
         )}
       </div>
@@ -2081,27 +2107,29 @@ function QuizAssessmentCard({ questions = [], onRegenerate, messageId }) {
           gap: 14,
         }}
       >
-        {/* Top Quiz Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 15.5, fontWeight: 800, color: '#fff' }}>
-              📝 Quiz Assessment
-            </span>
-            <span
-              style={{
-                fontSize: 12.5,
-                fontWeight: 700,
-                padding: '2px 8px',
-                borderRadius: 12,
-                background: isSubmitted ? 'rgba(64, 227, 120, 0.15)' : 'rgba(255, 255, 255, 0.08)',
-                color: isSubmitted ? 'var(--chatter-primary)' : 'var(--chatter-light-text)',
-              }}
-            >
-              {isSubmitted ? 'Completed' : `Answered: ${answeredCount}/${totalQuestions}`}
-            </span>
+        {/* Top Quiz Header: Stacked cleanly to prevent text compression */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 16, fontWeight: 800, color: '#fff' }}>
+                📝 Quiz Assessment
+              </span>
+              <span
+                style={{
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  padding: '3px 9px',
+                  borderRadius: 12,
+                  background: isSubmitted ? 'rgba(64, 227, 120, 0.15)' : 'rgba(255, 255, 255, 0.08)',
+                  color: isSubmitted ? 'var(--chatter-primary)' : 'var(--chatter-light-text)',
+                }}
+              >
+                {isSubmitted ? 'Completed' : `Answered: ${answeredCount}/${totalQuestions}`}
+              </span>
+            </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             {onRegenerate && (
               <button
                 type="button"
@@ -2109,17 +2137,17 @@ function QuizAssessmentCard({ questions = [], onRegenerate, messageId }) {
                 disabled={regenerating}
                 title="Generate new quiz questions from document"
                 style={{
-                  padding: '4px 10px',
+                  padding: '6px 12px',
                   borderRadius: 12,
                   background: regenerating ? 'rgba(64, 227, 120, 0.15)' : 'rgba(255, 255, 255, 0.06)',
                   border: regenerating ? '1px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
-                  color: regenerating ? 'var(--chatter-primary)' : 'var(--chatter-light-text)',
-                  fontSize: 12.5,
+                  color: regenerating ? 'var(--chatter-primary)' : '#fff',
+                  fontSize: 13,
                   fontWeight: 600,
                   cursor: regenerating ? 'wait' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 5,
+                  gap: 6,
                   transition: 'all 0.15s ease',
                 }}
               >
@@ -2140,12 +2168,12 @@ function QuizAssessmentCard({ questions = [], onRegenerate, messageId }) {
                 type="button"
                 onClick={handleRetake}
                 style={{
-                  padding: '4px 10px',
+                  padding: '6px 12px',
                   borderRadius: 12,
                   background: 'rgba(64, 227, 120, 0.15)',
                   border: '1px solid rgba(64, 227, 120, 0.3)',
                   color: 'var(--chatter-primary)',
-                  fontSize: 12.5,
+                  fontSize: 13,
                   fontWeight: 700,
                   cursor: 'pointer',
                 }}
@@ -2159,17 +2187,18 @@ function QuizAssessmentCard({ questions = [], onRegenerate, messageId }) {
               onClick={() => setIsFullscreen(true)}
               title="Expand Quiz Assessment to Fullscreen"
               style={{
-                padding: '4px 10px',
+                padding: '6px 12px',
                 borderRadius: 12,
                 background: 'rgba(64, 227, 120, 0.15)',
                 border: '1px solid rgba(64, 227, 120, 0.3)',
                 color: 'var(--chatter-primary)',
-                fontSize: 12.5,
+                fontSize: 13,
                 fontWeight: 700,
                 display: 'flex',
                 alignItems: 'center',
-                gap: 4,
+                gap: 5,
                 cursor: 'pointer',
+                marginLeft: 'auto',
               }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -2430,57 +2459,74 @@ function FlashcardDeck({ cards = [], onRegenerate }) {
       }}
     >
       {/* Header with counter and fullscreen button */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 15, fontWeight: 800, color: '#fff' }}>
-            🃏 Flashcard {currentIndex + 1} of {cards.length}
-          </span>
-        </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 16, fontWeight: 800, color: '#fff' }}>
+              🃏 Study Flashcards
+            </span>
+            <span
+              style={{
+                fontSize: 12.5,
+                fontWeight: 700,
+                padding: '3px 9px',
+                borderRadius: 12,
+                background: 'rgba(64, 227, 120, 0.15)',
+                color: 'var(--chatter-primary)',
+              }}
+            >
+              Card {currentIndex + 1} of {cards.length}
+            </span>
+          </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {onRegenerate && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {onRegenerate && (
+              <button
+                type="button"
+                onClick={onRegenerate}
+                title="Generate new flashcards from document"
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: 12,
+                  background: 'rgba(255, 255, 255, 0.06)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  color: 'var(--chatter-light-text)',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 5,
+                }}
+              >
+                ↺ New Set
+              </button>
+            )}
+
             <button
               type="button"
-              onClick={onRegenerate}
-              title="Generate new flashcards from document"
+              onClick={() => setIsFullscreen(true)}
+              title="Expand to Fullscreen"
               style={{
-                padding: '4px 10px',
+                padding: '6px 12px',
                 borderRadius: 12,
-                background: 'rgba(255, 255, 255, 0.06)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                color: 'var(--chatter-light-text)',
-                fontSize: 12.5,
-                fontWeight: 600,
+                background: 'rgba(64, 227, 120, 0.15)',
+                border: '1px solid rgba(64, 227, 120, 0.3)',
+                color: 'var(--chatter-primary)',
+                fontSize: 13,
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
                 cursor: 'pointer',
               }}
             >
-              ↺ New Set
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+              </svg>
+              <span>Expand</span>
             </button>
-          )}
-
-          <button
-            type="button"
-            onClick={() => setIsFullscreen(true)}
-            title="Expand to Fullscreen"
-            style={{
-              padding: '4px 10px',
-              borderRadius: 12,
-              background: 'rgba(64, 227, 120, 0.15)',
-              border: '1px solid rgba(64, 227, 120, 0.3)',
-              color: 'var(--chatter-primary)',
-              fontSize: 12.5,
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              cursor: 'pointer',
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
-            </svg>
-            <span>Expand</span>
-          </button>
+          </div>
         </div>
       </div>
 

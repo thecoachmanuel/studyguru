@@ -25,6 +25,12 @@ export async function GET(req) {
     const isFeed = searchParams.get('feed') === 'true' || searchParams.get('all') === 'true';
 
     const db = await getDatabase();
+    const now = new Date();
+    await db.collection('users').updateOne(
+      { $or: [{ _id: safeObjectId(userId) }, { id: userId }] },
+      { $set: { last_seen: now } }
+    ).catch(() => {});
+
     const userDoc = await db.collection('users').findOne({
       $or: [{ _id: safeObjectId(userId) }, { id: userId }],
     });
@@ -182,6 +188,7 @@ export async function POST(req) {
       {
         $set: {
           status: newStatus,
+          last_seen: now,
           updated_at: now,
         },
       }

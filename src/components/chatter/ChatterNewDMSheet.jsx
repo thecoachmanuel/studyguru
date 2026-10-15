@@ -113,17 +113,20 @@ export default function ChatterNewDMSheet({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close"
             style={{
               background: 'rgba(255, 255, 255, 0.08)',
               border: 'none',
               color: '#fff',
-              width: 32,
-              height: 32,
+              width: 38,
+              height: 38,
+              fontSize: 18,
               borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
+              transition: 'background 0.15s ease',
             }}
           >
             ✕
@@ -149,7 +152,6 @@ export default function ChatterNewDMSheet({
             </svg>
             <input
               type="text"
-              autoFocus
               placeholder="Search classmates by name, username or major..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}

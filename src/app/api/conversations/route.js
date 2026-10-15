@@ -62,10 +62,22 @@ export async function GET(req) {
       unreadAgg.forEach((item) => unreadMap.set(String(item._id), item.count));
     } catch {}
 
+    // Touch caller's last_seen timestamp
+    await db.collection('users').updateOne(
+      { $or: [{ _id: safeObjectId(userId) }, { id: userId }] },
+      { $set: { last_seen: new Date() } }
+    ).catch(() => {});
+
     const formatted = conversations.map((c) => {
       const otherId = c.participants.find((p) => p !== userId);
       const otherUser = userMap.get(otherId);
       const convId = c._id.toString();
+
+      const lastSeenDate = otherUser?.last_seen || otherUser?.status?.updated_at || otherUser?.updatedAt || null;
+      const isOnline = lastSeenDate
+        ? (Date.now() - new Date(lastSeenDate).getTime()) < 5 * 60 * 1000
+        : false;
+
       return {
         id: convId,
         participants: c.participants,
@@ -79,7 +91,14 @@ export async function GET(req) {
           username: otherUser?.username || otherUser?.name || 'Study Partner',
           name: otherUser?.name || otherUser?.username || 'Study Partner',
           avatar_url: otherUser?.avatar_url || otherUser?.image || null,
-          status: otherUser?.status || { state: 'online' },
+          online: isOnline,
+          last_seen: lastSeenDate,
+          status: {
+            state: isOnline ? 'online' : 'offline',
+            text: otherUser?.status?.text || '',
+            emoji: otherUser?.status?.emoji || (isOnline ? '🟢' : '⚪'),
+            last_seen: lastSeenDate,
+          },
         },
       };
     });

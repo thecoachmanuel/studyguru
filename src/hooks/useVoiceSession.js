@@ -1402,7 +1402,7 @@ export function useVoiceSession(userId, profile = null) {
             avatar_url: profile?.avatar_url || null,
           },
         };
-        const remoteOthers = activeRemote.filter((p) => p.user_id !== userId);
+        const remoteOthers = activeRemote.filter((p) => String(p.user_id || p.userId) !== String(userId));
         return [localEntry, ...remoteOthers];
       });
     } catch (err) {
@@ -1477,7 +1477,7 @@ export function useVoiceSession(userId, profile = null) {
 
       setParticipants((prev) => [
         localParticipant,
-        ...prev.filter((p) => p.user_id !== userId && p.channel_id === channelId),
+        ...prev.filter((p) => String(p.user_id || p.userId) !== String(userId) && p.channel_id === channelId),
       ]);
 
       // Call join API
@@ -1708,6 +1708,14 @@ export function useVoiceSession(userId, profile = null) {
           setParticipants((prev) =>
             prev.map((p) => (p.user_id === user_id ? { ...p, is_muted } : p))
           );
+        }
+      });
+
+      chan.bind('hand-raise-updated', ({ user_id, user_name, raised }) => {
+        if (user_id && typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('studycord_hand_raise_updated', {
+            detail: { userId: user_id, name: user_name, raised: Boolean(raised) },
+          }));
         }
       });
 

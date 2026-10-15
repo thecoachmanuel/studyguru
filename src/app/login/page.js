@@ -23,23 +23,29 @@ export default function LoginPage() {
 
   const router = useRouter();
   const { data: session, status } = useSession();
+  const [joinRoom, setJoinRoom] = useState('');
 
-  // Detect existing session cookie
+  // Detect existing session cookie & read joinRoom parameter
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const cookies = document.cookie || '';
       if (cookies.includes('session-token') || cookies.includes('authjs') || cookies.includes('next-auth')) {
         setHasSessionHint(true);
       }
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get('joinRoom') || '';
+      if (code) setJoinRoom(code);
     }
   }, []);
+
+  const targetDashboard = joinRoom ? `/dashboard?joinRoom=${encodeURIComponent(joinRoom)}` : '/dashboard';
 
   // Redirect to dashboard if already authenticated
   useEffect(() => {
     if (status === 'authenticated' && session?.user) {
-      router.push('/dashboard');
+      router.push(targetDashboard);
     }
-  }, [session, status, router]);
+  }, [session, status, router, targetDashboard]);
 
   const handleEmailLogin = async (e) => {
     e.preventDefault();
@@ -57,7 +63,7 @@ export default function LoginPage() {
       if (result?.error) {
         setError('Invalid email or password. Please try again.');
       } else {
-        router.push('/dashboard');
+        router.push(targetDashboard);
         router.refresh();
       }
     } catch {
@@ -72,7 +78,7 @@ export default function LoginPage() {
     setError(null);
     setLoadingGoogle(true);
     try {
-      await signIn('google', { callbackUrl: '/dashboard' });
+      await signIn('google', { callbackUrl: targetDashboard });
     } catch {
       setError('Unable to connect with Google. Please try again.');
       setLoadingGoogle(false);
@@ -349,7 +355,7 @@ export default function LoginPage() {
         {/* Footer Link */}
         <div style={{ textAlign: 'center', marginTop: 24, fontSize: 14.5, color: '#888' }}>
           Don&apos;t have an account?{' '}
-          <Link href="/signup" style={{ color: '#40e378', textDecoration: 'none', fontWeight: 700 }}>
+          <Link href={joinRoom ? `/signup?joinRoom=${encodeURIComponent(joinRoom)}` : '/signup'} style={{ color: '#40e378', textDecoration: 'none', fontWeight: 700 }}>
             Create Account
           </Link>
         </div>

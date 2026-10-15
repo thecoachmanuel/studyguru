@@ -118,13 +118,20 @@ export default function ChatterRoomActionModal({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close"
             style={{
-              background: 'transparent',
+              background: 'rgba(255, 255, 255, 0.08)',
               border: 'none',
-              color: 'var(--chatter-light-text)',
-              fontSize: 20,
+              color: '#fff',
+              width: 38,
+              height: 38,
+              fontSize: 18,
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               cursor: 'pointer',
-              padding: 4,
+              transition: 'background 0.15s ease',
             }}
           >
             ✕

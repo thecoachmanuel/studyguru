@@ -1003,15 +1003,20 @@ export default function ChatterProfileView({
               <button
                 type="button"
                 onClick={() => setEditProfileOpen(false)}
+                aria-label="Close"
                 style={{
                   background: 'rgba(255, 255, 255, 0.08)',
                   border: 'none',
                   color: '#fff',
-                  width: 30,
-                  height: 30,
+                  width: 38,
+                  height: 38,
                   borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   cursor: 'pointer',
-                  fontSize: 16,
+                  fontSize: 18,
+                  transition: 'background 0.15s ease',
                 }}
               >
                 ✕

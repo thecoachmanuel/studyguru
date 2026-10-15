@@ -19,6 +19,40 @@ function formatLastSeen(dateStr) {
   return `${Math.floor(diffHours / 24)}d ago`;
 }
 
+function formatChatDateDivider(dateStr) {
+  if (!dateStr) return 'Today';
+  const msgDate = new Date(dateStr);
+  if (Number.isNaN(msgDate.getTime())) return 'Today';
+  const now = new Date();
+
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const msgDayStart = new Date(msgDate.getFullYear(), msgDate.getMonth(), msgDate.getDate()).getTime();
+  const diffDays = Math.round((todayStart - msgDayStart) / (24 * 60 * 60 * 1000));
+
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7 && diffDays > 1) {
+    return msgDate.toLocaleDateString(undefined, { weekday: 'long' });
+  }
+  return msgDate.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: msgDate.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
+  });
+}
+
+function isDifferentDay(d1, d2) {
+  if (!d1 || !d2) return true;
+  const date1 = new Date(d1);
+  const date2 = new Date(d2);
+  if (Number.isNaN(date1.getTime()) || Number.isNaN(date2.getTime())) return false;
+  return (
+    date1.getFullYear() !== date2.getFullYear() ||
+    date1.getMonth() !== date2.getMonth() ||
+    date1.getDate() !== date2.getDate()
+  );
+}
+
 function normalizeMessage(m, currentUserId) {
   if (!m) return null;
   const rawSenderId = m.sender_id || m.user_id || m.profiles?.id || m.author_id || (m.profiles?._id ? String(m.profiles._id) : '');
@@ -51,7 +85,7 @@ export default function ChatterChatRoom({
   profile,
   partnerUser = null,
   partnerAvatar = null,
-  isPartnerOnline = true,
+  isPartnerOnline = false,
   partnerLastSeen = null,
   onBack,
   onStartAudioCall,
@@ -64,6 +98,14 @@ export default function ChatterChatRoom({
   useEffect(() => {
     if (partnerUser) setPartnerDetails(partnerUser);
   }, [partnerUser]);
+
+  const partnerOnlineComputed = partnerUser?.online !== undefined
+    ? Boolean(partnerUser.online)
+    : (partnerDetails?.online !== undefined
+      ? Boolean(partnerDetails.online)
+      : (partnerUser?.status?.state
+        ? partnerUser.status.state === 'online'
+        : Boolean(isPartnerOnline)));
 
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -498,7 +540,7 @@ export default function ChatterChatRoom({
                   <span>{(displayRoomTitle?.[0] || 'U').toUpperCase()}</span>
                 )}
               </div>
-              {isPartnerOnline ? (
+              {partnerOnlineComputed ? (
                 <span
                   style={{
                     position: 'absolute',
@@ -539,9 +581,9 @@ export default function ChatterChatRoom({
               {channelType === 'dm' && <TwitterVerifiedBadge />}
             </div>
             {channelType === 'dm' ? (
-              <div style={{ fontSize: 14, color: isPartnerOnline ? 'var(--chatter-primary)' : 'var(--chatter-light-text)', fontWeight: 500 }}>
+              <div style={{ fontSize: 14, color: partnerOnlineComputed ? 'var(--chatter-primary)' : 'var(--chatter-light-text)', fontWeight: 500 }}>
                 <span>
-                  {isPartnerOnline
+                  {partnerOnlineComputed
                     ? 'Active now'
                     : `Offline · Last seen ${formatLastSeen(partnerLastSeen || partnerDetails?.last_seen || partnerDetails?.updatedAt)}`}
                 </span>
@@ -669,7 +711,9 @@ export default function ChatterChatRoom({
 
       {/* ── 2. Chatter Messages List ── */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {messages.map((m) => {
+        {messages.map((m, index) => {
+          const prevMessage = index > 0 ? messages[index - 1] : null;
+          const showDateDivider = index === 0 || isDifferentDay(prevMessage?.createdAt, m.createdAt);
           const isMe =
             Boolean(userId && String(m.sender_id) === String(userId)) ||
             m.sender_name === 'You' ||
@@ -678,18 +722,57 @@ export default function ChatterChatRoom({
             (userId && m.sender_id && String(m.sender_id).includes(String(userId)));
           const peerAvatar = m.sender_avatar || (channelType === 'dm' ? currentPartnerAvatar : null);
           return (
-            <div
-              key={m.id}
-              style={{
-                display: 'flex',
-                flexDirection: isMe ? 'row-reverse' : 'row',
-                alignItems: 'flex-end',
-                gap: 8,
-                alignSelf: isMe ? 'flex-end' : 'flex-start',
-                maxWidth: '85%',
-                position: 'relative',
-              }}
-            >
+            <div key={m.id || index} style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+              {showDateDivider && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '16px 0 12px',
+                    position: 'relative',
+                    width: '100%',
+                  }}
+                >
+                  <div
+                    style={{
+                      position: 'absolute',
+                      left: 0,
+                      right: 0,
+                      height: 1,
+                      background: 'rgba(255, 255, 255, 0.08)',
+                    }}
+                  />
+                  <span
+                    style={{
+                      position: 'relative',
+                      zIndex: 1,
+                      padding: '4px 14px',
+                      borderRadius: 999,
+                      background: 'var(--chatter-sheet)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      color: 'var(--chatter-light-text)',
+                      fontSize: 12.5,
+                      fontWeight: 600,
+                      letterSpacing: 0.3,
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.35)',
+                    }}
+                  >
+                    {formatChatDateDivider(m.createdAt)}
+                  </span>
+                </div>
+              )}
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: isMe ? 'row-reverse' : 'row',
+                  alignItems: 'flex-end',
+                  gap: 8,
+                  alignSelf: isMe ? 'flex-end' : 'flex-start',
+                  maxWidth: '85%',
+                  position: 'relative',
+                }}
+              >
               {!isMe && channelType !== 'dm' && (
                 <div
                   style={{
@@ -855,8 +938,9 @@ export default function ChatterChatRoom({
                 )}
               </div>
             </div>
-          );
-        })}
+          </div>
+        );
+      })}
         <div ref={messagesEndRef} />
       </div>
 

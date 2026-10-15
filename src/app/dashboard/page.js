@@ -325,19 +325,21 @@ export default function DashboardPage() {
       if (joinCode) {
         apiRequest('/api/servers/join', {
           method: 'POST',
-          body: JSON.stringify({ code: joinCode }),
+          body: JSON.stringify({ invite_code: joinCode, code: joinCode }),
         })
           .then((res) => {
-            const srv = res?.server;
+            const srv = res?.server || res;
             if (srv?.id) {
               fetchServers().then(() => {
                 handleSelectServer(srv.id);
                 setChatterTab('chats');
               });
-              setToast(`Joined room "${srv.name}"!`);
+              setToast(`Joined room "${srv.name || 'Study Room'}"!`);
             }
           })
-          .catch(() => {});
+          .catch((err) => {
+            console.warn('Auto-join room warning:', err);
+          });
       }
     } catch {}
   }, []);
@@ -347,10 +349,15 @@ export default function DashboardPage() {
     dismissAllMenus();
   }, [activeServerId, activeChannelId, workspace, settingsOpen, pathname]);
 
-  // Authentication Guard
+  // Authentication Guard: Preserve joinRoom param for unauthenticated users
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push('/login');
+      const joinParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('joinRoom') : null;
+      if (joinParam) {
+        router.push(`/login?joinRoom=${encodeURIComponent(joinParam)}`);
+      } else {
+        router.push('/login');
+      }
     }
   }, [status, router]);
 

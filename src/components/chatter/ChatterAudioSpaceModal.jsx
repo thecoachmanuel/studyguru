@@ -23,8 +23,20 @@ export default function ChatterAudioSpaceModal({
         return () => clearTimeout(timer);
       }
     };
+    const handleHandRaise = (e) => {
+      if (e?.detail?.userId) {
+        setRaisedHandsMap((prev) => ({
+          ...prev,
+          [String(e.detail.userId)]: Boolean(e.detail.raised),
+        }));
+      }
+    };
     window.addEventListener('studycord_voice_user_left', handleUserLeft);
-    return () => window.removeEventListener('studycord_voice_user_left', handleUserLeft);
+    window.addEventListener('studycord_hand_raise_updated', handleHandRaise);
+    return () => {
+      window.removeEventListener('studycord_voice_user_left', handleUserLeft);
+      window.removeEventListener('studycord_hand_raise_updated', handleHandRaise);
+    };
   }, []);
 
   const {
@@ -85,39 +97,44 @@ export default function ChatterAudioSpaceModal({
     }
   };
 
-  // Standardize participants list across both schema formats
-  const normalizedParticipants = participants.map((p) => {
-    const isMe = String(p.user_id || p.userId) === String(userId);
-    return {
-      userId: p.user_id || p.userId,
-      name: isMe
-        ? (profile?.full_name || profile?.name || 'You')
-        : (p.profiles?.full_name || p.profiles?.username || p.name || 'Scholar'),
+  // Deduplicate participants rigorously by unique normalized string ID
+  const participantsMap = new Map();
+
+  for (const p of participants) {
+    const rawId = p.user_id || p.userId || p.id;
+    if (!rawId) continue;
+    const normId = String(rawId).replace(/^vp-[^-]+-/, '');
+    const isMe = normId === String(userId) || String(rawId) === String(userId);
+
+    const displayName = isMe
+      ? (profile?.full_name || profile?.name || 'You')
+      : (p.profiles?.full_name || p.profiles?.username || p.name || 'Scholar');
+
+    participantsMap.set(normId, {
+      userId: normId,
+      name: displayName,
       avatar_url: isMe
         ? (profile?.avatar_url || null)
         : (p.profiles?.avatar_url || p.avatar_url || null),
       speaking: isMe ? !isMuted : (!p.is_muted && p.speaking !== false),
       isMuted: isMe ? isMuted : (p.is_muted ?? false),
-    };
-  });
+      isLocal: isMe,
+    });
+  }
 
-  const hasLocal = normalizedParticipants.some((p) => String(p.userId) === String(userId));
   const isActuallyJoined = Boolean(voiceSession?.joinedChannelId);
-  const fullParticipants = isActuallyJoined
-    ? (hasLocal
-        ? normalizedParticipants
-        : [
-            {
-              userId,
-              name: profile?.full_name || profile?.name || 'You',
-              avatar_url: profile?.avatar_url || null,
-              speaking: !isMuted,
-              isMuted,
-            },
-            ...normalizedParticipants,
-          ])
-    : normalizedParticipants;
+  if (isActuallyJoined && !participantsMap.has(String(userId))) {
+    participantsMap.set(String(userId), {
+      userId: String(userId),
+      name: profile?.full_name || profile?.name || 'You',
+      avatar_url: profile?.avatar_url || null,
+      speaking: !isMuted,
+      isMuted,
+      isLocal: true,
+    });
+  }
 
+  const fullParticipants = Array.from(participantsMap.values());
   const speakers = fullParticipants.filter((p) => !p.isMuted);
   const listeners = fullParticipants.filter((p) => p.isMuted);
 
@@ -636,18 +653,28 @@ export default function ChatterAudioSpaceModal({
         {/* Left: Raise Hand button */}
         <button
           type="button"
-          onClick={() => {
+          onClick={async () => {
             const nextState = !raisedHand;
             setRaisedHand(nextState);
             setRaisedHandsMap((prev) => ({
               ...prev,
-              [userId]: nextState,
+              [String(userId)]: nextState,
             }));
             const myName = profile?.full_name || profile?.name || 'You';
             if (typeof window !== 'undefined') {
               window.dispatchEvent(new CustomEvent('studycord_toast', {
                 detail: nextState ? `✋ ${myName} raised hand to speak` : `✋ ${myName} lowered hand`,
               }));
+            }
+            const chanId = voiceSession?.joinedChannelId;
+            if (chanId) {
+              try {
+                await fetch(`/api/channels/${chanId}/voice`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ action: 'raise-hand', raised: nextState }),
+                });
+              } catch {}
             }
           }}
           style={{
@@ -675,17 +702,17 @@ export default function ChatterAudioSpaceModal({
             type="button"
             onClick={onToggleMic}
             style={{
-              width: 50,
-              height: 50,
+              width: 52,
+              height: 52,
               borderRadius: '50%',
-              background: !isMuted ? 'var(--chatter-primary)' : 'rgba(255, 255, 255, 0.1)',
-              color: !isMuted ? '#0E0E0E' : '#fff',
+              background: !isMuted ? 'var(--chatter-primary)' : '#ef4444',
+              color: !isMuted ? '#0E0E0E' : '#FFFFFF',
               border: 'none',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
-              boxShadow: !isMuted ? '0 4px 16px rgba(64, 227, 120, 0.35)' : 'none',
+              boxShadow: !isMuted ? '0 4px 16px rgba(64, 227, 120, 0.35)' : '0 4px 16px rgba(239, 68, 68, 0.35)',
               transition: 'all 0.18s ease',
             }}
             title={!isMuted ? 'Mute Microphone' : 'Unmute Microphone'}
@@ -693,7 +720,7 @@ export default function ChatterAudioSpaceModal({
             {!isMuted ? (
               <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="currentColor" strokeWidth="2" fill="none" />
                 <line x1="12" y1="19" x2="12" y2="23" stroke="currentColor" strokeWidth="2.5" />
                 <line x1="8" y1="23" x2="16" y2="23" stroke="currentColor" strokeWidth="2.5" />
               </svg>
@@ -714,24 +741,33 @@ export default function ChatterAudioSpaceModal({
             onClick={onToggleCamera}
             disabled={cameraBusy}
             style={{
-              width: 50,
-              height: 50,
+              width: 52,
+              height: 52,
               borderRadius: '50%',
-              background: cameraEnabled ? 'var(--chatter-primary)' : 'rgba(255, 255, 255, 0.1)',
-              color: cameraEnabled ? '#0E0E0E' : '#fff',
+              background: cameraEnabled ? 'var(--chatter-primary)' : '#ef4444',
+              color: cameraEnabled ? '#0E0E0E' : '#FFFFFF',
               border: 'none',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: cameraBusy ? 'not-allowed' : 'pointer',
+              boxShadow: cameraEnabled ? '0 4px 16px rgba(64, 227, 120, 0.35)' : '0 4px 16px rgba(239, 68, 68, 0.35)',
               transition: 'all 0.18s ease',
             }}
             title={cameraEnabled ? 'Turn Off Camera' : 'Turn On Camera'}
           >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M23 7l-7 5 7 5V7z" />
-              <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-            </svg>
+            {cameraEnabled ? (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="23 7 16 12 23 17 23 7" fill="currentColor" />
+                <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+              </svg>
+            ) : (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="1" y1="1" x2="23" y2="23" />
+                <path d="M21 15.5l-5-3.5 5-3.5v7z" />
+                <path d="M2 7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7z" />
+              </svg>
+            )}
           </button>
 
           {/* Screen Share Toggle Button */}

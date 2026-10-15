@@ -48,7 +48,7 @@ if (typeof setInterval !== 'undefined') {
 export async function addOrUpdateParticipant({ channelId, serverId, user, isMuted = false }) {
   cleanupStale();
   const nowIso = new Date().toISOString();
-  const userId = user.id;
+  const userId = String(user.id || user._id);
 
   const participant = {
     id: `vp-${channelId}-${userId}`,
@@ -128,33 +128,49 @@ export async function addOrUpdateParticipant({ channelId, serverId, user, isMute
   return participant;
 }
 
+export async function broadcastHandRaise({ channelId, userId, userName, raised }) {
+  try {
+    const pusher = getPusherServer();
+    await pusher.trigger(`voice-channel-${channelId}`, 'hand-raise-updated', {
+      user_id: String(userId),
+      user_name: userName || 'Scholar',
+      raised: Boolean(raised),
+    });
+    return true;
+  } catch (err) {
+    console.warn('Error broadcasting hand raise:', err.message);
+    return false;
+  }
+}
+
 export async function removeParticipant({ channelId, userId, serverId, userName }) {
   cleanupStale();
+  const sUserId = String(userId);
   let removed = false;
   let participantName = userName || null;
   if (participantsByChannel.has(channelId)) {
-    const existing = participantsByChannel.get(channelId).get(userId);
+    const existing = participantsByChannel.get(channelId).get(sUserId);
     if (existing?.profiles?.full_name || existing?.profiles?.username) {
       participantName = existing.profiles.full_name || existing.profiles.username;
     }
-    removed = participantsByChannel.get(channelId).delete(userId);
+    removed = participantsByChannel.get(channelId).delete(sUserId);
   }
 
   try {
     const db = await getDatabase();
     if (!participantName) {
-      const doc = await db.collection('voice_participants').findOne({ channel_id: channelId, user_id: userId });
+      const doc = await db.collection('voice_participants').findOne({ channel_id: channelId, user_id: sUserId });
       if (doc?.profiles?.full_name || doc?.profiles?.username) {
         participantName = doc.profiles.full_name || doc.profiles.username;
       }
     }
-    await db.collection('voice_participants').deleteOne({ channel_id: channelId, user_id: userId });
+    await db.collection('voice_participants').deleteOne({ channel_id: channelId, user_id: sUserId });
   } catch {}
 
   try {
     const pusher = getPusherServer();
     await pusher.trigger(`voice-channel-${channelId}`, 'participant-left', {
-      user_id: userId,
+      user_id: sUserId,
       user_name: participantName || 'A scholar',
     });
     const liveCount = participantsByChannel.get(channelId)?.size || 0;

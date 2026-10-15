@@ -788,12 +788,20 @@ export default function ChatterRoomsView({
               <button
                 type="button"
                 onClick={() => setCreateSpaceModalOpen(false)}
+                aria-label="Close"
                 style={{
-                  background: 'transparent',
+                  background: 'rgba(255, 255, 255, 0.08)',
                   border: 'none',
-                  color: '#979797',
-                  fontSize: 20,
+                  color: '#fff',
+                  width: 38,
+                  height: 38,
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 18,
                   cursor: 'pointer',
+                  transition: 'background 0.15s ease',
                 }}
               >
                 ✕

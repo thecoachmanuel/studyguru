@@ -9,18 +9,20 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { invite_code } = await req.json();
-    if (!invite_code || !invite_code.trim()) {
+    const body = await req.json().catch(() => ({}));
+    const rawCode = body.invite_code || body.code || body.inviteCode;
+    if (!rawCode || !String(rawCode).trim()) {
       return NextResponse.json({ error: 'Room ID or Invite code is required' }, { status: 400 });
     }
 
-    const code = invite_code.trim();
+    const code = String(rawCode).trim();
     const userId = session.user.id;
     const db = await getDatabase();
 
     const server = await db.collection('servers').findOne({
       $or: [
         { invite_code: code },
+        { invite_code: code.toUpperCase() },
         { _id: safeObjectId(code) },
         { id: code },
       ],
@@ -58,7 +60,7 @@ export async function POST(req) {
       .sort({ position: 1, created_at: 1 })
       .toArray();
 
-    return NextResponse.json({
+    const serverData = {
       id: serverId,
       name: server.name,
       icon_url: server.icon_url || null,
@@ -73,6 +75,11 @@ export async function POST(req) {
         type: c.type || 'text',
         position: c.position || 0,
       })),
+    };
+
+    return NextResponse.json({
+      ...serverData,
+      server: serverData,
     });
   } catch (error) {
     console.error('Error joining server:', error);

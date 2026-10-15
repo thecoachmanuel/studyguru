@@ -6,6 +6,7 @@ import {
   updateParticipantState,
   getChannelParticipants,
   popPendingSignals,
+  broadcastHandRaise,
 } from '@/lib/voiceStore';
 
 export async function GET(req, { params }) {
@@ -77,6 +78,16 @@ export async function POST(req, { params }) {
         isMuted: Boolean(isMuted),
       });
       return NextResponse.json({ success: true, participant });
+    }
+
+    if (action === 'raise-hand') {
+      await broadcastHandRaise({
+        channelId,
+        userId: session.user.id,
+        userName: session.user.name,
+        raised: Boolean(body.raised),
+      });
+      return NextResponse.json({ success: true, raised: Boolean(body.raised) });
     }
 
     if (action === 'heartbeat') {

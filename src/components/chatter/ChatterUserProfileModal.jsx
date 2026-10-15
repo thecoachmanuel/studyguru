@@ -170,20 +170,23 @@ export default function ChatterUserProfileModal({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close"
             style={{
               position: 'absolute',
               top: 12,
               right: 12,
-              background: 'rgba(0,0,0,0.5)',
+              background: 'rgba(0,0,0,0.6)',
               border: 'none',
               color: '#fff',
-              width: 32,
-              height: 32,
+              width: 38,
+              height: 38,
+              fontSize: 18,
               borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
+              transition: 'background 0.15s ease',
             }}
           >
             ✕
