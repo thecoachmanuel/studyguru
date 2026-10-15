@@ -340,7 +340,7 @@ export default function ServerSettingsModal({
                     </div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13.5px', color: 'var(--text-secondary)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14.5px', color: 'var(--text-secondary)' }}>
                   <p><strong>Your Role:</strong> <span className="settings-role" style={{ marginLeft: '6px' }}>{currentRole}</span></p>
                   <p><strong>Total Members:</strong> {members.length}</p>
                   {server.invite_code && (

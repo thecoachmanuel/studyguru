@@ -314,7 +314,7 @@ export default function ChatterNotesBar({
               border: userNote ? '1px solid var(--chatter-primary)' : '1px dashed rgba(255, 255, 255, 0.2)',
               borderRadius: 14,
               padding: '3px 8px',
-              fontSize: 11.5,
+              fontSize: 12.5,
               fontWeight: 600,
               color: userNote ? '#fff' : 'var(--chatter-light-text)',
               maxWidth: 72,
@@ -382,7 +382,7 @@ export default function ChatterNotesBar({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: userNote ? 12 : 14,
+                fontSize: userNote ? 12.5 : 14,
                 fontWeight: 900,
                 border: '2px solid var(--chatter-black)',
                 boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
@@ -469,7 +469,7 @@ export default function ChatterNotesBar({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: 11,
+                    fontSize: 12,
                     border: '1.5px solid var(--chatter-black)',
                     boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
                   }}
@@ -557,7 +557,7 @@ export default function ChatterNotesBar({
                   <div style={{ fontSize: 15.5, fontWeight: 700, color: '#fff' }}>
                     {viewerStories[activeStoryIndex].author?.name || 'Scholar'}
                   </div>
-                  <div style={{ fontSize: 13, color: 'var(--chatter-light-text)' }}>
+                  <div style={{ fontSize: 13.5, color: 'var(--chatter-light-text)' }}>
                     @{viewerStories[activeStoryIndex].author?.username || 'scholar'} · {viewerStories[activeStoryIndex].timestamp}
                   </div>
                 </div>
@@ -666,7 +666,7 @@ export default function ChatterNotesBar({
           </div>
 
           {/* Bottom Tap Navigation Info */}
-          <div style={{ textAlign: 'center', fontSize: 13, color: 'var(--chatter-light-text)' }}>
+          <div style={{ textAlign: 'center', fontSize: 13.5, color: 'var(--chatter-light-text)' }}>
             Tap left to go back · Tap right to skip · Auto-advancing
           </div>
         </div>
@@ -700,7 +700,7 @@ export default function ChatterNotesBar({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-              <h3 style={{ fontSize: 17, fontWeight: 700, color: '#fff', margin: 0 }}>
+              <h3 style={{ fontSize: 20, fontWeight: 700, color: '#fff', margin: 0 }}>
                 Share a Study Note
               </h3>
               <button
@@ -712,7 +712,7 @@ export default function ChatterNotesBar({
               </button>
             </div>
 
-            <p style={{ fontSize: 12.5, color: 'var(--chatter-light-text)', margin: '0 0 16px 0' }}>
+            <p style={{ fontSize: 14, color: 'var(--chatter-light-text)', margin: '0 0 16px 0' }}>
               Your note will appear in the study status tray above the feed for classmates to see.
             </p>
 
@@ -752,7 +752,7 @@ export default function ChatterNotesBar({
                   background: 'rgba(255, 255, 255, 0.05)',
                   border: '1px solid rgba(255, 255, 255, 0.1)',
                   color: '#fff',
-                  fontSize: 14,
+                  fontSize: 16,
                   outline: 'none',
                   boxSizing: 'border-box',
                   marginBottom: 16,
@@ -769,7 +769,7 @@ export default function ChatterNotesBar({
                     background: 'rgba(255, 255, 255, 0.08)',
                     border: 'none',
                     color: '#fff',
-                    fontSize: 13,
+                    fontSize: 14.5,
                     fontWeight: 600,
                     cursor: 'pointer',
                   }}
@@ -785,7 +785,7 @@ export default function ChatterNotesBar({
                     background: 'var(--chatter-primary)',
                     border: 'none',
                     color: '#0E0E0E',
-                    fontSize: 13,
+                    fontSize: 14.5,
                     fontWeight: 700,
                     cursor: noteInputText.trim() ? 'pointer' : 'not-allowed',
                     opacity: noteInputText.trim() ? 1 : 0.6,

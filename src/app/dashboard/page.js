@@ -1408,7 +1408,7 @@ export default function DashboardPage() {
               <h3 style={{ fontSize: 18, fontWeight: 700, color: '#fff', margin: 0 }}>
                 Select a Study Conversation
               </h3>
-              <p style={{ fontSize: 13, color: 'var(--chatter-light-text)', margin: 0 }}>
+              <p style={{ fontSize: 14, color: 'var(--chatter-light-text)', margin: 0 }}>
                 Choose a direct message or study channel to begin collaborating.
               </p>
             </div>
@@ -1568,10 +1568,10 @@ export default function DashboardPage() {
             📞
           </div>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: '#fff' }}>
+            <div style={{ fontSize: 15.5, fontWeight: 800, color: '#fff' }}>
               {incomingCallAlert.caller?.full_name || incomingCallAlert.caller?.username || 'Study Partner'}
             </div>
-            <div style={{ fontSize: 13, color: 'var(--chatter-primary)', fontWeight: 600 }}>
+            <div style={{ fontSize: 13.5, color: 'var(--chatter-primary)', fontWeight: 600 }}>
               Incoming Study Space Call...
             </div>
           </div>
@@ -1592,7 +1592,7 @@ export default function DashboardPage() {
                 borderRadius: 18,
                 padding: '8px 16px',
                 fontWeight: 800,
-                fontSize: 13.5,
+                fontSize: 14,
                 cursor: 'pointer',
               }}
             >
@@ -1611,7 +1611,7 @@ export default function DashboardPage() {
                 borderRadius: 18,
                 padding: '8px 14px',
                 fontWeight: 700,
-                fontSize: 13.5,
+                fontSize: 14,
                 cursor: 'pointer',
               }}
             >
@@ -1634,7 +1634,7 @@ export default function DashboardPage() {
             border: '1px solid var(--chatter-primary)',
             padding: '8px 18px',
             borderRadius: 20,
-            fontSize: 13.5,
+            fontSize: 14,
             fontWeight: 700,
             boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
             zIndex: 9998,

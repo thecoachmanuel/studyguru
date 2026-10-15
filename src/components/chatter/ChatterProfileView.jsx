@@ -554,7 +554,7 @@ export default function ChatterProfileView({
                 background: 'rgba(64, 227, 120, 0.12)',
                 border: '1px solid rgba(64, 227, 120, 0.3)',
                 color: 'var(--chatter-primary)',
-                fontSize: 14,
+                fontSize: 15,
                 fontWeight: 700,
                 cursor: 'pointer',
               }}
@@ -570,7 +570,7 @@ export default function ChatterProfileView({
                 background: 'rgba(255, 255, 255, 0.08)',
                 border: 'none',
                 color: '#fff',
-                fontSize: 14,
+                fontSize: 15,
                 fontWeight: 600,
                 cursor: 'pointer',
               }}
@@ -586,7 +586,7 @@ export default function ChatterProfileView({
                 background: 'rgba(255, 57, 57, 0.15)',
                 border: 'none',
                 color: 'var(--chatter-red)',
-                fontSize: 14,
+                fontSize: 15,
                 fontWeight: 600,
                 cursor: 'pointer',
               }}
@@ -615,7 +615,7 @@ export default function ChatterProfileView({
               <div style={{ height: 14, width: '60%', borderRadius: 4, background: 'rgba(255, 255, 255, 0.08)', animation: 'pulse 1.2s infinite ease-in-out' }} />
             </div>
           ) : (
-            <p style={{ fontSize: 15, color: '#E5E5E5', lineHeight: 1.55, margin: 0 }}>
+            <p style={{ fontSize: 15.5, color: '#E5E5E5', lineHeight: 1.55, margin: 0 }}>
               {bioText || '📚 Studying & collaborating on StudyCord · Always open to join study rooms & exam drills!'}
             </p>
           )}
@@ -637,7 +637,7 @@ export default function ChatterProfileView({
             {loadingStats ? (
               <span style={{ display: 'inline-block', width: 26, height: 16, borderRadius: 4, background: 'rgba(255, 255, 255, 0.15)', animation: 'pulse 1.2s infinite ease-in-out' }} />
             ) : (
-              <strong style={{ color: '#fff', fontWeight: 800, fontSize: 15.5 }}>{followersCount}</strong>
+              <strong style={{ color: '#fff', fontWeight: 800, fontSize: 18.5 }}>{followersCount}</strong>
             )}
             <span>Followers</span>
           </div>
@@ -646,7 +646,7 @@ export default function ChatterProfileView({
             {loadingStats ? (
               <span style={{ display: 'inline-block', width: 26, height: 16, borderRadius: 4, background: 'rgba(255, 255, 255, 0.15)', animation: 'pulse 1.2s infinite ease-in-out' }} />
             ) : (
-              <strong style={{ color: '#fff', fontWeight: 800, fontSize: 15.5 }}>{followingCount}</strong>
+              <strong style={{ color: '#fff', fontWeight: 800, fontSize: 18.5 }}>{followingCount}</strong>
             )}
             <span>Following</span>
           </div>
@@ -655,7 +655,7 @@ export default function ChatterProfileView({
             {loadingStats ? (
               <span style={{ display: 'inline-block', width: 28, height: 16, borderRadius: 4, background: 'rgba(64, 227, 120, 0.25)', animation: 'pulse 1.2s infinite ease-in-out' }} />
             ) : (
-              <strong style={{ color: 'var(--chatter-primary)', fontWeight: 800, fontSize: 15.5 }}>{studyHours}h</strong>
+              <strong style={{ color: 'var(--chatter-primary)', fontWeight: 800, fontSize: 18.5 }}>{studyHours}h</strong>
             )}
             <span>Study Hours</span>
           </div>
@@ -664,7 +664,7 @@ export default function ChatterProfileView({
             {loadingStats ? (
               <span style={{ display: 'inline-block', width: 28, height: 16, borderRadius: 4, background: 'rgba(254, 240, 138, 0.25)', animation: 'pulse 1.2s infinite ease-in-out' }} />
             ) : (
-              <strong style={{ color: '#FEF08A', fontWeight: 800, fontSize: 15.5 }}>{dayStreak}🔥</strong>
+              <strong style={{ color: '#FEF08A', fontWeight: 800, fontSize: 18.5 }}>{dayStreak}🔥</strong>
             )}
             <span>Streak</span>
           </div>
@@ -714,10 +714,10 @@ export default function ChatterProfileView({
                 }}
               >
                 <div style={{ fontSize: 28, marginBottom: 8 }}>📝</div>
-                <h4 style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
+                <h4 style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
                   No study posts published yet
                 </h4>
-                <p style={{ fontSize: 12.5, color: 'var(--chatter-light-text)', margin: 0 }}>
+                <p style={{ fontSize: 13.5, color: 'var(--chatter-light-text)', margin: 0 }}>
                   Share summaries, lecture questions, or study tips to collaborate with classmates.
                 </p>
               </div>
@@ -741,11 +741,11 @@ export default function ChatterProfileView({
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                     <span className="chatter-hashtag">{post.tag}</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 11.5, color: 'var(--chatter-light-text)' }}>{post.timestamp}</span>
-                      <span style={{ fontSize: 11, color: 'var(--chatter-primary)', fontWeight: 600 }}>View on Feed ↗</span>
+                      <span style={{ fontSize: 13, color: 'var(--chatter-light-text)' }}>{post.timestamp}</span>
+                      <span style={{ fontSize: 12.5, color: 'var(--chatter-primary)', fontWeight: 600 }}>View on Feed ↗</span>
                     </div>
                   </div>
-                  <p style={{ fontSize: 15, color: '#E5E5E5', lineHeight: 1.55, margin: '0 0 10px 0' }}>
+                  <p style={{ fontSize: 15.5, color: '#E5E5E5', lineHeight: 1.55, margin: '0 0 10px 0' }}>
                     {post.text}
                   </p>
                   {post.attachmentUrl && (
@@ -753,7 +753,7 @@ export default function ChatterProfileView({
                       <img src={post.attachmentUrl} alt="Post Attachment" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     </div>
                   )}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 12, color: 'var(--chatter-light-text)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 13.5, color: 'var(--chatter-light-text)' }}>
                     <span>❤️ {post.likes || 0}</span>
                     <span>💬 {post.comments || 0} comments</span>
                   </div>
@@ -781,10 +781,10 @@ export default function ChatterProfileView({
                 }}
               >
                 <div style={{ fontSize: 28, marginBottom: 8 }}>📄</div>
-                <h4 style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
+                <h4 style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
                   No saved study documents
                 </h4>
-                <p style={{ fontSize: 12.5, color: 'var(--chatter-light-text)', margin: '0 0 12px 0' }}>
+                <p style={{ fontSize: 13.5, color: 'var(--chatter-light-text)', margin: '0 0 12px 0' }}>
                   Upload lecture notes, slides, or chapters in the AI Guru to index them here.
                 </p>
                 <button
@@ -796,7 +796,7 @@ export default function ChatterProfileView({
                     background: 'var(--chatter-primary)',
                     border: 'none',
                     color: '#0E0E0E',
-                    fontSize: 12.5,
+                    fontSize: 14,
                     fontWeight: 700,
                     cursor: 'pointer',
                   }}
@@ -837,10 +837,10 @@ export default function ChatterProfileView({
                       📄
                     </div>
                     <div style={{ minWidth: 0 }}>
-                      <h4 style={{ fontSize: 14, fontWeight: 700, color: '#fff', margin: '0 0 3px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <h4 style={{ fontSize: 15, fontWeight: 700, color: '#fff', margin: '0 0 3px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {note.filename || note.title}
                       </h4>
-                      <div style={{ fontSize: 11.5, color: 'var(--chatter-light-text)' }}>
+                      <div style={{ fontSize: 12.5, color: 'var(--chatter-light-text)' }}>
                         {note.chunksCount || 1} text chunks · {note.detected_type?.toUpperCase() || 'DOCUMENT'} · Indexed & Ready
                       </div>
                     </div>
@@ -855,7 +855,7 @@ export default function ChatterProfileView({
                       background: 'rgba(64, 227, 120, 0.15)',
                       border: '1px solid var(--chatter-primary)',
                       color: 'var(--chatter-primary)',
-                      fontSize: 12,
+                      fontSize: 13.5,
                       fontWeight: 700,
                       cursor: 'pointer',
                       flexShrink: 0,
@@ -883,10 +883,10 @@ export default function ChatterProfileView({
                 }}
               >
                 <div style={{ fontSize: 28, marginBottom: 8 }}>📚</div>
-                <h4 style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
+                <h4 style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
                   No study rooms joined
                 </h4>
-                <p style={{ fontSize: 12.5, color: 'var(--chatter-light-text)', margin: 0 }}>
+                <p style={{ fontSize: 13.5, color: 'var(--chatter-light-text)', margin: 0 }}>
                   Join or create a study group room to start collaborating.
                 </p>
               </div>
@@ -933,10 +933,10 @@ export default function ChatterProfileView({
                       </div>
                     )}
                     <div>
-                      <h4 style={{ fontSize: 14.5, fontWeight: 700, color: '#fff', margin: '0 0 2px 0' }}>
+                      <h4 style={{ fontSize: 15.5, fontWeight: 700, color: '#fff', margin: '0 0 2px 0' }}>
                         {srv.name}
                       </h4>
-                      <div style={{ fontSize: 12, color: 'var(--chatter-light-text)' }}>
+                      <div style={{ fontSize: 13, color: 'var(--chatter-light-text)' }}>
                         {srv.channels?.length || 0} channels · {srv.member_count || 1} members
                       </div>
                     </div>
@@ -954,7 +954,7 @@ export default function ChatterProfileView({
                       background: 'rgba(255, 255, 255, 0.08)',
                       border: 'none',
                       color: '#fff',
-                      fontSize: 12,
+                      fontSize: 13.5,
                       fontWeight: 600,
                       cursor: 'pointer',
                     }}
@@ -997,7 +997,7 @@ export default function ChatterProfileView({
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <h3 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 }}>
+              <h3 style={{ fontSize: 20, fontWeight: 800, color: '#fff', margin: 0 }}>
                 Edit Profile
               </h3>
               <button
@@ -1011,6 +1011,7 @@ export default function ChatterProfileView({
                   height: 30,
                   borderRadius: '50%',
                   cursor: 'pointer',
+                  fontSize: 16,
                 }}
               >
                 ✕
@@ -1019,7 +1020,7 @@ export default function ChatterProfileView({
 
             <form onSubmit={handleSaveProfileModal}>
               <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--chatter-light-text)', marginBottom: 6 }}>
+                <label style={{ display: 'block', fontSize: 13.5, fontWeight: 700, color: 'var(--chatter-light-text)', marginBottom: 6 }}>
                   Display Name
                 </label>
                 <input
@@ -1033,7 +1034,7 @@ export default function ChatterProfileView({
                     borderRadius: 12,
                     color: '#fff',
                     padding: '10px 14px',
-                    fontSize: 14,
+                    fontSize: 16,
                     outline: 'none',
                     boxSizing: 'border-box',
                   }}
@@ -1042,11 +1043,11 @@ export default function ChatterProfileView({
               </div>
 
               <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--chatter-light-text)', marginBottom: 6 }}>
+                <label style={{ display: 'block', fontSize: 13.5, fontWeight: 700, color: 'var(--chatter-light-text)', marginBottom: 6 }}>
                   Username (@handle)
                 </label>
                 <div style={{ position: 'relative' }}>
-                  <span style={{ position: 'absolute', left: 14, top: 10, color: 'var(--chatter-light-text)', fontSize: 14, fontWeight: 600 }}>@</span>
+                  <span style={{ position: 'absolute', left: 14, top: 10, color: 'var(--chatter-light-text)', fontSize: 16, fontWeight: 600 }}>@</span>
                   <input
                     type="text"
                     value={editUsername}
@@ -1058,7 +1059,7 @@ export default function ChatterProfileView({
                       borderRadius: 12,
                       color: '#fff',
                       padding: '10px 14px 10px 32px',
-                      fontSize: 14,
+                      fontSize: 16,
                       outline: 'none',
                       boxSizing: 'border-box',
                     }}
@@ -1068,7 +1069,7 @@ export default function ChatterProfileView({
               </div>
 
               <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--chatter-light-text)', marginBottom: 6 }}>
+                <label style={{ display: 'block', fontSize: 13.5, fontWeight: 700, color: 'var(--chatter-light-text)', marginBottom: 6 }}>
                   Study Bio & Academic Interests
                 </label>
                 <textarea
@@ -1082,7 +1083,7 @@ export default function ChatterProfileView({
                     borderRadius: 12,
                     color: '#fff',
                     padding: '10px 14px',
-                    fontSize: 13.5,
+                    fontSize: 16,
                     lineHeight: 1.5,
                     outline: 'none',
                     resize: 'none',
@@ -1104,7 +1105,7 @@ export default function ChatterProfileView({
                     background: 'rgba(255, 255, 255, 0.08)',
                     border: 'none',
                     color: '#fff',
-                    fontSize: 13,
+                    fontSize: 14.5,
                     fontWeight: 600,
                     cursor: 'pointer',
                   }}
@@ -1121,7 +1122,7 @@ export default function ChatterProfileView({
                     background: 'var(--chatter-primary)',
                     border: 'none',
                     color: '#0E0E0E',
-                    fontSize: 13,
+                    fontSize: 14.5,
                     fontWeight: 700,
                     cursor: savingProfile ? 'not-allowed' : 'pointer',
                   }}

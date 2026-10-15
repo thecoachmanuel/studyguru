@@ -242,7 +242,7 @@ export default function ChatterUserProfileModal({
                   border: isFollowing ? '1px solid rgba(255,255,255,0.2)' : 'none',
                   color: isFollowing ? '#fff' : '#0E0E0E',
                   fontWeight: 700,
-                  fontSize: 14,
+                  fontSize: 15,
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
                 }}
@@ -269,7 +269,7 @@ export default function ChatterUserProfileModal({
               <div style={{ height: 14, width: '68%', borderRadius: 4, background: 'rgba(255, 255, 255, 0.08)', animation: 'pulse 1.2s infinite ease-in-out' }} />
             </div>
           ) : (
-            <p style={{ fontSize: 15, color: '#D4D4D4', lineHeight: 1.55, margin: '0 0 16px 0' }}>
+            <p style={{ fontSize: 15.5, color: '#D4D4D4', lineHeight: 1.55, margin: '0 0 16px 0' }}>
               {liveUser.bio || '🎓 Studying and preparing for upcoming semester exams · Sharing notes on mathematics & computer science.'}
             </p>
           )}
@@ -287,25 +287,25 @@ export default function ChatterUserProfileModal({
               {liveUser.followers_count === null || (loadingProfile && !hasInitialFollowers) ? (
                 <div style={{ height: 19, width: 34, borderRadius: 5, margin: '0 auto', background: 'rgba(64, 227, 120, 0.2)', animation: 'pulse 1.2s infinite ease-in-out' }} />
               ) : (
-                <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--chatter-primary)' }}>{displayFollowers}</div>
+                <div style={{ fontSize: 19, fontWeight: 800, color: 'var(--chatter-primary)' }}>{displayFollowers}</div>
               )}
-              <div style={{ fontSize: 13, color: 'var(--chatter-light-text)', marginTop: 2, fontWeight: 500 }}>Followers</div>
+              <div style={{ fontSize: 13.5, color: 'var(--chatter-light-text)', marginTop: 2, fontWeight: 500 }}>Followers</div>
             </div>
             <div style={{ background: '#141414', borderRadius: 14, padding: '12px 10px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
               {liveUser.study_hours === null || (loadingProfile && !hasInitialHours) ? (
                 <div style={{ height: 19, width: 34, borderRadius: 5, margin: '0 auto', background: 'rgba(64, 227, 120, 0.2)', animation: 'pulse 1.2s infinite ease-in-out' }} />
               ) : (
-                <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--chatter-primary)' }}>{studyHours}</div>
+                <div style={{ fontSize: 19, fontWeight: 800, color: 'var(--chatter-primary)' }}>{studyHours}</div>
               )}
-              <div style={{ fontSize: 13, color: 'var(--chatter-light-text)', marginTop: 2, fontWeight: 500 }}>Study Hours</div>
+              <div style={{ fontSize: 13.5, color: 'var(--chatter-light-text)', marginTop: 2, fontWeight: 500 }}>Study Hours</div>
             </div>
             <div style={{ background: '#141414', borderRadius: 14, padding: '12px 10px', textAlign: 'center', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
               {liveUser.day_streak === null || (loadingProfile && !hasInitialStreak) ? (
                 <div style={{ height: 19, width: 34, borderRadius: 5, margin: '0 auto', background: 'rgba(64, 227, 120, 0.2)', animation: 'pulse 1.2s infinite ease-in-out' }} />
               ) : (
-                <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--chatter-primary)' }}>{dayStreak}</div>
+                <div style={{ fontSize: 19, fontWeight: 800, color: 'var(--chatter-primary)' }}>{dayStreak}</div>
               )}
-              <div style={{ fontSize: 13, color: 'var(--chatter-light-text)', marginTop: 2, fontWeight: 500 }}>Day Streak</div>
+              <div style={{ fontSize: 13.5, color: 'var(--chatter-light-text)', marginTop: 2, fontWeight: 500 }}>Day Streak</div>
             </div>
           </div>
 
@@ -325,7 +325,7 @@ export default function ChatterUserProfileModal({
                 border: '1px solid rgba(64, 227, 120, 0.3)',
                 color: 'var(--chatter-primary)',
                 fontWeight: 700,
-                fontSize: 14,
+                fontSize: 15.5,
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',

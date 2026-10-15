@@ -144,7 +144,7 @@ export default function LoginPage() {
               <span className="chatter-logo-tag__dot" style={{ width: 8, height: 8 }} />
             </div>
           </div>
-          <p style={{ fontSize: 14, color: '#888', margin: 0, fontWeight: 500 }}>
+          <p style={{ fontSize: 14.5, color: '#888', margin: 0, fontWeight: 500 }}>
             Welcome back! Sign in to your study space.
           </p>
         </div>
@@ -161,7 +161,7 @@ export default function LoginPage() {
             background: 'rgba(255, 255, 255, 0.06)',
             border: '1px solid rgba(255, 255, 255, 0.12)',
             color: '#fff',
-            fontSize: 14,
+            fontSize: 15,
             fontWeight: 600,
             cursor: 'pointer',
             display: 'flex',
@@ -184,7 +184,7 @@ export default function LoginPage() {
         {/* Divider */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
           <div style={{ flex: 1, height: 1, background: 'rgba(255, 255, 255, 0.08)' }} />
-          <span style={{ fontSize: 12, color: '#666', textTransform: 'uppercase', letterSpacing: '0.04em' }}>or email</span>
+          <span style={{ fontSize: 12.5, color: '#666', textTransform: 'uppercase', letterSpacing: '0.04em' }}>or email</span>
           <div style={{ flex: 1, height: 1, background: 'rgba(255, 255, 255, 0.08)' }} />
         </div>
 
@@ -197,7 +197,7 @@ export default function LoginPage() {
               background: 'rgba(239, 68, 68, 0.12)',
               border: '1px solid rgba(239, 68, 68, 0.3)',
               color: '#f87171',
-              fontSize: 13,
+              fontSize: 14,
               marginBottom: 16,
               display: 'flex',
               alignItems: 'center',
@@ -211,7 +211,7 @@ export default function LoginPage() {
         {/* Credentials Form */}
         <form onSubmit={handleEmailLogin} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
-            <label style={{ fontSize: 12.5, fontWeight: 600, color: '#bbb', display: 'block', marginBottom: 6 }}>
+            <label style={{ fontSize: 14, fontWeight: 600, color: '#bbb', display: 'block', marginBottom: 6 }}>
               Email address
             </label>
             <input
@@ -228,7 +228,7 @@ export default function LoginPage() {
                 background: 'rgba(255, 255, 255, 0.05)',
                 border: '1px solid rgba(255, 255, 255, 0.1)',
                 color: '#fff',
-                fontSize: 14,
+                fontSize: 16,
                 outline: 'none',
                 boxSizing: 'border-box',
                 transition: 'border-color 0.15s ease',
@@ -240,8 +240,8 @@ export default function LoginPage() {
 
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <label style={{ fontSize: 12.5, fontWeight: 600, color: '#bbb' }}>Password</label>
-              <Link href="/forgot" style={{ fontSize: 12, color: '#40e378', textDecoration: 'none', fontWeight: 600 }}>
+              <label style={{ fontSize: 14, fontWeight: 600, color: '#bbb' }}>Password</label>
+              <Link href="/forgot" style={{ fontSize: 14, color: '#40e378', textDecoration: 'none', fontWeight: 600 }}>
                 Forgot?
               </Link>
             </div>
@@ -260,7 +260,7 @@ export default function LoginPage() {
                   background: 'rgba(255, 255, 255, 0.05)',
                   border: '1px solid rgba(255, 255, 255, 0.1)',
                   color: '#fff',
-                  fontSize: 14,
+                  fontSize: 16,
                   outline: 'none',
                   boxSizing: 'border-box',
                   transition: 'border-color 0.15s ease',
@@ -298,7 +298,7 @@ export default function LoginPage() {
               background: '#40e378',
               border: 'none',
               color: '#0E0E0E',
-              fontSize: 14.5,
+              fontSize: 15.5,
               fontWeight: 800,
               cursor: loadingLogin || !email.trim() || !password ? 'not-allowed' : 'pointer',
               opacity: loadingLogin || !email.trim() || !password ? 0.6 : 1,
@@ -319,7 +319,7 @@ export default function LoginPage() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              fontSize: 12,
+              fontSize: 13,
               color: '#bbb',
             }}
           >
@@ -336,7 +336,7 @@ export default function LoginPage() {
                 background: 'var(--chatter-primary)',
                 border: 'none',
                 color: '#0E0E0E',
-                fontSize: 11,
+                fontSize: 12.5,
                 fontWeight: 700,
                 cursor: 'pointer',
               }}
@@ -347,7 +347,7 @@ export default function LoginPage() {
         </form>
 
         {/* Footer Link */}
-        <div style={{ textAlign: 'center', marginTop: 24, fontSize: 13, color: '#888' }}>
+        <div style={{ textAlign: 'center', marginTop: 24, fontSize: 14.5, color: '#888' }}>
           Don&apos;t have an account?{' '}
           <Link href="/signup" style={{ color: '#40e378', textDecoration: 'none', fontWeight: 700 }}>
             Create Account

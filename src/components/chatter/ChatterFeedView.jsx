@@ -637,7 +637,7 @@ export default function ChatterFeedView({
             border: '1px solid var(--chatter-primary)',
             padding: '8px 18px',
             borderRadius: 20,
-            fontSize: 13,
+            fontSize: 14,
             fontWeight: 700,
             boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
             zIndex: 9999,
@@ -780,7 +780,7 @@ export default function ChatterFeedView({
                     border: '1px solid rgba(64, 227, 120, 0.3)',
                     borderRadius: 14,
                     color: 'var(--chatter-primary)',
-                    fontSize: 12.5,
+                    fontSize: 13.5,
                     fontWeight: 700,
                     padding: '4px 10px',
                     outline: 'none',
@@ -794,7 +794,7 @@ export default function ChatterFeedView({
                 >
                   <span>🏷️</span>
                   <span>{newPostTag || '#GeneralStudy'}</span>
-                  <span style={{ fontSize: 10, opacity: 0.8 }}>▾</span>
+                  <span style={{ fontSize: 12, opacity: 0.8 }}>▾</span>
                 </button>
 
                 {tagDropdownOpen && (
@@ -812,7 +812,7 @@ export default function ChatterFeedView({
                       boxShadow: '0 12px 36px rgba(0,0,0,0.7)',
                     }}
                   >
-                    <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--chatter-light-text)', textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.04em' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--chatter-light-text)', textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.04em' }}>
                       Topic Hashtag
                     </div>
 
@@ -841,7 +841,7 @@ export default function ChatterFeedView({
                           border: '1px solid rgba(255, 255, 255, 0.12)',
                           borderRadius: 10,
                           color: '#fff',
-                          fontSize: 12.5,
+                          fontSize: 14,
                           outline: 'none',
                         }}
                       />
@@ -861,7 +861,7 @@ export default function ChatterFeedView({
                           background: 'var(--chatter-primary)',
                           border: 'none',
                           color: '#0E0E0E',
-                          fontSize: 12,
+                          fontSize: 13.5,
                           fontWeight: 700,
                           cursor: 'pointer',
                         }}
@@ -886,7 +886,7 @@ export default function ChatterFeedView({
                             background: newPostTag === tag ? 'var(--chatter-primary)' : 'rgba(255, 255, 255, 0.06)',
                             border: '1px solid rgba(255, 255, 255, 0.08)',
                             color: newPostTag === tag ? '#0E0E0E' : '#E5E5E5',
-                            fontSize: 12,
+                            fontSize: 13,
                             fontWeight: newPostTag === tag ? 750 : 500,
                             cursor: 'pointer',
                             transition: 'all 0.12s ease',
@@ -911,7 +911,7 @@ export default function ChatterFeedView({
                 border: 'none',
                 borderRadius: 20,
                 padding: '6px 18px',
-                fontSize: 13.5,
+                fontSize: 14.5,
                 fontWeight: 750,
                 cursor: (newPostText.trim() || attachedImage) ? 'pointer' : 'not-allowed',
                 transition: 'all 0.15s ease',
@@ -937,9 +937,9 @@ export default function ChatterFeedView({
             justifyContent: 'space-between',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: 'var(--chatter-primary)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700, color: 'var(--chatter-primary)' }}>
             <span>Filtered by {filterTag.startsWith('#') ? filterTag : `#${filterTag}`}</span>
-            <span style={{ fontSize: 11, color: '#D4D4D4', fontWeight: 500 }}>({tabFilteredPosts.length} {tabFilteredPosts.length === 1 ? 'post' : 'posts'})</span>
+            <span style={{ fontSize: 12.5, color: '#D4D4D4', fontWeight: 500 }}>({tabFilteredPosts.length} {tabFilteredPosts.length === 1 ? 'post' : 'posts'})</span>
           </div>
           <button
             type="button"
@@ -950,7 +950,7 @@ export default function ChatterFeedView({
               color: '#fff',
               borderRadius: 10,
               padding: '3px 9px',
-              fontSize: 11,
+              fontSize: 12.5,
               fontWeight: 700,
               cursor: 'pointer',
             }}
@@ -1027,7 +1027,7 @@ export default function ChatterFeedView({
                           background: isFollowing ? 'transparent' : 'rgba(64, 227, 120, 0.12)',
                           border: isFollowing ? '1px solid rgba(255, 255, 255, 0.15)' : '1px solid rgba(64, 227, 120, 0.3)',
                           color: isFollowing ? 'var(--chatter-light-text)' : 'var(--chatter-primary)',
-                          fontSize: 12,
+                          fontSize: 13.5,
                           fontWeight: 700,
                           cursor: 'pointer',
                           transition: 'all 0.15s ease',
@@ -1100,7 +1100,7 @@ export default function ChatterFeedView({
                                 background: 'none',
                                 border: 'none',
                                 color: '#fff',
-                                fontSize: 12.5,
+                                fontSize: 14,
                                 fontWeight: 600,
                                 cursor: 'pointer',
                                 borderRadius: 8,
@@ -1122,7 +1122,7 @@ export default function ChatterFeedView({
                                 background: 'none',
                                 border: 'none',
                                 color: '#f87171',
-                                fontSize: 12.5,
+                                fontSize: 14,
                                 fontWeight: 600,
                                 cursor: 'pointer',
                                 borderRadius: 8,
@@ -1216,10 +1216,10 @@ export default function ChatterFeedView({
             }}
           >
             <div style={{ fontSize: 36, marginBottom: 10 }}>👥</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#fff', marginBottom: 6 }}>
+            <div style={{ fontSize: 19, fontWeight: 700, color: '#fff', marginBottom: 6 }}>
               Welcome to your Following feed!
             </div>
-            <div style={{ fontSize: 14, color: '#71767b', maxWidth: 360, margin: '0 auto 18px', lineHeight: 1.5 }}>
+            <div style={{ fontSize: 14.5, color: '#71767b', maxWidth: 360, margin: '0 auto 18px', lineHeight: 1.5 }}>
               You aren't following anyone yet, or scholars you follow haven't posted yet. Follow scholars to see their updates here.
             </div>
             <button
@@ -1232,7 +1232,7 @@ export default function ChatterFeedView({
                 color: '#0E0E0E',
                 border: 'none',
                 fontWeight: 750,
-                fontSize: 14,
+                fontSize: 15,
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
               }}
@@ -1249,8 +1249,8 @@ export default function ChatterFeedView({
             }}
           >
             <div style={{ fontSize: 32, marginBottom: 8 }}>🌱</div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>No study posts yet</div>
-            <div style={{ fontSize: 13.5, marginTop: 4, color: 'var(--chatter-light-text)' }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>No study posts yet</div>
+            <div style={{ fontSize: 14, marginTop: 4, color: 'var(--chatter-light-text)' }}>
               Be the first scholar to share notes, flashcards, or study tips!
             </div>
           </div>
@@ -1267,7 +1267,7 @@ export default function ChatterFeedView({
               justifyContent: 'center',
               gap: 8,
               color: 'var(--chatter-light-text)',
-              fontSize: 13.5,
+              fontSize: 14,
               fontWeight: 500,
             }}
           >
@@ -1291,7 +1291,7 @@ export default function ChatterFeedView({
               textAlign: 'center',
               padding: '28px 16px 16px',
               color: 'rgba(255, 255, 255, 0.35)',
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 500,
             }}
           >
@@ -1343,7 +1343,7 @@ export default function ChatterFeedView({
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <h3 style={{ fontSize: 18, fontWeight: 700, color: '#fff', margin: 0 }}>
+              <h3 style={{ fontSize: 20, fontWeight: 700, color: '#fff', margin: 0 }}>
                 Share Study Post & Resources
               </h3>
               <button
@@ -1358,7 +1358,7 @@ export default function ChatterFeedView({
             <form onSubmit={handleCreatePost}>
               <div style={{ marginBottom: 14 }}>
                 <div style={{ marginBottom: 8 }}>
-                  <label style={{ fontSize: 12, color: 'var(--chatter-light-text)', display: 'block', marginBottom: 6, fontWeight: 600 }}>
+                  <label style={{ fontSize: 13.5, color: 'var(--chatter-light-text)', display: 'block', marginBottom: 6, fontWeight: 600 }}>
                     Select Topic or Type Custom Hashtag
                   </label>
                   <input
@@ -1377,7 +1377,7 @@ export default function ChatterFeedView({
                       border: '1px solid rgba(255, 255, 255, 0.12)',
                       color: 'var(--chatter-primary)',
                       fontWeight: 700,
-                      fontSize: 14,
+                      fontSize: 16,
                       outline: 'none',
                       boxSizing: 'border-box',
                     }}
@@ -1397,7 +1397,7 @@ export default function ChatterFeedView({
                         background: newPostTag === tag ? 'var(--chatter-primary)' : 'rgba(255, 255, 255, 0.06)',
                         border: newPostTag === tag ? '1px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
                         color: newPostTag === tag ? '#0E0E0E' : '#D4D4D4',
-                        fontSize: 12,
+                        fontSize: 13,
                         fontWeight: newPostTag === tag ? 750 : 500,
                         cursor: 'pointer',
                         transition: 'all 0.12s ease',
@@ -1419,7 +1419,7 @@ export default function ChatterFeedView({
                     background: '#141414',
                     border: '1px solid rgba(255, 255, 255, 0.1)',
                     color: '#fff',
-                    fontSize: 14,
+                    fontSize: 16,
                     outline: 'none',
                     resize: 'none',
                   }}
@@ -1470,7 +1470,7 @@ export default function ChatterFeedView({
                       background: 'rgba(255, 255, 255, 0.06)',
                       border: '1px dashed rgba(255, 255, 255, 0.2)',
                       color: 'var(--chatter-light-text)',
-                      fontSize: 13,
+                      fontSize: 14,
                       fontWeight: 600,
                       cursor: 'pointer',
                       width: '100%',
@@ -1498,6 +1498,7 @@ export default function ChatterFeedView({
                     border: '1px solid rgba(255, 255, 255, 0.15)',
                     color: '#979797',
                     fontWeight: 600,
+                    fontSize: 15,
                     cursor: 'pointer',
                   }}
                 >
@@ -1513,6 +1514,7 @@ export default function ChatterFeedView({
                     border: 'none',
                     color: '#0E0E0E',
                     fontWeight: 700,
+                    fontSize: 15.5,
                     cursor: newPostText.trim() ? 'pointer' : 'not-allowed',
                     opacity: newPostText.trim() ? 1 : 0.6,
                   }}
@@ -1577,11 +1579,11 @@ export default function ChatterFeedView({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: '#fff', margin: 0 }}>Edit Study Post</h3>
+              <h3 style={{ fontSize: 20, fontWeight: 700, color: '#fff', margin: 0 }}>Edit Study Post</h3>
               <button
                 type="button"
                 onClick={() => setEditingPost(null)}
-                style={{ background: 'none', border: 'none', color: '#fff', fontSize: 16, cursor: 'pointer' }}
+                style={{ background: 'none', border: 'none', color: '#fff', fontSize: 18, cursor: 'pointer' }}
               >
                 ✕
               </button>
@@ -1589,7 +1591,7 @@ export default function ChatterFeedView({
 
             <form onSubmit={handleSaveEdit}>
               <div style={{ marginBottom: 12 }}>
-                <label style={{ fontSize: 12, color: 'var(--chatter-light-text)', display: 'block', marginBottom: 6 }}>
+                <label style={{ fontSize: 13.5, color: 'var(--chatter-light-text)', display: 'block', marginBottom: 6 }}>
                   Topic Tag
                 </label>
                 <input
@@ -1603,7 +1605,7 @@ export default function ChatterFeedView({
                     background: 'rgba(255, 255, 255, 0.05)',
                     border: '1px solid rgba(255, 255, 255, 0.1)',
                     color: '#fff',
-                    fontSize: 13,
+                    fontSize: 16,
                     outline: 'none',
                     boxSizing: 'border-box',
                   }}
@@ -1611,7 +1613,7 @@ export default function ChatterFeedView({
               </div>
 
               <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 12, color: 'var(--chatter-light-text)', display: 'block', marginBottom: 6 }}>
+                <label style={{ fontSize: 13.5, color: 'var(--chatter-light-text)', display: 'block', marginBottom: 6 }}>
                   Post Content
                 </label>
                 <textarea
@@ -1626,7 +1628,7 @@ export default function ChatterFeedView({
                     background: 'rgba(255, 255, 255, 0.05)',
                     border: '1px solid rgba(255, 255, 255, 0.1)',
                     color: '#fff',
-                    fontSize: 14,
+                    fontSize: 16,
                     outline: 'none',
                     boxSizing: 'border-box',
                     resize: 'vertical',
@@ -1644,7 +1646,7 @@ export default function ChatterFeedView({
                     background: 'rgba(255, 255, 255, 0.08)',
                     border: 'none',
                     color: '#fff',
-                    fontSize: 13,
+                    fontSize: 14.5,
                     fontWeight: 600,
                     cursor: 'pointer',
                   }}
@@ -1660,7 +1662,7 @@ export default function ChatterFeedView({
                     background: 'var(--chatter-primary)',
                     border: 'none',
                     color: '#0E0E0E',
-                    fontSize: 13,
+                    fontSize: 14.5,
                     fontWeight: 700,
                     cursor: editText.trim() ? 'pointer' : 'not-allowed',
                     opacity: editText.trim() ? 1 : 0.6,

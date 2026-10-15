@@ -926,7 +926,7 @@ export default function ChatterGuruView({
             <ChatbotIcon size={18} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-            <span style={{ fontSize: 17, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' }}>
+            <span style={{ fontSize: 19, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' }}>
               AI Guru
             </span>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--chatter-primary)', display: 'inline-block', boxShadow: '0 0 8px var(--chatter-primary)' }} />
@@ -955,7 +955,7 @@ export default function ChatterGuruView({
                 background: docsPanelOpen ? 'rgba(64, 227, 120, 0.2)' : 'rgba(255, 255, 255, 0.08)',
                 border: docsPanelOpen ? '1px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
                 color: docsPanelOpen ? 'var(--chatter-primary)' : '#fff',
-                fontSize: 12.5,
+                fontSize: 13.5,
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
@@ -974,7 +974,7 @@ export default function ChatterGuruView({
               background: 'rgba(255, 255, 255, 0.06)',
               border: 'none',
               color: 'var(--chatter-light-text)',
-              fontSize: 12,
+              fontSize: 13.5,
               fontWeight: 600,
               cursor: 'pointer',
             }}
@@ -1024,7 +1024,7 @@ export default function ChatterGuruView({
               color: aiMode === 'free' ? '#0E0E0E' : 'var(--chatter-light-text)',
               border: 'none',
               fontWeight: aiMode === 'free' ? 750 : 600,
-              fontSize: 13,
+              fontSize: 14.5,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -1046,7 +1046,7 @@ export default function ChatterGuruView({
               color: aiMode === 'guided' ? '#0E0E0E' : 'var(--chatter-light-text)',
               border: 'none',
               fontWeight: aiMode === 'guided' ? 750 : 600,
-              fontSize: 13,
+              fontSize: 14.5,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -1059,7 +1059,7 @@ export default function ChatterGuruView({
             {uploadedDocs.length > 0 && (
               <span
                 style={{
-                  fontSize: 11,
+                  fontSize: 12.5,
                   padding: '1px 6px',
                   borderRadius: 10,
                   background: aiMode === 'guided' ? 'rgba(0,0,0,0.25)' : 'rgba(64, 227, 120, 0.2)',
@@ -1093,7 +1093,7 @@ export default function ChatterGuruView({
             flexShrink: 0,
           }}
         >
-          <span style={{ fontSize: 11, color: 'var(--chatter-light-text)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 12.5, color: 'var(--chatter-light-text)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
             Target:
           </span>
         <button
@@ -1105,7 +1105,7 @@ export default function ChatterGuruView({
             border: selectedDocId === null ? '1.5px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
             background: selectedDocId === null ? 'rgba(64, 227, 120, 0.15)' : 'rgba(255, 255, 255, 0.05)',
             color: selectedDocId === null ? 'var(--chatter-primary)' : '#D4D4D4',
-            fontSize: 12,
+            fontSize: 13,
             fontWeight: 600,
             cursor: 'pointer',
             whiteSpace: 'nowrap',
@@ -1126,7 +1126,7 @@ export default function ChatterGuruView({
                 border: isSelected ? '1.5px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
                 background: isSelected ? 'rgba(64, 227, 120, 0.15)' : 'rgba(255, 255, 255, 0.05)',
                 color: isSelected ? 'var(--chatter-primary)' : '#D4D4D4',
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: 600,
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
@@ -1136,7 +1136,7 @@ export default function ChatterGuruView({
               }}
             >
               <span>📄 {doc.filename}</span>
-              {isSelected && <span style={{ fontSize: 11, color: 'var(--chatter-primary)' }}>✓</span>}
+              {isSelected && <span style={{ fontSize: 12, color: 'var(--chatter-primary)' }}>✓</span>}
             </button>
           );
         })}
@@ -1151,7 +1151,7 @@ export default function ChatterGuruView({
               border: '1px dashed rgba(64, 227, 120, 0.4)',
               background: 'transparent',
               color: 'var(--chatter-primary)',
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: 600,
               cursor: 'pointer',
               whiteSpace: 'nowrap',
@@ -1169,7 +1169,7 @@ export default function ChatterGuruView({
               border: '1px solid rgba(245, 158, 11, 0.4)',
               background: 'rgba(245, 158, 11, 0.1)',
               color: '#f59e0b',
-              fontSize: 11.5,
+              fontSize: 12.5,
               fontWeight: 700,
               cursor: 'pointer',
               whiteSpace: 'nowrap',
@@ -1197,7 +1197,7 @@ export default function ChatterGuruView({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--chatter-light-text)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--chatter-light-text)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Indexed Course Materials ({uploadedDocs.length}/{MAX_DOCS})
             </span>
             <button
@@ -1215,7 +1215,7 @@ export default function ChatterGuruView({
                 background: uploadedDocs.length >= MAX_DOCS ? 'rgba(255, 255, 255, 0.08)' : 'var(--chatter-primary)',
                 border: 'none',
                 color: uploadedDocs.length >= MAX_DOCS ? '#888' : '#0E0E0E',
-                fontSize: 12,
+                fontSize: 13.5,
                 fontWeight: 700,
                 cursor: (uploadingDoc || uploadedDocs.length >= MAX_DOCS) ? 'not-allowed' : 'pointer',
               }}
@@ -1227,7 +1227,7 @@ export default function ChatterGuruView({
           {uploadedDocs.length >= MAX_DOCS && (
             <div
               style={{
-                fontSize: 12,
+                fontSize: 13.5,
                 color: '#f59e0b',
                 background: 'rgba(245, 158, 11, 0.1)',
                 border: '1px solid rgba(245, 158, 11, 0.25)',
@@ -1259,10 +1259,10 @@ export default function ChatterGuruView({
               >
                 <span style={{ fontSize: 16 }}>📄</span>
                 <div>
-                  <div style={{ fontSize: 12.5, fontWeight: 700, color: '#fff', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: '#fff', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {doc.filename}
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--chatter-primary)' }}>
+                  <div style={{ fontSize: 12.5, color: 'var(--chatter-primary)' }}>
                     {doc.chunksCount} chunks · {doc.status}
                   </div>
                 </div>
@@ -1277,7 +1277,7 @@ export default function ChatterGuruView({
                       background: 'rgba(64, 227, 120, 0.15)',
                       border: 'none',
                       color: 'var(--chatter-primary)',
-                      fontSize: 11,
+                      fontSize: 12.5,
                       fontWeight: 700,
                       cursor: 'pointer',
                     }}
@@ -1293,7 +1293,7 @@ export default function ChatterGuruView({
                       background: 'rgba(255, 255, 255, 0.08)',
                       border: 'none',
                       color: '#fff',
-                      fontSize: 11,
+                      fontSize: 12.5,
                       fontWeight: 600,
                       cursor: 'pointer',
                     }}
@@ -1309,7 +1309,7 @@ export default function ChatterGuruView({
                       background: 'rgba(239, 68, 68, 0.15)',
                       border: 'none',
                       color: '#f87171',
-                      fontSize: 11,
+                      fontSize: 12.5,
                       fontWeight: 600,
                       cursor: 'pointer',
                     }}
@@ -1356,13 +1356,13 @@ export default function ChatterGuruView({
             }}
           >
             <div style={{ fontSize: 34 }}>📖</div>
-            <div style={{ fontSize: 17, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' }}>
+            <div style={{ fontSize: 19, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' }}>
               Guided Document Study Mode
             </div>
-            <div style={{ fontSize: 13.5, color: '#A0A0A0', lineHeight: 1.55, maxWidth: 440 }}>
+            <div style={{ fontSize: 14, color: '#A0A0A0', lineHeight: 1.55, maxWidth: 440 }}>
               Upload your lecture notes, textbook chapters, or syllabus (.pdf, .docx, .txt). AI Guru will generate guided explanations, custom 5-question assessments, and active recall flashcards directly from your text.
             </div>
-            <div style={{ fontSize: 12, color: 'var(--chatter-primary)', fontWeight: 600 }}>
+            <div style={{ fontSize: 13, color: 'var(--chatter-primary)', fontWeight: 600 }}>
               Restriction: Max {MAX_DOCS} documents (up to 15MB each)
             </div>
             <button
@@ -1377,7 +1377,7 @@ export default function ChatterGuruView({
                 color: '#0E0E0E',
                 border: 'none',
                 fontWeight: 750,
-                fontSize: 13.5,
+                fontSize: 14.5,
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
@@ -1441,7 +1441,7 @@ export default function ChatterGuruView({
                       justifyContent: 'flex-end',
                     }}
                   >
-                    <span style={{ fontSize: 11.5, color: 'var(--chatter-light-text)' }}>
+                    <span style={{ fontSize: 12.5, color: 'var(--chatter-light-text)' }}>
                       {m.timestamp || 'Just now'}
                     </span>
                   </div>
@@ -1456,7 +1456,7 @@ export default function ChatterGuruView({
                     color: isUser ? '#0E0E0E' : '#fff',
                     border: isUser ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
                     fontWeight: isUser ? 600 : 400,
-                    fontSize: isUser ? 14.5 : 15.5,
+                    fontSize: 16,
                     lineHeight: 1.65,
                     boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
                     whiteSpace: isUser ? 'pre-wrap' : undefined,
@@ -1502,7 +1502,7 @@ export default function ChatterGuruView({
                 borderRadius: '20px 20px 20px 4px',
                 background: 'var(--chatter-sheet)',
                 color: 'var(--chatter-primary)',
-                fontSize: 13.5,
+                fontSize: 14,
                 fontWeight: 600,
                 display: 'flex',
                 alignItems: 'center',
@@ -1564,7 +1564,7 @@ export default function ChatterGuruView({
               background: 'rgba(255, 255, 255, 0.06)',
               border: '1px solid rgba(255, 255, 255, 0.08)',
               color: 'var(--chatter-light-text)',
-              fontSize: 12,
+              fontSize: 13.5,
               fontWeight: 600,
               whiteSpace: 'nowrap',
               cursor: 'pointer',
@@ -1668,7 +1668,7 @@ export default function ChatterGuruView({
               background: 'transparent',
               border: 'none',
               color: '#fff',
-              fontSize: 15.5,
+              fontSize: 16,
               outline: 'none',
             }}
           />
@@ -1853,14 +1853,14 @@ function QuizAssessmentCard({ questions = [], onRegenerate, messageId }) {
           }}
         >
           <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--chatter-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--chatter-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Final Test Result
             </div>
             <div style={{ fontSize: fullscreen ? 26 : 22, fontWeight: 800, color: '#fff', marginTop: 2 }}>
               Score: {correctCount} / {totalQuestions} <span style={{ fontSize: 16, color: 'var(--chatter-primary)' }}>({percentage}%)</span>
             </div>
           </div>
-          <div style={{ textAlign: 'right', fontSize: fullscreen ? 15 : 13, fontWeight: 700, color: percentage >= 80 ? 'var(--chatter-primary)' : '#fff' }}>
+          <div style={{ textAlign: 'right', fontSize: fullscreen ? 15.5 : 13.5, fontWeight: 700, color: percentage >= 80 ? 'var(--chatter-primary)' : '#fff' }}>
             {percentage >= 80 ? '🎯 Outstanding Mastery!' : percentage >= 60 ? '👍 Good Competency' : '📚 Review Solutions Below'}
           </div>
         </div>
@@ -1878,10 +1878,10 @@ function QuizAssessmentCard({ questions = [], onRegenerate, messageId }) {
           overflow: 'hidden',
         }}
       >
-        <div style={{ fontSize: fullscreen ? 13 : 11.5, color: 'var(--chatter-light-text)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>
+        <div style={{ fontSize: fullscreen ? 13.5 : 12.5, color: 'var(--chatter-light-text)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>
           Question {currentQIndex + 1} of {totalQuestions}
         </div>
-        <div style={{ fontSize: fullscreen ? 18.5 : 15, fontWeight: 700, color: '#fff', lineHeight: 1.5, marginBottom: fullscreen ? 18 : 14, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+        <div style={{ fontSize: fullscreen ? 19 : 16, fontWeight: 700, color: '#fff', lineHeight: 1.5, marginBottom: fullscreen ? 18 : 14, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
           {currentQ.question}
         </div>
 
@@ -1928,7 +1928,7 @@ function QuizAssessmentCard({ questions = [], onRegenerate, messageId }) {
                   background: optBg,
                   border: optBorder,
                   color: optColor,
-                  fontSize: fullscreen ? 15 : 13,
+                  fontSize: fullscreen ? 16 : 14.5,
                   fontWeight: 600,
                   cursor: isSubmitted ? 'default' : 'pointer',
                   transition: 'all 0.15s ease',
@@ -1948,7 +1948,7 @@ function QuizAssessmentCard({ questions = [], onRegenerate, messageId }) {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: fullscreen ? 13 : 11,
+                    fontSize: fullscreen ? 13 : 12,
                     fontWeight: 800,
                     flexShrink: 0,
                   }}
@@ -1972,7 +1972,7 @@ function QuizAssessmentCard({ questions = [], onRegenerate, messageId }) {
               borderRadius: 14,
               background: 'rgba(64, 227, 120, 0.08)',
               border: '1px solid rgba(64, 227, 120, 0.2)',
-              fontSize: fullscreen ? 14.5 : 13,
+              fontSize: fullscreen ? 15 : 14,
               lineHeight: 1.6,
               color: '#fff',
             }}
@@ -1997,7 +1997,7 @@ function QuizAssessmentCard({ questions = [], onRegenerate, messageId }) {
             background: currentQIndex === 0 ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.08)',
             border: 'none',
             color: currentQIndex === 0 ? 'rgba(255, 255, 255, 0.25)' : '#fff',
-            fontSize: fullscreen ? 14 : 13,
+            fontSize: fullscreen ? 14.5 : 13.5,
             fontWeight: 700,
             cursor: currentQIndex === 0 ? 'not-allowed' : 'pointer',
           }}
@@ -2017,7 +2017,7 @@ function QuizAssessmentCard({ questions = [], onRegenerate, messageId }) {
                   background: 'rgba(255, 255, 255, 0.08)',
                   border: 'none',
                   color: '#fff',
-                  fontSize: fullscreen ? 14 : 13,
+                  fontSize: fullscreen ? 14.5 : 13.5,
                   fontWeight: 700,
                   cursor: 'pointer',
                 }}
@@ -2035,7 +2035,7 @@ function QuizAssessmentCard({ questions = [], onRegenerate, messageId }) {
                 background: 'var(--chatter-primary)',
                 border: 'none',
                 color: '#0E0E0E',
-                fontSize: fullscreen ? 14.5 : 13,
+                fontSize: fullscreen ? 15 : 14,
                 fontWeight: 800,
                 cursor: 'pointer',
                 boxShadow: '0 4px 14px rgba(64, 227, 120, 0.3)',
@@ -2055,7 +2055,7 @@ function QuizAssessmentCard({ questions = [], onRegenerate, messageId }) {
               background: currentQIndex === totalQuestions - 1 ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.08)',
               border: 'none',
               color: currentQIndex === totalQuestions - 1 ? 'rgba(255, 255, 255, 0.25)' : '#fff',
-              fontSize: fullscreen ? 14 : 13,
+              fontSize: fullscreen ? 14.5 : 13.5,
               fontWeight: 700,
               cursor: currentQIndex === totalQuestions - 1 ? 'not-allowed' : 'pointer',
             }}
@@ -2084,12 +2084,12 @@ function QuizAssessmentCard({ questions = [], onRegenerate, messageId }) {
         {/* Top Quiz Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 14, fontWeight: 800, color: '#fff' }}>
+            <span style={{ fontSize: 15.5, fontWeight: 800, color: '#fff' }}>
               📝 Quiz Assessment
             </span>
             <span
               style={{
-                fontSize: 11,
+                fontSize: 12.5,
                 fontWeight: 700,
                 padding: '2px 8px',
                 borderRadius: 12,
@@ -2114,7 +2114,7 @@ function QuizAssessmentCard({ questions = [], onRegenerate, messageId }) {
                   background: regenerating ? 'rgba(64, 227, 120, 0.15)' : 'rgba(255, 255, 255, 0.06)',
                   border: regenerating ? '1px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
                   color: regenerating ? 'var(--chatter-primary)' : 'var(--chatter-light-text)',
-                  fontSize: 11.5,
+                  fontSize: 12.5,
                   fontWeight: 600,
                   cursor: regenerating ? 'wait' : 'pointer',
                   display: 'flex',
@@ -2145,7 +2145,7 @@ function QuizAssessmentCard({ questions = [], onRegenerate, messageId }) {
                   background: 'rgba(64, 227, 120, 0.15)',
                   border: '1px solid rgba(64, 227, 120, 0.3)',
                   color: 'var(--chatter-primary)',
-                  fontSize: 11.5,
+                  fontSize: 12.5,
                   fontWeight: 700,
                   cursor: 'pointer',
                 }}
@@ -2164,7 +2164,7 @@ function QuizAssessmentCard({ questions = [], onRegenerate, messageId }) {
                 background: 'rgba(64, 227, 120, 0.15)',
                 border: '1px solid rgba(64, 227, 120, 0.3)',
                 color: 'var(--chatter-primary)',
-                fontSize: 12,
+                fontSize: 12.5,
                 fontWeight: 700,
                 display: 'flex',
                 alignItems: 'center',
@@ -2202,12 +2202,12 @@ function QuizAssessmentCard({ questions = [], onRegenerate, messageId }) {
             {/* Fullscreen Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>
+                <span style={{ fontSize: 19, fontWeight: 800, color: '#fff' }}>
                   📝 Quiz Assessment
                 </span>
                 <span
                   style={{
-                    fontSize: 12,
+                    fontSize: 12.5,
                     fontWeight: 700,
                     padding: '3px 10px',
                     borderRadius: 14,
@@ -2231,7 +2231,7 @@ function QuizAssessmentCard({ questions = [], onRegenerate, messageId }) {
                       background: regenerating ? 'rgba(64, 227, 120, 0.15)' : 'rgba(255, 255, 255, 0.06)',
                       border: '1px solid rgba(255, 255, 255, 0.1)',
                       color: regenerating ? 'var(--chatter-primary)' : '#fff',
-                      fontSize: 13,
+                      fontSize: 13.5,
                       fontWeight: 600,
                       cursor: regenerating ? 'wait' : 'pointer',
                     }}
@@ -2249,7 +2249,7 @@ function QuizAssessmentCard({ questions = [], onRegenerate, messageId }) {
                       background: 'rgba(64, 227, 120, 0.15)',
                       border: '1px solid rgba(64, 227, 120, 0.3)',
                       color: 'var(--chatter-primary)',
-                      fontSize: 13,
+                      fontSize: 13.5,
                       fontWeight: 700,
                       cursor: 'pointer',
                     }}
@@ -2266,7 +2266,7 @@ function QuizAssessmentCard({ questions = [], onRegenerate, messageId }) {
                     background: 'rgba(255, 255, 255, 0.08)',
                     border: '1px solid rgba(255, 255, 255, 0.12)',
                     color: '#fff',
-                    fontSize: 13,
+                    fontSize: 13.5,
                     fontWeight: 700,
                     cursor: 'pointer',
                   }}
@@ -2372,7 +2372,7 @@ function FlashcardDeck({ cards = [], onRegenerate }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span
             style={{
-              fontSize: 11,
+              fontSize: 12.5,
               fontWeight: 800,
               textTransform: 'uppercase',
               letterSpacing: '0.06em',
@@ -2385,7 +2385,7 @@ function FlashcardDeck({ cards = [], onRegenerate }) {
             {flipped ? '💡 Answer / Concept' : '❓ Question / Prompt'}
           </span>
         </div>
-        <div style={{ fontSize: 11.5, color: 'var(--chatter-light-text)', display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div style={{ fontSize: 12.5, color: 'var(--chatter-light-text)', display: 'flex', alignItems: 'center', gap: 4 }}>
           <span>Tap card to flip 🔄</span>
         </div>
       </div>
@@ -2394,7 +2394,7 @@ function FlashcardDeck({ cards = [], onRegenerate }) {
       <div
         style={{
           margin: '24px 0',
-          fontSize: fullscreen ? 22 : 16,
+          fontSize: fullscreen ? 22 : 16.5,
           fontWeight: 650,
           color: '#FFFFFF',
           lineHeight: 1.6,
@@ -2406,7 +2406,7 @@ function FlashcardDeck({ cards = [], onRegenerate }) {
       </div>
 
       {/* Card Footer Hint */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11.5, color: 'var(--chatter-light-text)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12.5, color: 'var(--chatter-light-text)' }}>
         <span>{flipped ? '✓ Tap to view question' : '• Tap card to flip'}</span>
         <span>Swipe or use arrows</span>
       </div>
@@ -2432,7 +2432,7 @@ function FlashcardDeck({ cards = [], onRegenerate }) {
       {/* Header with counter and fullscreen button */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 13.5, fontWeight: 800, color: '#fff' }}>
+          <span style={{ fontSize: 15, fontWeight: 800, color: '#fff' }}>
             🃏 Flashcard {currentIndex + 1} of {cards.length}
           </span>
         </div>
@@ -2449,7 +2449,7 @@ function FlashcardDeck({ cards = [], onRegenerate }) {
                 background: 'rgba(255, 255, 255, 0.06)',
                 border: '1px solid rgba(255, 255, 255, 0.08)',
                 color: 'var(--chatter-light-text)',
-                fontSize: 11.5,
+                fontSize: 12.5,
                 fontWeight: 600,
                 cursor: 'pointer',
               }}
@@ -2468,7 +2468,7 @@ function FlashcardDeck({ cards = [], onRegenerate }) {
               background: 'rgba(64, 227, 120, 0.15)',
               border: '1px solid rgba(64, 227, 120, 0.3)',
               color: 'var(--chatter-primary)',
-              fontSize: 12,
+              fontSize: 12.5,
               fontWeight: 700,
               display: 'flex',
               alignItems: 'center',
@@ -2579,10 +2579,10 @@ function FlashcardDeck({ cards = [], onRegenerate }) {
           {/* Top Fullscreen Bar */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: 700, margin: '0 auto', width: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 16, fontWeight: 800, color: '#fff' }}>
+              <span style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>
                 Card {currentIndex + 1} of {cards.length}
               </span>
-              <span style={{ fontSize: 12, color: 'var(--chatter-primary)', background: 'rgba(64, 227, 120, 0.15)', padding: '3px 10px', borderRadius: 12, fontWeight: 700 }}>
+              <span style={{ fontSize: 13, color: 'var(--chatter-primary)', background: 'rgba(64, 227, 120, 0.15)', padding: '3px 10px', borderRadius: 12, fontWeight: 700 }}>
                 Fullscreen Study Mode
               </span>
             </div>
@@ -2626,7 +2626,7 @@ function FlashcardDeck({ cards = [], onRegenerate }) {
                 background: currentIndex === 0 ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.12)',
                 border: 'none',
                 color: currentIndex === 0 ? 'rgba(255, 255, 255, 0.25)' : '#fff',
-                fontSize: 14,
+                fontSize: 14.5,
                 fontWeight: 700,
                 cursor: currentIndex === 0 ? 'not-allowed' : 'pointer',
               }}
@@ -2643,7 +2643,7 @@ function FlashcardDeck({ cards = [], onRegenerate }) {
                 background: 'rgba(64, 227, 120, 0.15)',
                 border: '1.5px solid var(--chatter-primary)',
                 color: 'var(--chatter-primary)',
-                fontSize: 14,
+                fontSize: 14.5,
                 fontWeight: 700,
                 cursor: 'pointer',
               }}
@@ -2661,7 +2661,7 @@ function FlashcardDeck({ cards = [], onRegenerate }) {
                 background: currentIndex === cards.length - 1 ? 'rgba(255, 255, 255, 0.05)' : 'var(--chatter-primary)',
                 border: 'none',
                 color: currentIndex === cards.length - 1 ? 'rgba(255, 255, 255, 0.25)' : '#0E0E0E',
-                fontSize: 14,
+                fontSize: 14.5,
                 fontWeight: 700,
                 cursor: currentIndex === cards.length - 1 ? 'not-allowed' : 'pointer',
               }}

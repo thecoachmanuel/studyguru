@@ -240,7 +240,7 @@ export default function ChatterChatsView({
           >
             <span>Requests</span>
             {studyRequests.length > 0 && (
-              <span style={{ fontSize: 10, background: 'var(--chatter-primary)', color: '#0E0E0E', padding: '1px 6px', borderRadius: 10, fontWeight: 800 }}>
+              <span style={{ fontSize: 12.5, background: 'var(--chatter-primary)', color: '#0E0E0E', padding: '1px 6px', borderRadius: 10, fontWeight: 800 }}>
                 {studyRequests.length}
               </span>
             )}
@@ -257,7 +257,7 @@ export default function ChatterChatsView({
               background: 'var(--chatter-primary)',
               border: 'none',
               color: '#0E0E0E',
-              fontSize: 12.5,
+              fontSize: 13.5,
               fontWeight: 750,
               cursor: 'pointer',
               display: 'flex',
@@ -303,7 +303,7 @@ export default function ChatterChatsView({
               background: 'transparent',
               border: 'none',
               color: '#fff',
-              fontSize: 14,
+              fontSize: 16,
               outline: 'none',
               width: '100%',
             }}
@@ -316,7 +316,7 @@ export default function ChatterChatsView({
       {activeSegment === 0 && (
         <div style={{ padding: '0 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ fontSize: 13, color: 'var(--chatter-light-text)', fontWeight: 600 }}>
+            <span style={{ fontSize: 14, color: 'var(--chatter-light-text)', fontWeight: 600 }}>
               Recent Messages ({filteredDMs.length})
             </span>
             <button
@@ -327,7 +327,7 @@ export default function ChatterChatsView({
                 border: '1px solid rgba(64, 227, 120, 0.3)',
                 color: 'var(--chatter-primary)',
                 fontWeight: 700,
-                fontSize: 12.5,
+                fontSize: 13.5,
                 padding: '5px 12px',
                 borderRadius: 14,
                 cursor: 'pointer',
@@ -352,10 +352,10 @@ export default function ChatterChatsView({
               }}
             >
               <div style={{ fontSize: 32, marginBottom: 12 }}>💬</div>
-              <h4 style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginBottom: 6 }}>
+              <h4 style={{ fontSize: 18, fontWeight: 700, color: '#fff', marginBottom: 6 }}>
                 No Direct Messages Yet
               </h4>
-              <p style={{ fontSize: 13, color: 'var(--chatter-light-text)', margin: '0 0 16px 0' }}>
+              <p style={{ fontSize: 14, color: 'var(--chatter-light-text)', margin: '0 0 16px 0' }}>
                 Start a private study conversation with any classmate or study partner.
               </p>
               <button
@@ -367,7 +367,7 @@ export default function ChatterChatsView({
                   background: 'var(--chatter-primary)',
                   border: 'none',
                   color: '#0E0E0E',
-                  fontSize: 13,
+                  fontSize: 14.5,
                   fontWeight: 700,
                   cursor: 'pointer',
                 }}
@@ -453,17 +453,17 @@ export default function ChatterChatsView({
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <h4 style={{ fontSize: 15, fontWeight: 700, color: '#fff', margin: 0 }}>
+                        <h4 style={{ fontSize: 15.5, fontWeight: 700, color: '#fff', margin: 0 }}>
                           {dm.user.name}
                         </h4>
                         <TwitterVerifiedBadge />
                       </div>
-                      <span style={{ fontSize: 11.5, color: 'var(--chatter-light-text)' }}>
+                      <span style={{ fontSize: 13, color: 'var(--chatter-light-text)' }}>
                         {dm.timestamp}
                       </span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <p style={{ fontSize: 13, color: 'var(--chatter-light-text)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '85%' }}>
+                      <p style={{ fontSize: 14, color: 'var(--chatter-light-text)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '85%' }}>
                         {dm.lastMessage}
                       </p>
                       {dm.unread > 0 && (
@@ -471,7 +471,7 @@ export default function ChatterChatsView({
                           style={{
                             background: 'var(--chatter-red)',
                             color: '#fff',
-                            fontSize: 11,
+                            fontSize: 12.5,
                             fontWeight: 700,
                             borderRadius: 10,
                             padding: '2px 7px',
@@ -545,10 +545,10 @@ export default function ChatterChatsView({
                       </div>
 
                       <div>
-                        <h4 style={{ fontSize: 15, fontWeight: 700, color: '#fff', margin: '0 0 2px 0' }}>
+                        <h4 style={{ fontSize: 16, fontWeight: 700, color: '#fff', margin: '0 0 2px 0' }}>
                           {room.name}
                         </h4>
-                        <div style={{ fontSize: 12, color: 'var(--chatter-light-text)' }}>
+                        <div style={{ fontSize: 13.5, color: 'var(--chatter-light-text)' }}>
                           {room.description ? room.description : `${memberCount} ${memberCount === 1 ? 'scholar' : 'scholars'} · Live Study Room`}
                         </div>
                       </div>
@@ -560,7 +560,7 @@ export default function ChatterChatsView({
                           style={{
                             background: 'var(--chatter-primary)',
                             color: '#0E0E0E',
-                            fontSize: 11,
+                            fontSize: 12.5,
                             fontWeight: 700,
                             borderRadius: 10,
                             padding: '2px 7px',
@@ -599,10 +599,10 @@ export default function ChatterChatsView({
               }}
             >
               <div style={{ fontSize: 32, marginBottom: 12 }}>📬</div>
-              <h4 style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginBottom: 6 }}>
+              <h4 style={{ fontSize: 18, fontWeight: 700, color: '#fff', marginBottom: 6 }}>
                 No Pending Study Requests
               </h4>
-              <p style={{ fontSize: 13, color: 'var(--chatter-light-text)', margin: 0 }}>
+              <p style={{ fontSize: 14, color: 'var(--chatter-light-text)', margin: 0 }}>
                 When classmates send you study partner invitations, they will appear here in real time.
               </p>
             </div>
@@ -662,17 +662,17 @@ export default function ChatterChatsView({
                       </div>
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ fontSize: 14.5, fontWeight: 700, color: '#fff' }}>{req.user.name}</span>
+                          <span style={{ fontSize: 15.5, fontWeight: 700, color: '#fff' }}>{req.user.name}</span>
                           <TwitterVerifiedBadge />
                         </div>
-                        <div style={{ fontSize: 12, color: 'var(--chatter-light-text)' }}>
+                        <div style={{ fontSize: 13.5, color: 'var(--chatter-light-text)' }}>
                           @{req.user.username} · {req.timestamp}
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  <p style={{ fontSize: 13.5, color: '#D4D4D4', lineHeight: 1.5, margin: '0 0 14px 0' }}>
+                  <p style={{ fontSize: 14.5, color: '#D4D4D4', lineHeight: 1.5, margin: '0 0 14px 0' }}>
                     &ldquo;{req.message}&rdquo;
                   </p>
 
@@ -688,7 +688,7 @@ export default function ChatterChatsView({
                         background: 'var(--chatter-primary)',
                         border: 'none',
                         color: '#0E0E0E',
-                        fontSize: 13,
+                        fontSize: 14.5,
                         fontWeight: 700,
                         cursor: actionLoadingId === req.id ? 'not-allowed' : 'pointer',
                         opacity: actionLoadingId === req.id ? 0.7 : 1,
@@ -707,7 +707,7 @@ export default function ChatterChatsView({
                         background: 'rgba(255, 255, 255, 0.08)',
                         border: 'none',
                         color: 'var(--chatter-light-text)',
-                        fontSize: 13,
+                        fontSize: 14.5,
                         fontWeight: 600,
                         cursor: actionLoadingId === req.id ? 'not-allowed' : 'pointer',
                         opacity: actionLoadingId === req.id ? 0.7 : 1,

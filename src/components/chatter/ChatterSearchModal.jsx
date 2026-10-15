@@ -193,7 +193,7 @@ export default function ChatterSearchModal({
                   background: 'transparent',
                   border: 'none',
                   color: '#fff',
-                  fontSize: 15,
+                  fontSize: 16,
                   outline: 'none',
                   width: '100%',
                   fontFamily: 'inherit',
@@ -214,7 +214,7 @@ export default function ChatterSearchModal({
                     alignItems: 'center',
                     justifyContent: 'center',
                     cursor: 'pointer',
-                    fontSize: 11,
+                    fontSize: 12.5,
                   }}
                   title="Clear search"
                 >
@@ -230,7 +230,7 @@ export default function ChatterSearchModal({
                 background: 'none',
                 border: 'none',
                 color: 'var(--chatter-light-text)',
-                fontSize: 14.5,
+                fontSize: 15,
                 fontWeight: 600,
                 cursor: 'pointer',
                 padding: '4px 8px',
@@ -260,7 +260,7 @@ export default function ChatterSearchModal({
                     background: 'transparent',
                     border: 'none',
                     color: isActive ? '#fff' : 'var(--chatter-light-text)',
-                    fontSize: 14.5,
+                    fontSize: 15.5,
                     fontWeight: isActive ? 750 : 500,
                     cursor: 'pointer',
                     position: 'relative',
@@ -295,7 +295,7 @@ export default function ChatterSearchModal({
             <div>
               {/* Trending Topics Pills */}
               <div style={{ marginBottom: 18 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--chatter-light-text)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 10 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--chatter-light-text)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 10 }}>
                   Trending Study Topics
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -313,7 +313,7 @@ export default function ChatterSearchModal({
                         background: 'rgba(255, 255, 255, 0.06)',
                         border: '1px solid rgba(255, 255, 255, 0.08)',
                         color: 'var(--chatter-primary)',
-                        fontSize: 13,
+                        fontSize: 13.5,
                         fontWeight: 600,
                         cursor: 'pointer',
                         transition: 'all 0.15s ease',
@@ -328,7 +328,7 @@ export default function ChatterSearchModal({
               {/* Suggested Scholars */}
               {studyPartners.length > 0 && (
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--chatter-light-text)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 10 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--chatter-light-text)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 10 }}>
                     Scholars You May Know
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -355,10 +355,10 @@ export default function ChatterSearchModal({
                             />
                             <div style={{ minWidth: 0 }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                <span style={{ fontSize: 14.5, fontWeight: 700, color: '#fff' }}>{partner.name}</span>
+                                <span style={{ fontSize: 15.5, fontWeight: 700, color: '#fff' }}>{partner.name}</span>
                                 <TwitterVerifiedBadge />
                               </div>
-                              <div style={{ fontSize: 12.5, color: 'var(--chatter-light-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              <div style={{ fontSize: 13.5, color: 'var(--chatter-light-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                 @{partner.username} · {partner.subject || 'Study Partner'}
                               </div>
                             </div>
@@ -372,7 +372,7 @@ export default function ChatterSearchModal({
                               background: isFollowing ? 'transparent' : 'var(--chatter-primary)',
                               border: isFollowing ? '1px solid rgba(255, 255, 255, 0.15)' : 'none',
                               color: isFollowing ? '#D4D4D4' : '#0E0E0E',
-                              fontSize: 12.5,
+                              fontSize: 13.5,
                               fontWeight: 700,
                               cursor: 'pointer',
                               flexShrink: 0,
@@ -395,7 +395,7 @@ export default function ChatterSearchModal({
               {/* Matching Scholars preview */}
               {studyPartners.length > 0 && (
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--chatter-light-text)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--chatter-light-text)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}>
                     People
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -422,10 +422,10 @@ export default function ChatterSearchModal({
                             />
                             <div style={{ minWidth: 0 }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                <span style={{ fontSize: 14.5, fontWeight: 700, color: '#fff' }}>{partner.name}</span>
+                                <span style={{ fontSize: 15.5, fontWeight: 700, color: '#fff' }}>{partner.name}</span>
                                 <TwitterVerifiedBadge />
                               </div>
-                              <div style={{ fontSize: 12.5, color: 'var(--chatter-light-text)' }}>
+                              <div style={{ fontSize: 13.5, color: 'var(--chatter-light-text)' }}>
                                 @{partner.username} · {partner.subject || 'Scholar'}
                               </div>
                             </div>
@@ -440,7 +440,7 @@ export default function ChatterSearchModal({
                                 background: isFollowing ? 'transparent' : 'rgba(64, 227, 120, 0.12)',
                                 border: isFollowing ? '1px solid rgba(255, 255, 255, 0.15)' : '1px solid rgba(64, 227, 120, 0.3)',
                                 color: isFollowing ? '#D4D4D4' : 'var(--chatter-primary)',
-                                fontSize: 12,
+                                fontSize: 13,
                                 fontWeight: 700,
                                 cursor: 'pointer',
                               }}
@@ -459,7 +459,7 @@ export default function ChatterSearchModal({
                                 background: 'var(--chatter-primary)',
                                 border: 'none',
                                 color: '#0E0E0E',
-                                fontSize: 12,
+                                fontSize: 13,
                                 fontWeight: 700,
                                 cursor: 'pointer',
                               }}
@@ -477,7 +477,7 @@ export default function ChatterSearchModal({
               {/* Matching Posts preview */}
               {filteredPosts.length > 0 && (
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--chatter-light-text)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8, marginTop: 6 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--chatter-light-text)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8, marginTop: 6 }}>
                     Posts
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -492,13 +492,13 @@ export default function ChatterSearchModal({
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                          <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{post.author}</span>
-                          <span style={{ fontSize: 12.5, color: 'var(--chatter-primary)', fontWeight: 600 }}>{post.tag}</span>
+                          <span style={{ fontSize: 15.5, fontWeight: 700, color: '#fff' }}>{post.author}</span>
+                          <span style={{ fontSize: 13.5, color: 'var(--chatter-primary)', fontWeight: 600 }}>{post.tag}</span>
                         </div>
-                        <p style={{ fontSize: 14, color: '#e7e9ea', lineHeight: 1.5, margin: '0 0 8px 0' }}>
+                        <p style={{ fontSize: 15.5, color: '#e7e9ea', lineHeight: 1.5, margin: '0 0 8px 0' }}>
                           {post.text}
                         </p>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 12, color: '#71767b' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 13.5, color: '#71767b' }}>
                           <span>❤️ {post.likes}</span>
                           <span>💬 {post.comments} replies</span>
                         </div>
@@ -511,7 +511,7 @@ export default function ChatterSearchModal({
               {/* Matching Rooms preview */}
               {filteredRooms.length > 0 && (
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--chatter-light-text)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8, marginTop: 6 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--chatter-light-text)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8, marginTop: 6 }}>
                     Study Rooms
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -529,8 +529,8 @@ export default function ChatterSearchModal({
                         }}
                       >
                         <div>
-                          <div style={{ fontSize: 14.5, fontWeight: 700, color: '#fff' }}>{server.name}</div>
-                          <div style={{ fontSize: 12, color: 'var(--chatter-light-text)' }}>
+                          <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>{server.name}</div>
+                          <div style={{ fontSize: 13, color: 'var(--chatter-light-text)' }}>
                             {server.member_count || 1} members · {server.channels?.length || 0} channels
                           </div>
                         </div>
@@ -546,7 +546,7 @@ export default function ChatterSearchModal({
                             background: 'var(--chatter-primary)',
                             border: 'none',
                             color: '#0E0E0E',
-                            fontSize: 12.5,
+                            fontSize: 13.5,
                             fontWeight: 700,
                             cursor: 'pointer',
                           }}
@@ -562,8 +562,8 @@ export default function ChatterSearchModal({
               {studyPartners.length === 0 && filteredPosts.length === 0 && filteredRooms.length === 0 && !loading && (
                 <div style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--chatter-light-text)' }}>
                   <div style={{ fontSize: 24, marginBottom: 8 }}>🔍</div>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: '#fff', marginBottom: 4 }}>No results for &quot;{searchQuery}&quot;</div>
-                  <div style={{ fontSize: 13 }}>Try searching for people, topics, or course groups</div>
+                  <div style={{ fontSize: 16, fontWeight: 600, color: '#fff', marginBottom: 4 }}>No results for &quot;{searchQuery}&quot;</div>
+                  <div style={{ fontSize: 14 }}>Try searching for people, topics, or course groups</div>
                 </div>
               )}
             </>
@@ -573,7 +573,7 @@ export default function ChatterSearchModal({
           {q && activeTab === 'people' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {studyPartners.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--chatter-light-text)' }}>
+                <div style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--chatter-light-text)', fontSize: 14.5 }}>
                   No scholars found matching &quot;{searchQuery}&quot;
                 </div>
               ) : (
@@ -600,10 +600,10 @@ export default function ChatterSearchModal({
                         />
                         <div style={{ minWidth: 0 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                            <span style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>{partner.name}</span>
+                            <span style={{ fontSize: 15.5, fontWeight: 700, color: '#fff' }}>{partner.name}</span>
                             <TwitterVerifiedBadge />
                           </div>
-                          <div style={{ fontSize: 13, color: 'var(--chatter-light-text)' }}>
+                          <div style={{ fontSize: 13.5, color: 'var(--chatter-light-text)' }}>
                             @{partner.username} · {partner.subject || 'Scholar'}
                           </div>
                         </div>
@@ -618,7 +618,7 @@ export default function ChatterSearchModal({
                             background: isFollowing ? 'transparent' : 'rgba(64, 227, 120, 0.12)',
                             border: isFollowing ? '1px solid rgba(255, 255, 255, 0.15)' : '1px solid rgba(64, 227, 120, 0.3)',
                             color: isFollowing ? '#D4D4D4' : 'var(--chatter-primary)',
-                            fontSize: 12.5,
+                            fontSize: 13.5,
                             fontWeight: 700,
                             cursor: 'pointer',
                           }}
@@ -637,7 +637,7 @@ export default function ChatterSearchModal({
                             background: 'var(--chatter-primary)',
                             border: 'none',
                             color: '#0E0E0E',
-                            fontSize: 12.5,
+                            fontSize: 13.5,
                             fontWeight: 700,
                             cursor: 'pointer',
                           }}
@@ -656,7 +656,7 @@ export default function ChatterSearchModal({
           {q && activeTab === 'posts' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {filteredPosts.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--chatter-light-text)' }}>
+                <div style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--chatter-light-text)', fontSize: 14.5 }}>
                   No posts found matching &quot;{searchQuery}&quot;
                 </div>
               ) : (
@@ -671,13 +671,13 @@ export default function ChatterSearchModal({
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                      <span style={{ fontSize: 14.5, fontWeight: 700, color: '#fff' }}>{post.author}</span>
-                      <span style={{ fontSize: 13, color: 'var(--chatter-primary)', fontWeight: 600 }}>{post.tag}</span>
+                      <span style={{ fontSize: 15.5, fontWeight: 700, color: '#fff' }}>{post.author}</span>
+                      <span style={{ fontSize: 13.5, color: 'var(--chatter-primary)', fontWeight: 600 }}>{post.tag}</span>
                     </div>
-                    <p style={{ fontSize: 15, color: '#e7e9ea', lineHeight: 1.55, margin: '0 0 10px 0' }}>
+                    <p style={{ fontSize: 15.5, color: '#e7e9ea', lineHeight: 1.55, margin: '0 0 10px 0' }}>
                       {post.text}
                     </p>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 13, color: '#71767b' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 13.5, color: '#71767b' }}>
                       <span>❤️ {post.likes} likes</span>
                       <span>💬 {post.comments} replies</span>
                     </div>
@@ -691,7 +691,7 @@ export default function ChatterSearchModal({
           {q && activeTab === 'rooms' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {filteredRooms.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--chatter-light-text)' }}>
+                <div style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--chatter-light-text)', fontSize: 14.5 }}>
                   No study rooms found matching &quot;{searchQuery}&quot;
                 </div>
               ) : (
@@ -710,7 +710,7 @@ export default function ChatterSearchModal({
                   >
                     <div>
                       <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginBottom: 2 }}>{server.name}</div>
-                      <div style={{ fontSize: 13, color: 'var(--chatter-light-text)' }}>
+                      <div style={{ fontSize: 13.5, color: 'var(--chatter-light-text)' }}>
                         {server.member_count || 1} members · {server.channels?.length || 0} channels
                       </div>
                     </div>
@@ -726,7 +726,7 @@ export default function ChatterSearchModal({
                         background: 'var(--chatter-primary)',
                         border: 'none',
                         color: '#0E0E0E',
-                        fontSize: 13,
+                        fontSize: 14,
                         fontWeight: 700,
                         cursor: 'pointer',
                       }}

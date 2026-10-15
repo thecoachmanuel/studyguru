@@ -128,10 +128,10 @@ export default function ChatterSidebarNav({
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
               <span className="chatter-audiospace-live-dot" />
               <div style={{ overflow: 'hidden' }}>
-                <div style={{ fontSize: 11, color: 'var(--chatter-primary)', fontWeight: 700 }}>
+                <div style={{ fontSize: 12.5, color: 'var(--chatter-primary)', fontWeight: 700 }}>
                   CONNECTED TO SPACE
                 </div>
-                <div style={{ fontSize: 12, color: '#fff', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                <div style={{ fontSize: 13, color: '#fff', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                   {activeVoiceChannelName || 'Audio Room'}
                 </div>
               </div>
@@ -214,10 +214,10 @@ export default function ChatterSidebarNav({
               />
             </div>
             <div style={{ overflow: 'hidden' }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+              <div style={{ fontSize: 14.5, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                 {profile?.name || 'Scholar'}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--chatter-light-text)' }}>
+              <div style={{ fontSize: 12.5, color: 'var(--chatter-light-text)' }}>
                 @{profile?.username || 'student'}
               </div>
             </div>

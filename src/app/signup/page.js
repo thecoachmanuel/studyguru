@@ -173,7 +173,7 @@ export default function SignupPage() {
               <span className="chatter-logo-tag__dot" style={{ width: 8, height: 8 }} />
             </div>
           </div>
-          <p style={{ fontSize: 14, color: '#888', margin: 0, fontWeight: 500 }}>
+          <p style={{ fontSize: 14.5, color: '#888', margin: 0, fontWeight: 500 }}>
             Join classmates & study groups across universities.
           </p>
         </div>
@@ -190,7 +190,7 @@ export default function SignupPage() {
             background: 'rgba(255, 255, 255, 0.06)',
             border: '1px solid rgba(255, 255, 255, 0.12)',
             color: '#fff',
-            fontSize: 14,
+            fontSize: 15,
             fontWeight: 600,
             cursor: 'pointer',
             display: 'flex',
@@ -213,7 +213,7 @@ export default function SignupPage() {
         {/* Divider */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
           <div style={{ flex: 1, height: 1, background: 'rgba(255, 255, 255, 0.08)' }} />
-          <span style={{ fontSize: 12, color: '#666', textTransform: 'uppercase', letterSpacing: '0.04em' }}>or email</span>
+          <span style={{ fontSize: 12.5, color: '#666', textTransform: 'uppercase', letterSpacing: '0.04em' }}>or email</span>
           <div style={{ flex: 1, height: 1, background: 'rgba(255, 255, 255, 0.08)' }} />
         </div>
 
@@ -226,7 +226,7 @@ export default function SignupPage() {
               background: 'rgba(239, 68, 68, 0.12)',
               border: '1px solid rgba(239, 68, 68, 0.3)',
               color: '#f87171',
-              fontSize: 13,
+              fontSize: 14,
               marginBottom: 16,
               display: 'flex',
               alignItems: 'center',
@@ -246,7 +246,7 @@ export default function SignupPage() {
               background: 'rgba(64, 227, 120, 0.12)',
               border: '1px solid rgba(64, 227, 120, 0.3)',
               color: 'var(--chatter-primary)',
-              fontSize: 13,
+              fontSize: 14,
               marginBottom: 16,
             }}
           >
@@ -257,7 +257,7 @@ export default function SignupPage() {
         {/* Credentials Form */}
         <form onSubmit={handleEmailSignup} style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
           <div>
-            <label style={{ fontSize: 12.5, fontWeight: 600, color: '#bbb', display: 'block', marginBottom: 6 }}>
+            <label style={{ fontSize: 14, fontWeight: 600, color: '#bbb', display: 'block', marginBottom: 6 }}>
               Email address
             </label>
             <input
@@ -274,7 +274,7 @@ export default function SignupPage() {
                 background: 'rgba(255, 255, 255, 0.05)',
                 border: '1px solid rgba(255, 255, 255, 0.1)',
                 color: '#fff',
-                fontSize: 14,
+                fontSize: 16,
                 outline: 'none',
                 boxSizing: 'border-box',
                 transition: 'border-color 0.15s ease',
@@ -285,7 +285,7 @@ export default function SignupPage() {
           </div>
 
           <div>
-            <label style={{ fontSize: 12.5, fontWeight: 600, color: '#bbb', display: 'block', marginBottom: 6 }}>
+            <label style={{ fontSize: 14, fontWeight: 600, color: '#bbb', display: 'block', marginBottom: 6 }}>
               Password (min. 8 characters)
             </label>
             <div style={{ position: 'relative' }}>
@@ -303,7 +303,7 @@ export default function SignupPage() {
                   background: 'rgba(255, 255, 255, 0.05)',
                   border: '1px solid rgba(255, 255, 255, 0.1)',
                   color: '#fff',
-                  fontSize: 14,
+                  fontSize: 16,
                   outline: 'none',
                   boxSizing: 'border-box',
                   transition: 'border-color 0.15s ease',
@@ -332,7 +332,7 @@ export default function SignupPage() {
           </div>
 
           <div>
-            <label style={{ fontSize: 12.5, fontWeight: 600, color: '#bbb', display: 'block', marginBottom: 6 }}>
+            <label style={{ fontSize: 14, fontWeight: 600, color: '#bbb', display: 'block', marginBottom: 6 }}>
               Confirm Password
             </label>
             <input
@@ -349,7 +349,7 @@ export default function SignupPage() {
                 background: 'rgba(255, 255, 255, 0.05)',
                 border: '1px solid rgba(255, 255, 255, 0.1)',
                 color: '#fff',
-                fontSize: 14,
+                fontSize: 16,
                 outline: 'none',
                 boxSizing: 'border-box',
                 transition: 'border-color 0.15s ease',
@@ -369,7 +369,7 @@ export default function SignupPage() {
               background: '#40e378',
               border: 'none',
               color: '#0E0E0E',
-              fontSize: 14.5,
+              fontSize: 15.5,
               fontWeight: 800,
               cursor: loadingSignup || !email.trim() || !password ? 'not-allowed' : 'pointer',
               opacity: loadingSignup || !email.trim() || !password ? 0.6 : 1,
@@ -381,7 +381,7 @@ export default function SignupPage() {
         </form>
 
         {/* Footer Link */}
-        <div style={{ textAlign: 'center', marginTop: 24, fontSize: 13, color: '#888' }}>
+        <div style={{ textAlign: 'center', marginTop: 24, fontSize: 14.5, color: '#888' }}>
           Already have an account?{' '}
           <Link href="/login" style={{ color: '#40e378', textDecoration: 'none', fontWeight: 700 }}>
             Sign In

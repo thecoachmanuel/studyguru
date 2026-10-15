@@ -197,20 +197,20 @@ export default function DirectMessagesModal({ currentUserId, onClose, initialRec
           }}
         >
           <div className="dm-sidebar-header">
-            <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700 }}>Direct Messages</h3>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700 }}>Direct Messages</h3>
+            <span style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>
               {conversations.length} {conversations.length === 1 ? 'chat' : 'chats'}
             </span>
           </div>
 
           <div style={{ flex: 1, overflowY: 'auto', padding: '6px 0' }}>
             {loading && (
-              <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', margin: '20px 0' }}>
+              <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px', margin: '20px 0' }}>
                 Loading chats…
               </p>
             )}
             {!loading && conversations.length === 0 && (
-              <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '12.5px', padding: '16px', margin: 0 }}>
+              <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px', padding: '16px', margin: 0 }}>
                 No direct messages yet. Coordinate private study sessions with group members!
               </p>
             )}
@@ -240,7 +240,7 @@ export default function DirectMessagesModal({ currentUserId, onClose, initialRec
                           alignItems: 'center',
                           justifyContent: 'center',
                           fontWeight: 700,
-                          fontSize: '13px',
+                          fontSize: '14px',
                         }}
                       >
                         {initials}
@@ -252,7 +252,7 @@ export default function DirectMessagesModal({ currentUserId, onClose, initialRec
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <div
                         style={{
-                          fontSize: '13px',
+                          fontSize: '15px',
                           fontWeight: 600,
                           color: 'var(--text-primary)',
                           whiteSpace: 'nowrap',
@@ -264,7 +264,7 @@ export default function DirectMessagesModal({ currentUserId, onClose, initialRec
                       </div>
                       <div
                         style={{
-                          fontSize: '11px',
+                          fontSize: '13px',
                           color: 'var(--text-muted)',
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
@@ -296,10 +296,10 @@ export default function DirectMessagesModal({ currentUserId, onClose, initialRec
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  <span style={{ fontSize: '15.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
                     @{activeConv.other_user?.username || activeConv.other_user?.name || 'Study Partner'}
                   </span>
-                  <span className="user-status-tag" style={{ fontSize: '10.5px' }}>
+                  <span className="user-status-tag" style={{ fontSize: '12.5px' }}>
                     {activeConv.other_user?.status?.emoji || '🟢'} {activeConv.other_user?.status?.state || 'Online'}
                   </span>
                 </div>
@@ -316,15 +316,15 @@ export default function DirectMessagesModal({ currentUserId, onClose, initialRec
               {/* Chat Message Stream */}
               <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {messagesLoading && (
-                  <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                  <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
                     Loading messages…
                   </p>
                 )}
                 {!messagesLoading && messages.length === 0 && (
                   <div style={{ textAlign: 'center', margin: 'auto', color: 'var(--text-muted)' }}>
                     <div style={{ fontSize: '28px', marginBottom: '8px' }}>💬</div>
-                    <p style={{ margin: 0, fontSize: '13.5px', fontWeight: 600 }}>Start your conversation</p>
-                    <p style={{ margin: 0, fontSize: '12px' }}>Send a message to coordinate your study plans.</p>
+                    <p style={{ margin: 0, fontSize: '15px', fontWeight: 600 }}>Start your conversation</p>
+                    <p style={{ margin: 0, fontSize: '13.5px' }}>Send a message to coordinate your study plans.</p>
                   </div>
                 )}
                 {!messagesLoading &&
@@ -344,7 +344,7 @@ export default function DirectMessagesModal({ currentUserId, onClose, initialRec
                             borderRadius: isOwn ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
                             background: isOwn ? 'var(--primary)' : 'var(--bg-elevated)',
                             color: isOwn ? '#fff' : 'var(--text-primary)',
-                            fontSize: '13.5px',
+                            fontSize: '16px',
                             lineHeight: 1.45,
                             border: isOwn ? 'none' : '1px solid var(--border)',
                             boxShadow: isOwn ? '0 2px 6px rgba(29, 78, 216, 0.2)' : 'none',
@@ -391,8 +391,8 @@ export default function DirectMessagesModal({ currentUserId, onClose, initialRec
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
               <div style={{ textAlign: 'center', maxWidth: '300px' }}>
                 <div style={{ fontSize: '32px', marginBottom: '10px' }}>✉️</div>
-                <h4 style={{ margin: '0 0 6px', fontSize: '16px' }}>Direct Messages</h4>
-                <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>
+                <h4 style={{ margin: '0 0 6px', fontSize: '18px' }}>Direct Messages</h4>
+                <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-muted)' }}>
                   Select an existing conversation on the left or reach out directly to any classmate.
                 </p>
               </div>

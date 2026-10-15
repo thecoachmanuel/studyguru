@@ -165,7 +165,7 @@ export default function ChatterRoomActionModal({
                   borderRadius: 14,
                   padding: '12px 14px',
                   color: '#fff',
-                  fontSize: 15.5,
+                  fontSize: 16,
                   outline: 'none',
                   boxSizing: 'border-box',
                 }}
@@ -184,7 +184,7 @@ export default function ChatterRoomActionModal({
                   background: 'rgba(255, 255, 255, 0.08)',
                   border: 'none',
                   color: '#fff',
-                  fontSize: 14.5,
+                  fontSize: 15,
                   fontWeight: 600,
                   cursor: 'pointer',
                 }}
@@ -200,7 +200,7 @@ export default function ChatterRoomActionModal({
                   background: 'var(--chatter-primary)',
                   border: 'none',
                   color: '#0E0E0E',
-                  fontSize: 14.5,
+                  fontSize: 15,
                   fontWeight: 700,
                   cursor: loading || !roomName.trim() ? 'not-allowed' : 'pointer',
                   opacity: loading || !roomName.trim() ? 0.6 : 1,
@@ -232,7 +232,7 @@ export default function ChatterRoomActionModal({
                   borderRadius: 14,
                   padding: '12px 14px',
                   color: '#fff',
-                  fontSize: 15.5,
+                  fontSize: 16,
                   outline: 'none',
                   boxSizing: 'border-box',
                 }}
@@ -250,7 +250,7 @@ export default function ChatterRoomActionModal({
                   background: 'rgba(255, 255, 255, 0.08)',
                   border: 'none',
                   color: '#fff',
-                  fontSize: 14.5,
+                  fontSize: 15,
                   fontWeight: 600,
                   cursor: 'pointer',
                 }}
@@ -266,7 +266,7 @@ export default function ChatterRoomActionModal({
                   background: 'var(--chatter-primary)',
                   border: 'none',
                   color: '#0E0E0E',
-                  fontSize: 14.5,
+                  fontSize: 15,
                   fontWeight: 700,
                   cursor: loading || !joinCode.trim() ? 'not-allowed' : 'pointer',
                   opacity: loading || !joinCode.trim() ? 0.6 : 1,

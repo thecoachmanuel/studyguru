@@ -146,7 +146,7 @@ export default function ChatterRightSidebar({
           <circle cx="11" cy="11" r="8" />
           <line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
-        <span style={{ fontSize: 14, color: 'var(--chatter-light-text)', fontWeight: 500 }}>
+        <span style={{ fontSize: 15, color: 'var(--chatter-light-text)', fontWeight: 500 }}>
           Search StudyCord...
         </span>
       </div>
@@ -161,10 +161,10 @@ export default function ChatterRightSidebar({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          <h3 style={{ fontSize: 17, fontWeight: 800, color: '#fff', margin: 0, letterSpacing: '-0.01em' }}>
+          <h3 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0, letterSpacing: '-0.01em' }}>
             Trending for You
           </h3>
-          <span style={{ fontSize: 12.5, color: 'var(--chatter-primary)', fontWeight: 700, cursor: 'pointer' }} onClick={onOpenRooms}>
+          <span style={{ fontSize: 13.5, color: 'var(--chatter-primary)', fontWeight: 700, cursor: 'pointer' }} onClick={onOpenRooms}>
             Explore
           </span>
         </div>
@@ -183,13 +183,13 @@ export default function ChatterRightSidebar({
               }}
               title={`Filter posts by ${item.tag}`}
             >
-              <span style={{ fontSize: 12, color: 'var(--chatter-light-text)', fontWeight: 500 }}>
+              <span style={{ fontSize: 12.5, color: 'var(--chatter-light-text)', fontWeight: 500 }}>
                 Trending in {item.category}
               </span>
-              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--chatter-primary)' }}>
+              <span style={{ fontSize: 15.5, fontWeight: 700, color: 'var(--chatter-primary)' }}>
                 {item.tag}
               </span>
-              <span style={{ fontSize: 12.5, color: 'var(--chatter-light-text)' }}>
+              <span style={{ fontSize: 13, color: 'var(--chatter-light-text)' }}>
                 {item.postsCount}
               </span>
             </div>
@@ -206,7 +206,7 @@ export default function ChatterRightSidebar({
           border: '1px solid rgba(255, 255, 255, 0.06)',
         }}
       >
-        <h3 style={{ fontSize: 17, fontWeight: 800, color: '#fff', margin: '0 0 14px 0', letterSpacing: '-0.01em' }}>
+        <h3 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: '0 0 14px 0', letterSpacing: '-0.01em' }}>
           Who to Follow
         </h3>
 
@@ -251,12 +251,12 @@ export default function ChatterRightSidebar({
                   />
                   <div style={{ minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <span style={{ fontSize: 14.5, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span style={{ fontSize: 15.5, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {scholar.name}
                       </span>
                       <TwitterVerifiedBadge />
                     </div>
-                    <div style={{ fontSize: 12, color: 'var(--chatter-light-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <div style={{ fontSize: 13, color: 'var(--chatter-light-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       @{scholar.username} · {scholar.major}
                     </div>
                   </div>
@@ -271,7 +271,7 @@ export default function ChatterRightSidebar({
                     background: isFollowing ? 'transparent' : 'var(--chatter-primary)',
                     border: isFollowing ? '1px solid rgba(255, 255, 255, 0.15)' : 'none',
                     color: isFollowing ? '#D4D4D4' : '#0E0E0E',
-                    fontSize: 12.5,
+                    fontSize: 13.5,
                     fontWeight: 700,
                     cursor: 'pointer',
                     flexShrink: 0,
@@ -303,21 +303,21 @@ export default function ChatterRightSidebar({
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 18 }}>⚡</span>
-          <span style={{ fontSize: 15, fontWeight: 800, color: '#fff' }}>AI Guru</span>
-          <span style={{ fontSize: 11, background: 'var(--chatter-primary)', color: '#0E0E0E', padding: '2px 7px', borderRadius: 8, fontWeight: 800 }}>
+          <span style={{ fontSize: 16, fontWeight: 800, color: '#fff' }}>AI Guru</span>
+          <span style={{ fontSize: 12.5, background: 'var(--chatter-primary)', color: '#0E0E0E', padding: '2px 7px', borderRadius: 8, fontWeight: 800 }}>
             Active
           </span>
         </div>
-        <p style={{ fontSize: 13, color: '#D4D4D4', margin: 0, lineHeight: 1.45 }}>
+        <p style={{ fontSize: 14, color: '#D4D4D4', margin: 0, lineHeight: 1.45 }}>
           Upload PDFs, ask course questions, or create automated recall quizzes in real time.
         </p>
-        <span style={{ fontSize: 12.5, color: 'var(--chatter-primary)', fontWeight: 700 }}>
+        <span style={{ fontSize: 13.5, color: 'var(--chatter-primary)', fontWeight: 700 }}>
           Launch Tutor Session →
         </span>
       </div>
 
       {/* ── 5. Clean Desktop Footer ── */}
-      <footer style={{ padding: '0 4px', fontSize: 12, color: 'var(--chatter-light-text)', lineHeight: 1.6 }}>
+      <footer style={{ padding: '0 4px', fontSize: 12.5, color: 'var(--chatter-light-text)', lineHeight: 1.6 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 12px' }}>
           <a href="/terms" style={{ color: 'inherit', textDecoration: 'none' }}>Terms of Service</a>
           <a href="/privacy" style={{ color: 'inherit', textDecoration: 'none' }}>Privacy Policy</a>
@@ -325,7 +325,7 @@ export default function ChatterRightSidebar({
           <a href="/technology" style={{ color: 'inherit', textDecoration: 'none' }}>Technology</a>
           <a href="/team" style={{ color: 'inherit', textDecoration: 'none' }}>Team</a>
         </div>
-        <div style={{ marginTop: 6, fontSize: 11.5, opacity: 0.8 }}>
+        <div style={{ marginTop: 6, fontSize: 12, opacity: 0.8 }}>
           © 2026 StudyCord · Built for scholars
         </div>
       </footer>

@@ -176,7 +176,7 @@ export default function ChatterAudioSpaceModal({
         </button>
 
         <div style={{ textAlign: 'center', maxWidth: '60%', overflow: 'hidden' }}>
-          <h2 style={{ fontSize: 19, fontWeight: 800, margin: '0 0 3px 0', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+          <h2 style={{ fontSize: 20, fontWeight: 800, margin: '0 0 3px 0', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
             {channelName || 'Live Study Space'}
           </h2>
           <div style={{ fontSize: 13.5, color: 'var(--chatter-primary)', fontWeight: 600 }}>
@@ -186,7 +186,7 @@ export default function ChatterAudioSpaceModal({
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           {/* Speakers count */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 14.5, color: '#D4D4D4' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 14, color: '#D4D4D4' }}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
               <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
@@ -195,7 +195,7 @@ export default function ChatterAudioSpaceModal({
           </div>
 
           {/* Listeners count */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 14.5, color: '#D4D4D4' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 14, color: '#D4D4D4' }}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
               <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
@@ -297,7 +297,7 @@ export default function ChatterAudioSpaceModal({
                   Live Video Stage ({totalVideos})
                 </div>
                 {raisedHand && (
-                  <span style={{ fontSize: 12, background: 'rgba(64, 227, 120, 0.16)', color: 'var(--chatter-primary)', padding: '3px 9px', borderRadius: 12, fontWeight: 700 }}>
+                  <span style={{ fontSize: 12.5, background: 'rgba(64, 227, 120, 0.16)', color: 'var(--chatter-primary)', padding: '3px 9px', borderRadius: 12, fontWeight: 700 }}>
                     ✋ Hand Raised
                   </span>
                 )}
@@ -389,7 +389,7 @@ export default function ChatterAudioSpaceModal({
                       }}
                     >
                       <span>{profile?.name || 'You'} (You)</span>
-                      {isScreenSharing && <span style={{ fontSize: 11, color: 'var(--chatter-primary)' }}>· Screen</span>}
+                      {isScreenSharing && <span style={{ fontSize: 12, color: 'var(--chatter-primary)' }}>· Screen</span>}
                     </div>
                   </div>
                 )}
@@ -417,7 +417,7 @@ export default function ChatterAudioSpaceModal({
 
         {/* Section: Speakers on Stage */}
         <div style={{ marginBottom: 28 }}>
-          <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--chatter-primary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--chatter-primary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>
             Speakers ({speakers.length})
           </div>
 
@@ -529,10 +529,10 @@ export default function ChatterAudioSpaceModal({
                     </div>
                   </div>
 
-                  <span style={{ marginTop: 10, fontSize: 14.5, fontWeight: 600, color: '#fff', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ marginTop: 10, fontSize: 15.5, fontWeight: 600, color: '#fff', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {speaker.name} {isMe && '(You)'}
                   </span>
-                  <span style={{ fontSize: 13, color: isSpeaking ? 'var(--chatter-primary)' : 'var(--chatter-light-text)' }}>
+                  <span style={{ fontSize: 13.5, color: isSpeaking ? 'var(--chatter-primary)' : 'var(--chatter-light-text)' }}>
                     {isSpeaking ? 'Speaking' : 'Muted'}
                   </span>
                 </div>
@@ -544,7 +544,7 @@ export default function ChatterAudioSpaceModal({
         {/* Section: Listeners */}
         {listeners.length > 0 && (
           <div>
-            <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--chatter-light-text)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--chatter-light-text)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>
               Listeners ({listeners.length})
             </div>
 
@@ -597,7 +597,7 @@ export default function ChatterAudioSpaceModal({
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            fontSize: 11,
+                            fontSize: 12,
                             border: '2px solid var(--chatter-black)',
                             boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
                             zIndex: 2,
@@ -608,7 +608,7 @@ export default function ChatterAudioSpaceModal({
                         </div>
                       )}
                     </div>
-                    <span style={{ marginTop: 8, fontSize: 13.5, color: 'var(--chatter-light-text)', maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span style={{ marginTop: 8, fontSize: 14, color: 'var(--chatter-light-text)', maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {listener.name} {isMe && '(You)'}
                     </span>
                   </div>
@@ -656,7 +656,7 @@ export default function ChatterAudioSpaceModal({
             color: raisedHand ? 'var(--chatter-primary)' : '#fff',
             borderRadius: 24,
             padding: '10px 18px',
-            fontSize: 14.5,
+            fontSize: 15,
             fontWeight: 700,
             cursor: 'pointer',
             display: 'flex',
@@ -778,7 +778,7 @@ export default function ChatterAudioSpaceModal({
             color: 'var(--chatter-red)',
             borderRadius: 24,
             padding: '10px 20px',
-            fontSize: 14.5,
+            fontSize: 15,
             fontWeight: 700,
             cursor: 'pointer',
             transition: 'all 0.15s ease',
@@ -887,7 +887,7 @@ function RemoteVideoTile({ remoteUserId, stream, participant, isSpeaking, totalV
               {participant?.name?.[0]?.toUpperCase() || 'P'}
             </div>
           )}
-          <span style={{ fontSize: 14.5, color: '#fff', fontWeight: 600 }}>{participant?.name || 'Scholar'}</span>
+          <span style={{ fontSize: 15.5, color: '#fff', fontWeight: 600 }}>{participant?.name || 'Scholar'}</span>
         </div>
       )}
 
@@ -902,7 +902,7 @@ function RemoteVideoTile({ remoteUserId, stream, participant, isSpeaking, totalV
             color: '#0E0E0E',
             padding: '4px 10px',
             borderRadius: 12,
-            fontSize: 12,
+            fontSize: 12.5,
             fontWeight: 800,
             boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
             display: 'flex',
@@ -924,7 +924,7 @@ function RemoteVideoTile({ remoteUserId, stream, participant, isSpeaking, totalV
           backdropFilter: 'blur(4px)',
           padding: '4px 10px',
           borderRadius: 10,
-          fontSize: 13,
+          fontSize: 13.5,
           fontWeight: 600,
           color: '#fff',
           display: 'flex',

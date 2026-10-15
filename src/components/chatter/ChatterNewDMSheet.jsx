@@ -103,10 +103,10 @@ export default function ChatterNewDMSheet({
         {/* Sheet Header */}
         <div style={{ padding: '8px 20px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
           <div>
-            <h3 style={{ fontSize: 17, fontWeight: 800, color: '#fff', margin: '0 0 2px 0' }}>
+            <h3 style={{ fontSize: 20, fontWeight: 800, color: '#fff', margin: '0 0 2px 0' }}>
               New Direct Message
             </h3>
-            <p style={{ fontSize: 12, color: 'var(--chatter-light-text)', margin: 0 }}>
+            <p style={{ fontSize: 13.5, color: 'var(--chatter-light-text)', margin: 0 }}>
               Select a classmate or study partner to chat directly
             </p>
           </div>
@@ -157,7 +157,7 @@ export default function ChatterNewDMSheet({
                 background: 'transparent',
                 border: 'none',
                 color: '#fff',
-                fontSize: 14,
+                fontSize: 16,
                 outline: 'none',
                 width: '100%',
               }}
@@ -168,11 +168,11 @@ export default function ChatterNewDMSheet({
         {/* User list */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {loading ? (
-            <div style={{ textAlign: 'center', padding: '30px 10px', color: 'var(--chatter-light-text)', fontSize: 13 }}>
+            <div style={{ textAlign: 'center', padding: '30px 10px', color: 'var(--chatter-light-text)', fontSize: 14 }}>
               Searching classmates...
             </div>
           ) : candidates.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '30px 10px', color: 'var(--chatter-light-text)', fontSize: 13 }}>
+            <div style={{ textAlign: 'center', padding: '30px 10px', color: 'var(--chatter-light-text)', fontSize: 14 }}>
               {searchQuery ? `No classmates found matching "${searchQuery}"` : 'No study partners found yet.'}
             </div>
           ) : (
@@ -239,10 +239,10 @@ export default function ChatterNewDMSheet({
                   </div>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 14.5, fontWeight: 700, color: '#fff' }}>{user.name}</span>
+                      <span style={{ fontSize: 15.5, fontWeight: 700, color: '#fff' }}>{user.name}</span>
                       <TwitterVerifiedBadge />
                     </div>
-                    <div style={{ fontSize: 12, color: 'var(--chatter-light-text)' }}>
+                    <div style={{ fontSize: 13.5, color: 'var(--chatter-light-text)' }}>
                       @{user.username} · {user.subject}
                     </div>
                   </div>
@@ -256,7 +256,7 @@ export default function ChatterNewDMSheet({
                     background: 'var(--chatter-primary)',
                     border: 'none',
                     color: '#0E0E0E',
-                    fontSize: 12.5,
+                    fontSize: 13.5,
                     fontWeight: 700,
                     cursor: 'pointer',
                   }}

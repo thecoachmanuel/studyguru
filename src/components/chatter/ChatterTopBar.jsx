@@ -106,7 +106,7 @@ export default function ChatterTopBar({
             </button>
           </div>
         ) : title ? (
-          <div style={{ fontSize: 17, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' }}>
+          <div style={{ fontSize: 19, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' }}>
             {title}
           </div>
         ) : (

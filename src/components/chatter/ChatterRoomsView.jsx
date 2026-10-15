@@ -192,7 +192,7 @@ export default function ChatterRoomsView({
             <h2 style={{ fontSize: 22, fontWeight: 800, color: '#fff', margin: 0, letterSpacing: '-0.01em' }}>
               Study Rooms
             </h2>
-            <span style={{ fontSize: 13, background: 'rgba(64, 227, 120, 0.16)', color: 'var(--chatter-primary)', padding: '3px 10px', borderRadius: 12, fontWeight: 700 }}>
+            <span style={{ fontSize: 13.5, background: 'rgba(64, 227, 120, 0.16)', color: 'var(--chatter-primary)', padding: '3px 10px', borderRadius: 12, fontWeight: 700 }}>
               {servers.length}
             </span>
           </div>
@@ -206,7 +206,7 @@ export default function ChatterRoomsView({
                 background: 'rgba(255, 255, 255, 0.08)',
                 border: '1px solid rgba(255, 255, 255, 0.1)',
                 color: '#fff',
-                fontSize: 13.5,
+                fontSize: 14.5,
                 fontWeight: 700,
                 cursor: 'pointer',
                 display: 'flex',
@@ -231,7 +231,7 @@ export default function ChatterRoomsView({
                 background: 'var(--chatter-primary)',
                 border: 'none',
                 color: '#0E0E0E',
-                fontSize: 13.5,
+                fontSize: 14.5,
                 fontWeight: 800,
                 cursor: 'pointer',
                 display: 'flex',
@@ -246,7 +246,7 @@ export default function ChatterRoomsView({
             </button>
           </div>
         </div>
-        <p style={{ fontSize: 14, lineHeight: 1.5, color: 'var(--chatter-light-text)', margin: '0 0 16px 0' }}>
+        <p style={{ fontSize: 14.5, lineHeight: 1.5, color: 'var(--chatter-light-text)', margin: '0 0 16px 0' }}>
           Collaborative course groups, textbook revision channels, and shared study materials.
         </p>
 
@@ -262,7 +262,7 @@ export default function ChatterRoomsView({
             }}
           >
             <div style={{ fontSize: 28, marginBottom: 8 }}>📚</div>
-            <div style={{ fontSize: 16, fontWeight: 600, color: '#fff' }}>No study rooms under #{selectedInterest}</div>
+            <div style={{ fontSize: 18, fontWeight: 600, color: '#fff' }}>No study rooms under #{selectedInterest}</div>
             <button
               type="button"
               onClick={() => setSelectedInterest('All')}
@@ -273,7 +273,7 @@ export default function ChatterRoomsView({
                 background: 'rgba(255, 255, 255, 0.08)',
                 border: 'none',
                 color: 'var(--chatter-primary)',
-                fontSize: 13.5,
+                fontSize: 14.5,
                 fontWeight: 600,
                 cursor: 'pointer',
               }}
@@ -376,7 +376,7 @@ export default function ChatterRoomsView({
                         background: isCopied ? 'rgba(64, 227, 120, 0.2)' : 'rgba(255, 255, 255, 0.06)',
                         border: isCopied ? '1px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
                         color: isCopied ? 'var(--chatter-primary)' : '#D4D4D4',
-                        fontSize: 13.5,
+                        fontSize: 14,
                         fontWeight: 600,
                         cursor: 'pointer',
                         display: 'flex',
@@ -412,7 +412,7 @@ export default function ChatterRoomsView({
                         background: copiedLinkId === server.id ? 'rgba(64, 227, 120, 0.2)' : 'rgba(255, 255, 255, 0.06)',
                         border: copiedLinkId === server.id ? '1px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
                         color: copiedLinkId === server.id ? 'var(--chatter-primary)' : '#D4D4D4',
-                        fontSize: 13.5,
+                        fontSize: 14,
                         fontWeight: 600,
                         cursor: 'pointer',
                         display: 'flex',
@@ -452,7 +452,7 @@ export default function ChatterRoomsView({
                         background: 'var(--chatter-primary)',
                         border: 'none',
                         color: '#0E0E0E',
-                        fontSize: 14,
+                        fontSize: 15,
                         fontWeight: 700,
                         cursor: 'pointer',
                         transition: 'all 0.15s ease',
@@ -489,7 +489,7 @@ export default function ChatterRoomsView({
               background: 'rgba(64, 227, 120, 0.15)',
               border: '1px solid var(--chatter-primary)',
               color: 'var(--chatter-primary)',
-              fontSize: 13.5,
+              fontSize: 14.5,
               fontWeight: 700,
               cursor: 'pointer',
               whiteSpace: 'nowrap',
@@ -503,7 +503,7 @@ export default function ChatterRoomsView({
             <span>+ Start Space</span>
           </button>
         </div>
-        <p style={{ fontSize: 14, lineHeight: 1.5, color: 'var(--chatter-light-text)', margin: '0 0 16px 0' }}>
+        <p style={{ fontSize: 14.5, lineHeight: 1.5, color: 'var(--chatter-light-text)', margin: '0 0 16px 0' }}>
           Drop-in audio study spaces. Join as a listener or unmute to discuss topics with peers in real time.
         </p>
 
@@ -519,10 +519,10 @@ export default function ChatterRoomsView({
             }}
           >
             <div style={{ fontSize: 30, marginBottom: 8 }}>🎙️</div>
-            <div style={{ fontSize: 17, fontWeight: 700, color: '#fff', marginBottom: 6 }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: '#fff', marginBottom: 6 }}>
               No active live audio spaces
             </div>
-            <p style={{ fontSize: 14.5, lineHeight: 1.5, color: 'var(--chatter-light-text)', margin: '0 0 16px 0' }}>
+            <p style={{ fontSize: 15, lineHeight: 1.5, color: 'var(--chatter-light-text)', margin: '0 0 16px 0' }}>
               Host a live audio space to discuss assignments, review flashcards, or study together with peers.
             </p>
             <button
@@ -534,7 +534,7 @@ export default function ChatterRoomsView({
                 background: 'var(--chatter-primary)',
                 border: 'none',
                 color: '#0E0E0E',
-                fontSize: 14,
+                fontSize: 15,
                 fontWeight: 700,
                 cursor: 'pointer',
               }}
@@ -613,7 +613,7 @@ export default function ChatterRoomsView({
                       background: 'var(--chatter-primary)',
                       border: 'none',
                       color: '#0E0E0E',
-                      fontSize: 14,
+                      fontSize: 15,
                       fontWeight: 700,
                       cursor: 'pointer',
                     }}
@@ -802,7 +802,7 @@ export default function ChatterRoomsView({
 
             <form onSubmit={handleCreateSpaceSubmit}>
               <div style={{ marginBottom: 18 }}>
-                <label style={{ display: 'block', fontSize: 13.5, fontWeight: 700, color: '#b5b5b5', marginBottom: 6 }}>
+                <label style={{ display: 'block', fontSize: 14, fontWeight: 700, color: '#b5b5b5', marginBottom: 6 }}>
                   Space Topic / Title
                 </label>
                 <input
@@ -819,7 +819,7 @@ export default function ChatterRoomsView({
                     background: 'var(--chatter-black)',
                     border: '1px solid rgba(255, 255, 255, 0.12)',
                     color: '#fff',
-                    fontSize: 15,
+                    fontSize: 16,
                     outline: 'none',
                     boxSizing: 'border-box',
                   }}
@@ -827,7 +827,7 @@ export default function ChatterRoomsView({
               </div>
 
               <div style={{ marginBottom: 22 }}>
-                <label style={{ display: 'block', fontSize: 13.5, fontWeight: 700, color: '#b5b5b5', marginBottom: 6 }}>
+                <label style={{ display: 'block', fontSize: 14, fontWeight: 700, color: '#b5b5b5', marginBottom: 6 }}>
                   Subject Category
                 </label>
                 <select
@@ -840,7 +840,7 @@ export default function ChatterRoomsView({
                     background: 'var(--chatter-black)',
                     border: '1px solid rgba(255, 255, 255, 0.12)',
                     color: '#fff',
-                    fontSize: 15,
+                    fontSize: 16,
                     outline: 'none',
                     boxSizing: 'border-box',
                     cursor: 'pointer',
@@ -884,7 +884,7 @@ export default function ChatterRoomsView({
                     background: newSpaceTitle.trim() ? 'var(--chatter-primary)' : 'rgba(255, 255, 255, 0.1)',
                     border: 'none',
                     color: newSpaceTitle.trim() ? '#0E0E0E' : '#777',
-                    fontSize: 15,
+                    fontSize: 15.5,
                     fontWeight: 700,
                     cursor: newSpaceTitle.trim() ? 'pointer' : 'not-allowed',
                   }}

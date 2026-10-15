@@ -1356,7 +1356,7 @@ export default function RightPanel({
         .ai-history__item-type {
           flex-shrink: 0;
           color: var(--text-muted);
-          font-size: 11.5px;
+          font-size: 12.5px;
           letter-spacing: 0.05em;
         }
         .ai-history__item-date,
@@ -1534,7 +1534,7 @@ export default function RightPanel({
           justify-content: space-between;
         }
         .ai-sidebar-tutor-propel-badge {
-          font-size: 11px;
+          font-size: 12.5px;
           font-weight: 700;
           text-transform: uppercase;
           letter-spacing: 0.06em;
@@ -1564,7 +1564,7 @@ export default function RightPanel({
           cursor: pointer;
         }
         .ai-propel-tag {
-          font-size: 11px;
+          font-size: 12px;
           margin-left: 4px;
           opacity: 0.85;
           font-weight: 700;
@@ -1595,7 +1595,7 @@ export default function RightPanel({
           display: flex;
           align-items: center;
           gap: 5px;
-          font-size: 11.5px;
+          font-size: 13px;
           font-weight: 600;
           color: var(--text-muted);
           text-transform: uppercase;
@@ -1606,7 +1606,7 @@ export default function RightPanel({
           display: inline-flex;
           align-items: center;
           gap: 4px;
-          font-size: 11px;
+          font-size: 12.5px;
           font-weight: 500;
           color: var(--text-secondary);
           background: var(--bg-elevated);
@@ -1687,7 +1687,7 @@ export default function RightPanel({
           color: var(--text-secondary);
           padding: 4px 10px;
           border-radius: var(--radius-xs);
-          font-size: 11.5px;
+          font-size: 13px;
           cursor: pointer;
           transition: all var(--transition);
           white-space: nowrap;
@@ -1713,7 +1713,7 @@ export default function RightPanel({
           display: inline-flex;
           align-items: center;
           gap: 5px;
-          font-size: 11px;
+          font-size: 12.5px;
           color: var(--text-muted);
           background: var(--bg-surface);
           padding: 2px 8px;
@@ -1890,7 +1890,7 @@ export default function RightPanel({
             overflow: hidden !important;
             text-overflow: ellipsis !important;
             white-space: nowrap !important;
-            font-size: 11px !important;
+            font-size: 12.5px !important;
             padding: 2px 6px !important;
             border-radius: var(--radius-xs) !important;
             background-color: var(--bg-elevated) !important;
@@ -1905,7 +1905,7 @@ export default function RightPanel({
           }
           .ai-workspace-action-btn {
             padding: 5px 9px !important;
-            font-size: 11.5px !important;
+            font-size: 13.5px !important;
             font-weight: 500 !important;
             height: 28px !important;
             border-radius: var(--radius-sm) !important;
@@ -2126,11 +2126,11 @@ export default function RightPanel({
             flex-shrink: 0 !important;
           }
           .ai-tutor-prompts-label {
-            font-size: 11px !important;
+            font-size: 12.5px !important;
             letter-spacing: 0.02em !important;
           }
           .ai-tutor-toggle-pill {
-            font-size: 10px !important;
+            font-size: 12px !important;
             padding: 2px 7px !important;
           }
           .ai-tutor-prompts-chips {
@@ -2150,7 +2150,7 @@ export default function RightPanel({
             flex-shrink: 0 !important;
             white-space: nowrap !important;
             padding: 5px 10px !important;
-            font-size: 11.5px !important;
+            font-size: 13px !important;
           }
           .ai-sidebar-tutor-chips {
             display: flex !important;
@@ -2375,7 +2375,7 @@ export default function RightPanel({
           padding: 12px 16px;
           border-radius: var(--radius-md);
           line-height: 1.55;
-          font-size: 14.5px;
+          font-size: 16px;
           word-break: break-word;
         }
         .ai-message--ai .ai-message__bubble {
@@ -2391,7 +2391,7 @@ export default function RightPanel({
           font-weight: 450;
         }
         .ai-message__time {
-          font-size: 11.5px;
+          font-size: 13px;
           color: var(--text-muted);
           margin-top: 4px;
           display: block;
@@ -2437,13 +2437,13 @@ export default function RightPanel({
           background: transparent;
           border: none;
           color: var(--text-primary);
-          font-size: 14.5px;
+          font-size: 16px;
           padding: 10px 14px;
           outline: none;
         }
         .ai-chat-submit {
           padding: 10px 22px;
-          font-size: 13.5px;
+          font-size: 15px;
           font-weight: 600;
           border: none;
           border-radius: var(--radius-sm);
@@ -2514,7 +2514,7 @@ export default function RightPanel({
           border-color: var(--border-subtle);
         }
         .ai-flashcard__label {
-          font-size: 11.5px;
+          font-size: 12.5px;
           text-transform: uppercase;
           letter-spacing: 0.12em;
           color: var(--text-muted);
@@ -2979,10 +2979,10 @@ export default function RightPanel({
                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px 4px', cursor: 'pointer', userSelect: 'none' }}
                         title={tutorPromptsCollapsed ? 'Show suggestions' : 'Hide suggestions'}
                       >
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>
+                        <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: 600 }}>
                           💡 Suggestions
                         </span>
-                        <span style={{ fontSize: '10.5px', color: 'var(--text-secondary)' }}>
+                        <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>
                           {tutorPromptsCollapsed ? 'Show ▾' : 'Hide ▴'}
                         </span>
                       </div>
