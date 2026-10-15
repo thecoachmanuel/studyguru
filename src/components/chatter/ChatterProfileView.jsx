@@ -549,12 +549,12 @@ export default function ChatterProfileView({
                 setEditProfileOpen(true);
               }}
               style={{
-                padding: '8px 15px',
+                padding: '8px 16px',
                 borderRadius: 20,
                 background: 'rgba(64, 227, 120, 0.12)',
                 border: '1px solid rgba(64, 227, 120, 0.3)',
                 color: 'var(--chatter-primary)',
-                fontSize: 12.5,
+                fontSize: 14,
                 fontWeight: 700,
                 cursor: 'pointer',
               }}
@@ -565,12 +565,12 @@ export default function ChatterProfileView({
               type="button"
               onClick={onOpenStatusModal}
               style={{
-                padding: '8px 15px',
+                padding: '8px 16px',
                 borderRadius: 20,
                 background: 'rgba(255, 255, 255, 0.08)',
                 border: 'none',
                 color: '#fff',
-                fontSize: 12.5,
+                fontSize: 14,
                 fontWeight: 600,
                 cursor: 'pointer',
               }}
@@ -581,12 +581,12 @@ export default function ChatterProfileView({
               type="button"
               onClick={onLogout}
               style={{
-                padding: '8px 15px',
+                padding: '8px 16px',
                 borderRadius: 20,
                 background: 'rgba(255, 57, 57, 0.15)',
                 border: 'none',
                 color: 'var(--chatter-red)',
-                fontSize: 12.5,
+                fontSize: 14,
                 fontWeight: 600,
                 cursor: 'pointer',
               }}

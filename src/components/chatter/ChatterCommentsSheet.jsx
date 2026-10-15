@@ -173,7 +173,7 @@ export default function ChatterCommentsSheet({
             alt={post.author?.name}
             style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }}
           />
-          <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: '#AEAEAE', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: '#AEAEAE', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.4 }}>
             <strong style={{ color: '#fff' }}>{post.author?.name}</strong>: {post.text}
           </div>
         </div>
@@ -206,10 +206,10 @@ export default function ChatterCommentsSheet({
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 13.5, fontWeight: 700, color: '#fff' }}>
+                      <span style={{ fontSize: 14.5, fontWeight: 700, color: '#fff', letterSpacing: '-0.01em' }}>
                         {comment.author?.name}
                       </span>
-                      <span style={{ fontSize: 11, color: 'var(--chatter-light-text)' }}>
+                      <span style={{ fontSize: 13, color: 'var(--chatter-light-text)', fontWeight: 400 }}>
                         {comment.timestamp}
                       </span>
                     </div>
@@ -226,7 +226,8 @@ export default function ChatterCommentsSheet({
                         display: 'flex',
                         alignItems: 'center',
                         gap: 4,
-                        fontSize: 11,
+                        fontSize: 12,
+                        fontWeight: 500,
                         padding: '2px 4px',
                       }}
                     >
@@ -237,7 +238,7 @@ export default function ChatterCommentsSheet({
                     </button>
                   </div>
 
-                  <p style={{ margin: 0, fontSize: 13.5, color: '#E0E0E0', lineHeight: 1.45, wordBreak: 'break-word' }}>
+                  <p style={{ margin: 0, fontSize: 15, color: '#e7e9ea', lineHeight: 1.5, wordBreak: 'break-word' }}>
                     {comment.text}
                   </p>
                 </div>
@@ -278,7 +279,7 @@ export default function ChatterCommentsSheet({
                 background: 'transparent',
                 border: 'none',
                 color: '#fff',
-                fontSize: 14,
+                fontSize: 15,
                 outline: 'none',
               }}
             />

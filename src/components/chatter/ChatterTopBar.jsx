@@ -15,37 +15,9 @@ export default function ChatterTopBar({
       {/* ── Mobile Brand Header (scrolls with feed, hidden on desktop) ── */}
       {feedTab && (
         <div className="chatter-mobile-brand-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div
-              style={{
-                width: 30,
-                height: 30,
-                borderRadius: 8,
-                background: 'var(--chatter-primary)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 0 12px rgba(64, 227, 120, 0.35)',
-                flexShrink: 0,
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0E0E0E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-              </svg>
-            </div>
-            <span
-              style={{
-                fontFamily: 'var(--font-heading)',
-                fontSize: 19,
-                fontWeight: 800,
-                color: '#fff',
-                letterSpacing: '-0.02em',
-              }}
-            >
-              StudyCord
-            </span>
-            <span className="chatter-logo-tag__dot" />
+          <div className="chatter-logo-tag" style={{ fontSize: 22, gap: 6 }}>
+            <span>Study<span style={{ color: 'var(--chatter-primary)' }}>Cord</span></span>
+            <span className="chatter-logo-tag__dot" style={{ width: 7, height: 7 }} />
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

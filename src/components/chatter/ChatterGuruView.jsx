@@ -26,9 +26,25 @@ export default function ChatterGuruView({
   const [quickPromptsHidden, setQuickPromptsHidden] = useState(false);
   const lastScrollTopRef = useRef(0);
 
-  const MAX_DOCS = 5;
+  const MAX_DOCS = 3;
+  const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB file limit
 
-  // Uploaded Documents state (loaded dynamically from database)
+  // AI Mode: 'free' (free chat without document constraints) vs 'guided' (grounded study on uploaded documents)
+  const [aiMode, setAiMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        return localStorage.getItem('studycord_guru_mode') || 'free';
+      } catch {}
+    }
+    return 'free';
+  });
+
+  const handleSwitchMode = (mode) => {
+    setAiMode(mode);
+    try {
+      localStorage.setItem('studycord_guru_mode', mode);
+    } catch {}
+  };
   const [uploadedDocs, setUploadedDocs] = useState([]);
   const [selectedDocId, setSelectedDocId] = useState(null); // null = All Knowledge
   const [uploadingDoc, setUploadingDoc] = useState(false);
@@ -85,12 +101,21 @@ export default function ChatterGuruView({
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
-  const quickPrompts = [
-    '💡 Summarize key takeaways',
+  const freeChatPrompts = [
+    '💡 Explain a concept simply',
+    '🧠 Brainstorm study schedule',
+    '💻 Debug code or algorithm',
+    '📐 Step-by-step problem walkthrough',
+  ];
+
+  const guidedStudyPrompts = [
     '📝 Generate 5-Question Quiz',
     '🃏 Create Study Flashcards',
-    '📐 Explain like I am 5',
+    '💡 Summarize Key Concepts',
+    '🔍 Practice Exam Questions',
   ];
+
+  const activePrompts = aiMode === 'free' ? freeChatPrompts : guidedStudyPrompts;
 
   // Delete an indexed document
   const handleDeleteDoc = async (docId, docFilename) => {
@@ -113,10 +138,24 @@ export default function ChatterGuruView({
     ]);
   };
 
-  // Handle Document Upload to /api/rag/upload
+  // Handle Document Upload to /api/rag/upload with strict size & quantity restrictions
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (file.size > MAX_FILE_SIZE) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `g-size-limit-${Date.now()}`,
+          role: 'assistant',
+          content: `⚠️ **File Size Limit Exceeded**: "${file.name}" is ${(file.size / (1024 * 1024)).toFixed(1)}MB. Maximum allowed document size is 15MB. Please upload a more compact file or chapter.`,
+          timestamp: 'Just now',
+        },
+      ]);
+      if (docFileInputRef.current) docFileInputRef.current.value = '';
+      return;
+    }
 
     if (uploadedDocs.length >= MAX_DOCS) {
       setDocsPanelOpen(true);
@@ -125,7 +164,7 @@ export default function ChatterGuruView({
         {
           id: `g-limit-${Date.now()}`,
           role: 'assistant',
-          content: `⚠️ **Upload Limit Reached**: You have reached the maximum of ${MAX_DOCS} study documents. Please delete an older document from the **Notes (${uploadedDocs.length}/${MAX_DOCS})** panel before indexing new files.`,
+          content: `⚠️ **Upload Limit Reached**: You have reached the maximum restriction of **${MAX_DOCS} study documents** (${uploadedDocs.length}/${MAX_DOCS}). To add new lecture notes, please remove an older document from the **Notes** panel above.`,
           timestamp: 'Just now',
         },
       ]);
@@ -624,9 +663,11 @@ export default function ChatterGuruView({
     setLoading(true);
 
     try {
-      const activeDoc = uploadedDocs.find((d) => (d.doc_id || d.id) === selectedDocId) || (selectedDocId === null ? uploadedDocs[0] : null);
-      const docText = activeDoc?.extractedText || (uploadedDocs.length > 0 ? uploadedDocs.map((d) => d.extractedText).filter(Boolean).join('\n\n') : '');
-      const docTitle = activeDoc?.filename || activeDoc?.title || (uploadedDocs.length > 0 ? uploadedDocs[0].filename : '');
+      const isFreeChat = aiMode === 'free';
+      const activeDoc = isFreeChat ? null : (uploadedDocs.find((d) => (d.doc_id || d.id) === selectedDocId) || (selectedDocId === null ? uploadedDocs[0] : null));
+      const docText = isFreeChat ? '' : (activeDoc?.extractedText || (uploadedDocs.length > 0 ? uploadedDocs.map((d) => d.extractedText).filter(Boolean).join('\n\n') : ''));
+      const docTitle = isFreeChat ? '' : (activeDoc?.filename || activeDoc?.title || '');
+      const docIdToSend = isFreeChat ? null : (selectedDocId || activeDoc?.doc_id || activeDoc?.id || null);
 
       const res = await fetch('/api/rag/chat', {
         method: 'POST',
@@ -639,7 +680,7 @@ export default function ChatterGuruView({
           stream: true,
           serverId,
           channelName,
-          documentId: selectedDocId || activeDoc?.doc_id || activeDoc?.id || null,
+          documentId: docIdToSend,
           documentTitle: docTitle,
           documentText: docText,
           history: messages.slice(-6).map((m) => ({ role: m.role, content: m.content })),
@@ -826,26 +867,28 @@ export default function ChatterGuruView({
             style={{ display: 'none' }}
             onChange={handleFileUpload}
           />
-          <button
-            type="button"
-            onClick={() => setDocsPanelOpen((p) => !p)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-              padding: '6px 12px',
-              borderRadius: 16,
-              background: docsPanelOpen ? 'rgba(64, 227, 120, 0.2)' : 'rgba(255, 255, 255, 0.08)',
-              border: docsPanelOpen ? '1px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
-              color: docsPanelOpen ? 'var(--chatter-primary)' : '#fff',
-              fontSize: 12.5,
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            <span>📚 Notes ({uploadedDocs.length}/{MAX_DOCS})</span>
-          </button>
+          {aiMode === 'guided' && (
+            <button
+              type="button"
+              onClick={() => setDocsPanelOpen((p) => !p)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                padding: '6px 12px',
+                borderRadius: 16,
+                background: docsPanelOpen ? 'rgba(64, 227, 120, 0.2)' : 'rgba(255, 255, 255, 0.08)',
+                border: docsPanelOpen ? '1px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
+                color: docsPanelOpen ? 'var(--chatter-primary)' : '#fff',
+                fontSize: 12.5,
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span>📚 Notes ({uploadedDocs.length}/{MAX_DOCS})</span>
+            </button>
+          )}
 
           <button
             type="button"
@@ -867,27 +910,112 @@ export default function ChatterGuruView({
         </div>
       </div>
 
-      {/* ── 1b. Chat Target (Active Note Selector) – collapses smoothly on scroll up ── */}
+      {/* ── 1b. Mode Toggle Pill: Free Chat vs Guided Document Study ── */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 7,
-          overflowX: 'auto',
-          padding: targetBarHidden ? '0 16px' : '7px 16px',
-          maxHeight: targetBarHidden ? 0 : 54,
-          opacity: targetBarHidden ? 0 : 1,
-          pointerEvents: targetBarHidden ? 'none' : 'auto',
-          transition: 'all 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
-          borderBottom: targetBarHidden ? 'none' : '1px solid rgba(255, 255, 255, 0.06)',
-          background: 'var(--chatter-black)',
-          scrollbarWidth: 'none',
+          justifyContent: 'center',
+          padding: '8px 16px',
+          background: 'var(--chatter-sheet)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
           flexShrink: 0,
         }}
       >
-        <span style={{ fontSize: 11, color: 'var(--chatter-light-text)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
-          Target:
-        </span>
+        <div
+          style={{
+            display: 'flex',
+            background: 'rgba(0, 0, 0, 0.45)',
+            borderRadius: 24,
+            padding: 3,
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            maxWidth: 440,
+            width: '100%',
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => handleSwitchMode('free')}
+            style={{
+              flex: 1,
+              padding: '7px 14px',
+              borderRadius: 20,
+              background: aiMode === 'free' ? 'var(--chatter-primary)' : 'transparent',
+              color: aiMode === 'free' ? '#0E0E0E' : 'var(--chatter-light-text)',
+              border: 'none',
+              fontWeight: aiMode === 'free' ? 750 : 600,
+              fontSize: 13,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              transition: 'all 0.18s ease',
+            }}
+          >
+            <span>💬</span> Free Chat
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSwitchMode('guided')}
+            style={{
+              flex: 1,
+              padding: '7px 14px',
+              borderRadius: 20,
+              background: aiMode === 'guided' ? 'var(--chatter-primary)' : 'transparent',
+              color: aiMode === 'guided' ? '#0E0E0E' : 'var(--chatter-light-text)',
+              border: 'none',
+              fontWeight: aiMode === 'guided' ? 750 : 600,
+              fontSize: 13,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              transition: 'all 0.18s ease',
+            }}
+          >
+            <span>📖</span> Guided Doc Study
+            {uploadedDocs.length > 0 && (
+              <span
+                style={{
+                  fontSize: 11,
+                  padding: '1px 6px',
+                  borderRadius: 10,
+                  background: aiMode === 'guided' ? 'rgba(0,0,0,0.25)' : 'rgba(64, 227, 120, 0.2)',
+                  color: aiMode === 'guided' ? '#0E0E0E' : 'var(--chatter-primary)',
+                  fontWeight: 800,
+                }}
+              >
+                {uploadedDocs.length}/{MAX_DOCS}
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* ── 1c. Chat Target (Active Note Selector) – visible in Guided Study mode ── */}
+      {aiMode === 'guided' && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 7,
+            overflowX: 'auto',
+            padding: targetBarHidden ? '0 16px' : '7px 16px',
+            maxHeight: targetBarHidden ? 0 : 54,
+            opacity: targetBarHidden ? 0 : 1,
+            pointerEvents: targetBarHidden ? 'none' : 'auto',
+            transition: 'all 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
+            borderBottom: targetBarHidden ? 'none' : '1px solid rgba(255, 255, 255, 0.06)',
+            background: 'var(--chatter-black)',
+            scrollbarWidth: 'none',
+            flexShrink: 0,
+          }}
+        >
+          <span style={{ fontSize: 11, color: 'var(--chatter-light-text)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
+            Target:
+          </span>
         <button
           type="button"
           onClick={() => setSelectedDocId(null)}
@@ -966,12 +1094,13 @@ export default function ChatterGuruView({
               cursor: 'pointer',
               whiteSpace: 'nowrap',
             }}
-            title="Max 5 documents reached. Open panel to delete old notes"
+            title="Max documents reached. Open panel to delete old notes"
           >
-            ⚠️ Max 5/5
+            ⚠️ Max {MAX_DOCS}/{MAX_DOCS}
           </button>
         )}
       </div>
+      )}
 
       {/* ── 2. Collapsible Document Manager Drawer ── */}
       {docsPanelOpen && (
@@ -1127,6 +1256,60 @@ export default function ChatterGuruView({
           gap: 14,
         }}
       >
+        {/* Guided Study Onboarding Card when no documents are uploaded */}
+        {aiMode === 'guided' && uploadedDocs.length === 0 && (
+          <div
+            style={{
+              padding: '24px 20px',
+              margin: '8px auto 14px',
+              maxWidth: 540,
+              width: '100%',
+              boxSizing: 'border-box',
+              background: 'var(--chatter-sheet)',
+              border: '1.5px dashed rgba(64, 227, 120, 0.35)',
+              borderRadius: 18,
+              textAlign: 'center',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 12,
+            }}
+          >
+            <div style={{ fontSize: 34 }}>📖</div>
+            <div style={{ fontSize: 17, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' }}>
+              Guided Document Study Mode
+            </div>
+            <div style={{ fontSize: 13.5, color: '#A0A0A0', lineHeight: 1.55, maxWidth: 440 }}>
+              Upload your lecture notes, textbook chapters, or syllabus (.pdf, .docx, .txt). AI Guru will generate guided explanations, custom 5-question assessments, and active recall flashcards directly from your text.
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--chatter-primary)', fontWeight: 600 }}>
+              Restriction: Max {MAX_DOCS} documents (up to 15MB each)
+            </div>
+            <button
+              type="button"
+              onClick={() => docFileInputRef.current?.click()}
+              disabled={uploadingDoc}
+              style={{
+                marginTop: 4,
+                padding: '9px 22px',
+                borderRadius: 20,
+                background: 'var(--chatter-primary)',
+                color: '#0E0E0E',
+                border: 'none',
+                fontWeight: 750,
+                fontSize: 13.5,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span>📂</span> Upload Study Document
+            </button>
+          </div>
+        )}
+
         {messages.map((m) => {
           const isUser = m.role === 'user';
           // Hide empty assistant placeholder while AI is generating
@@ -1272,16 +1455,24 @@ export default function ChatterGuruView({
           background: 'var(--chatter-black)',
         }}
       >
-        {quickPrompts.map((p, i) => (
+        {activePrompts.map((p, i) => (
           <button
             key={i}
             type="button"
             onClick={() => {
-              if (p.includes('Quiz')) {
+              if (p.includes('Quiz') || p.includes('Assessment')) {
+                if (aiMode === 'guided' && uploadedDocs.length === 0) {
+                  docFileInputRef.current?.click();
+                  return;
+                }
                 handleGenerateMCQ();
                 return;
               }
               if (p.includes('Flashcards')) {
+                if (aiMode === 'guided' && uploadedDocs.length === 0) {
+                  docFileInputRef.current?.click();
+                  return;
+                }
                 handleGenerateFlashcards();
                 return;
               }
@@ -1352,19 +1543,28 @@ export default function ChatterGuruView({
           {/* Paperclip Document Upload shortcut */}
           <button
             type="button"
-            onClick={() => docFileInputRef.current?.click()}
+            onClick={() => {
+              if (aiMode === 'free') {
+                handleSwitchMode('guided');
+              }
+              if (uploadedDocs.length >= MAX_DOCS) {
+                setDocsPanelOpen(true);
+                return;
+              }
+              docFileInputRef.current?.click();
+            }}
             disabled={uploadingDoc}
             style={{
               background: 'transparent',
               border: 'none',
-              color: 'var(--chatter-light-text)',
+              color: aiMode === 'guided' ? 'var(--chatter-primary)' : 'var(--chatter-light-text)',
               cursor: uploadingDoc ? 'not-allowed' : 'pointer',
               padding: 4,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}
-            title="Upload Study Notes (.pdf, .docx, .txt)"
+            title={aiMode === 'guided' ? "Upload Study Notes (.pdf, .docx, .txt)" : "Switch to Guided Mode & Upload Document"}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
@@ -1375,9 +1575,11 @@ export default function ChatterGuruView({
             ref={inputRef}
             type="text"
             placeholder={
-              uploadedDocs.find((d) => d.doc_id === selectedDocId)
-                ? `Ask about ${uploadedDocs.find((d) => d.doc_id === selectedDocId)?.filename}...`
-                : 'Ask AI Guru or upload lecture notes...'
+              aiMode === 'free'
+                ? 'Ask AI Guru anything across any subject...'
+                : uploadedDocs.find((d) => d.doc_id === selectedDocId)
+                  ? `Ask guided questions on ${uploadedDocs.find((d) => d.doc_id === selectedDocId)?.filename}...`
+                  : 'Upload a document or ask questions about your notes...'
             }
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
