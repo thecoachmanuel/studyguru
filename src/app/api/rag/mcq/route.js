@@ -327,14 +327,16 @@ export async function POST(req) {
 
     const body = await req.json().catch(() => ({}));
     const documentId = body.documentId || body.doc_id || body.document_id;
-    const count = Math.min(Math.max(parseInt(body.count, 10) || 5, 2), 20);
+    const requestedCount = parseInt(body.count, 10);
+    const count = !isNaN(requestedCount) && requestedCount > 0 ? Math.min(Math.max(requestedCount, 2), 30) : 5;
     const iteration = parseInt(body.iteration, 10) || Math.floor(Math.random() * 1000);
-    const isRegenerate = Boolean(body.regenerate || body.forceRefresh);
+    const isRegenerate = Boolean(body.regenerate || body.forceRefresh || body.fresh || requestedCount);
+    const topic = (body.topic || body.prompt || body.message || '').trim();
 
     const userId = session.user.id;
     const db = await getDatabase();
 
-    // High-concurrency cache hit: Serve existing MCQs ONLY when NOT regenerating
+    // High-concurrency cache hit: Serve existing MCQs ONLY when NOT regenerating and no specific count requested
     if (!isRegenerate && documentId) {
       try {
         const cached = await db.collection('rag_study_outputs').findOne({
@@ -413,27 +415,20 @@ export async function POST(req) {
       contextText = clientText;
     }
 
-    // If no specific document text was found, generate procedural academic questions
-    if (!contextText || contextText.trim().length < 15) {
-      const proceduralQuestions = generateProceduralQuiz(count, iteration);
-      return NextResponse.json({
-        questions: proceduralQuestions,
-        mcq: proceduralQuestions,
-        mcqs: proceduralQuestions,
-      });
-    }
+    const variationSeed = Date.now() + '-' + iteration + '-' + Math.floor(Math.random() * 1000);
+    let prompt = '';
 
-    // Offset the text window for long documents so subsequent quizzes pull from alternate chapters/sections
-    let textSlice = contextText;
-    if (contextText.length > 10000) {
-      const offset = (iteration * 2500) % Math.max(1, contextText.length - 8000);
-      textSlice = contextText.slice(offset, offset + 12000);
-    } else {
-      textSlice = contextText.slice(0, 12000);
-    }
+    if (contextText && contextText.trim().length >= 15) {
+      // Offset the text window for long documents so subsequent quizzes pull from alternate chapters/sections
+      let textSlice = contextText;
+      if (contextText.length > 10000) {
+        const offset = (iteration * 2500) % Math.max(1, contextText.length - 8000);
+        textSlice = contextText.slice(offset, offset + 12000);
+      } else {
+        textSlice = contextText.slice(0, 12000);
+      }
 
-    const variationSeed = Date.now() + '-' + iteration;
-    const prompt = `Based ONLY on the document text provided below, generate ${count} multiple choice revision quiz questions.
+      prompt = `Based ONLY on the document text provided below, generate EXACTLY ${count} multiple choice revision quiz questions.
 CRITICAL VARIATION INSTRUCTION (Seed #${variationSeed}):
 - This is assessment drill #${iteration + 1}. You MUST generate a completely NEW, DIFFERENT set of questions than standard overviews.
 - Focus on specific mechanisms, deeper implications, formulas, secondary concepts, or alternate paragraphs.
@@ -458,6 +453,31 @@ CRITICAL RULES:
 
 Document Text:
 ${textSlice}`;
+    } else {
+      // Topic or general knowledge based quiz generation
+      const targetTopic = topic || 'General Science and Academic Knowledge';
+      prompt = `Generate EXACTLY ${count} high-yield, challenging multiple choice revision quiz questions on the topic: "${targetTopic}".
+CRITICAL VARIATION INSTRUCTION (Seed #${variationSeed}):
+- You MUST generate a completely fresh, engaging set of questions testing conceptual understanding, application, and nuance.
+- Each question must be rigorous and educational.
+
+Return ONLY valid JSON matching this exact structure:
+{
+  "questions": [
+    {
+      "question": "Clear, precise academic question text",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correct_answer": "Option A",
+      "explanation": "Clear explanation of why this answer is correct"
+    }
+  ]
+}
+
+CRITICAL RULES:
+1. "options" must be an array of exactly 4 distinct choice strings.
+2. "correct_answer" MUST be a string that exactly matches one of the choices in "options".
+3. Never use em-dashes ('—') or double hyphens ('--') in questions, options, or explanations.`;
+    }
 
     let questions = [];
 

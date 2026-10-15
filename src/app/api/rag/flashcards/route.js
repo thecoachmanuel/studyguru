@@ -69,20 +69,18 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const documentId = body.documentId || body.doc_id || body.document_id;
-    const count = Math.min(Math.max(parseInt(body.count, 10) || 8, 3), 20);
-
-    if (!documentId) {
-      return NextResponse.json({ error: 'documentId is required' }, { status: 400 });
-    }
+    const requestedCount = parseInt(body.count, 10);
+    const count = !isNaN(requestedCount) && requestedCount > 0 ? Math.min(Math.max(requestedCount, 2), 30) : 8;
+    const topic = (body.topic || body.prompt || body.message || '').trim();
 
     const userId = session.user.id;
     const db = await getDatabase();
-    const isRegenerate = Boolean(body.regenerate || body.forceRefresh);
+    const isRegenerate = Boolean(body.regenerate || body.forceRefresh || body.fresh || requestedCount);
 
-    // High-concurrency cache hit: Serve existing flashcards immediately
-    if (!isRegenerate) {
+    // Only serve existing cache if NOT regenerating, no custom count was asked, and documentId is present
+    if (!isRegenerate && documentId) {
       try {
         const cached = await db.collection('rag_study_outputs').findOne({
           document_id: documentId,
@@ -104,58 +102,61 @@ export async function POST(req) {
       }
     }
 
-    // 1. Resolve document text
-    const safeId = safeObjectId(documentId);
-    let doc = await db.collection('rag_documents').findOne({
-      $or: [{ _id: safeId }, { id: documentId }, { document_id: documentId }],
-    });
-
-    if (!doc) {
-      const sess = await db.collection('rag_sessions').findOne({
-        $or: [{ _id: safeId }, { id: documentId }, { session_id: documentId }],
-      });
-      if (sess?.document_id) {
-        doc = await db.collection('rag_documents').findOne({
-          $or: [{ _id: safeObjectId(sess.document_id) }, { id: sess.document_id }],
-        });
-      }
-    }
-
-    const chunks = await retrieveRelevantChunks({
-      query: 'key concepts definitions principles formulas facts study flashcards vocabulary important terms',
-      documentId: doc?._id?.toString() || documentId,
-      userId,
-      limit: 8,
-    });
-
+    // 1. Resolve document text if documentId is provided
     let contextText = '';
     const clientText = String(body.documentText || body.docText || body.text || '').trim();
-    const isDocPlaceholder = !doc?.extracted_text || doc.extracted_text.length < 60 || doc.extracted_text.startsWith('Academic study material:');
 
-    if (!isDocPlaceholder && doc?.extracted_text) {
-      contextText = doc.extracted_text;
+    if (documentId) {
+      const safeId = safeObjectId(documentId);
+      let doc = await db.collection('rag_documents').findOne({
+        $or: [{ _id: safeId }, { id: documentId }, { document_id: documentId }],
+      });
+
+      if (!doc) {
+        const sess = await db.collection('rag_sessions').findOne({
+          $or: [{ _id: safeId }, { id: documentId }, { session_id: documentId }],
+        });
+        if (sess?.document_id) {
+          doc = await db.collection('rag_documents').findOne({
+            $or: [{ _id: safeObjectId(sess.document_id) }, { id: sess.document_id }],
+          });
+        }
+      }
+
+      const chunks = await retrieveRelevantChunks({
+        query: 'key concepts definitions principles formulas facts study flashcards vocabulary important terms',
+        documentId: doc?._id?.toString() || documentId,
+        userId,
+        limit: 8,
+      });
+
+      const isDocPlaceholder = !doc?.extracted_text || doc.extracted_text.length < 60 || doc.extracted_text.startsWith('Academic study material:');
+
+      if (!isDocPlaceholder && doc?.extracted_text) {
+        contextText = doc.extracted_text;
+      } else if (clientText && clientText.length > 20) {
+        contextText = clientText;
+        if (doc?._id) {
+          db.collection('rag_documents').updateOne(
+            { _id: doc._id },
+            { $set: { extracted_text: clientText, updated_at: new Date() } }
+          ).catch(() => {});
+        }
+      } else if (doc?.extracted_text) {
+        contextText = doc.extracted_text;
+      } else if (chunks.length > 0) {
+        contextText = chunks.join('\n\n---\n\n');
+      }
     } else if (clientText && clientText.length > 20) {
       contextText = clientText;
-      if (doc?._id) {
-        db.collection('rag_documents').updateOne(
-          { _id: doc._id },
-          { $set: { extracted_text: clientText, updated_at: new Date() } }
-        ).catch(() => {});
-      }
-    } else if (doc?.extracted_text) {
-      contextText = doc.extracted_text;
-    } else if (chunks.length > 0) {
-      contextText = chunks.join('\n\n---\n\n');
     }
 
-    if (!contextText || contextText.trim().length < 10) {
-      return NextResponse.json(
-        { error: 'No readable study document text found. Please upload or select a document first.' },
-        { status: 400 }
-      );
-    }
+    const randomSeed = Math.floor(Math.random() * 10000);
+    let prompt = '';
 
-    const prompt = `Based ONLY on the study document text provided below, generate ${count} comprehensive educational flashcards covering the key concepts, terms, definitions, and facts in the text.
+    if (contextText && contextText.trim().length >= 10) {
+      prompt = `Based on the study document text provided below, generate EXACTLY ${count} fresh, unique educational flashcards covering key concepts, terms, definitions, and facts.
+Seed / variation token: ${randomSeed}. Ensure this is a brand-new set covering high-yield material.
 Do NOT use generic filler text or placeholder questions. Every single card must be directly based on the document text.
 Punctuation rule: Never use em-dashes ('—') or double hyphens ('--') in any question or answer; write naturally using commas, periods, or colons instead.
 
@@ -171,6 +172,23 @@ Return ONLY a valid JSON object matching this exact structure:
 
 Document Text:
 ${contextText.slice(0, 12000)}`;
+    } else {
+      // General knowledge generation from user topic/prompt
+      const targetTopic = topic || 'General Academic Study';
+      prompt = `Generate EXACTLY ${count} comprehensive, high-yield educational flashcards on the topic: "${targetTopic}".
+Seed / variation token: ${randomSeed}. Ensure the questions are insightful, varied, and test deep conceptual understanding.
+Punctuation rule: Never use em-dashes ('—') or double hyphens ('--') in any question or answer; write naturally using commas, periods, or colons instead.
+
+Return ONLY a valid JSON object matching this exact structure:
+{
+  "flashcards": [
+    {
+      "question": "Clear question or core concept",
+      "answer": "Accurate, concise explanation or definition"
+    }
+  ]
+}`;
+    }
 
     let flashcards = [];
     let rawResponseText = '';

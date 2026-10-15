@@ -383,13 +383,14 @@ export default function ChatterGuruView({
   };
 
   // Generate Interactive MCQ Quiz
-  const handleGenerateMCQ = async (docId, docName, targetMessageId = null) => {
+  const handleGenerateMCQ = async (docId, docName, targetMessageId = null, customCount = null, customTopic = '', customUserPrompt = '') => {
     setLoading(true);
     setDocsPanelOpen(false);
-    const activeDoc = uploadedDocs.find((d) => (d.doc_id || d.id) === (docId || selectedDocId)) || uploadedDocs[0];
-    const targetDocId = docId || selectedDocId || activeDoc?.doc_id || activeDoc?.id || 'active-study-session';
-    const targetDocName = docName || activeDoc?.filename || 'the active study document';
+    const activeDoc = uploadedDocs.find((d) => (d.doc_id || d.id) === (docId || selectedDocId)) || (selectedDocId === null ? uploadedDocs[0] : null);
+    const targetDocId = docId || selectedDocId || activeDoc?.doc_id || activeDoc?.id || null;
+    const targetDocName = docName || activeDoc?.filename || customTopic || 'the active study session';
 
+    const count = customCount && customCount > 0 ? customCount : 5;
     const isRegen = quizGenCountRef.current > 0;
     const currentIteration = quizGenCountRef.current;
     quizGenCountRef.current += 1;
@@ -400,9 +401,9 @@ export default function ChatterGuruView({
         {
           id: `u-quiz-${Date.now()}`,
           role: 'user',
-          content: isRegen
-            ? `Generate a fresh, new 5-question Quiz Assessment on ${targetDocName}.`
-            : `Generate a 5-question multiple choice Quiz Assessment on ${targetDocName}.`,
+          content: customUserPrompt || (isRegen
+            ? `Generate a fresh, new ${count}-question Quiz Assessment on ${targetDocName}.`
+            : `Generate a ${count}-question multiple choice Quiz Assessment on ${targetDocName}.`),
           timestamp: 'Now',
         },
       ]);
@@ -415,8 +416,10 @@ export default function ChatterGuruView({
         body: JSON.stringify({
           documentId: targetDocId,
           documentText: activeDoc?.extractedText || activeDoc?.text || activeDoc?.summary || '',
-          count: 5,
+          count,
+          topic: customTopic || targetDocName,
           regenerate: true,
+          fresh: true,
           iteration: currentIteration,
           seed: Date.now() + Math.random(),
         }),
@@ -473,13 +476,14 @@ export default function ChatterGuruView({
   };
 
   // Generate Flashcards
-  const handleGenerateFlashcards = async (docId, docName) => {
+  const handleGenerateFlashcards = async (docId, docName, customCount = null, customTopic = '', customUserPrompt = '') => {
     setLoading(true);
     setDocsPanelOpen(false);
-    const activeDoc = uploadedDocs.find((d) => (d.doc_id || d.id) === (docId || selectedDocId)) || uploadedDocs[0];
-    const targetDocId = docId || selectedDocId || activeDoc?.doc_id || activeDoc?.id;
-    const targetDocName = docName || activeDoc?.filename || 'the active study document';
+    const activeDoc = uploadedDocs.find((d) => (d.doc_id || d.id) === (docId || selectedDocId)) || (selectedDocId === null ? uploadedDocs[0] : null);
+    const targetDocId = docId || selectedDocId || activeDoc?.doc_id || activeDoc?.id || null;
+    const targetDocName = docName || activeDoc?.filename || customTopic || 'the active study session';
 
+    const count = customCount && customCount > 0 ? customCount : 8;
     const isRegen = flashcardsGenCountRef.current > 0;
     flashcardsGenCountRef.current += 1;
 
@@ -488,9 +492,9 @@ export default function ChatterGuruView({
       {
         id: `u-cards-${Date.now()}`,
         role: 'user',
-        content: isRegen
-          ? `Create a fresh set of new study flashcards for active recall from ${targetDocName}.`
-          : `Create flashcards for active recall from ${targetDocName}.`,
+        content: customUserPrompt || (isRegen
+          ? `Create a fresh set of ${count} new study flashcards from ${targetDocName}.`
+          : `Create ${count} flashcards from ${targetDocName}.`),
         timestamp: 'Now',
       },
     ]);
@@ -501,7 +505,10 @@ export default function ChatterGuruView({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           documentId: targetDocId,
-          regenerate: isRegen,
+          count,
+          topic: customTopic || targetDocName,
+          regenerate: true,
+          fresh: true,
         }),
       });
       const data = await res.json();
@@ -541,10 +548,67 @@ export default function ChatterGuruView({
     }
   };
 
-  // Chat message sending with real-time text streaming
+  // Chat message sending with dynamic intent parser and real-time text streaming
   const handleSend = async (textToSend) => {
-    const text = textToSend || inputText;
-    if (!text.trim() || loading) return;
+    const text = (textToSend || inputText).trim();
+    if (!text || loading) return;
+
+    // 1. Detect dynamic requests for Flashcards
+    const isFlashcardRequest =
+      /\b(flashcards?|flash\s*cards?)\b/i.test(text) ||
+      /\b(\d+)\s*(?:cards?|flashcards?)\b/i.test(text) ||
+      (/\b(cards?)\b/i.test(text) && /\b(give|make|create|generate|provide|show|study|practice)\b/i.test(text));
+
+    // 2. Detect dynamic requests for Practice Questions / Quiz / MCQ
+    const isQuizRequest =
+      /\b(quiz|mcq|multiple\s*choice|practice\s*questions?|assessment|exam)\b/i.test(text) ||
+      (/\b(questions?)\b/i.test(text) && /\b(give|make|create|generate|provide|test|ask|practice|\d+)\b/i.test(text));
+
+    // Extract count if user specified (e.g., 5, 10, 20)
+    const countMatch = text.match(/\b(\d{1,2})\s*(?:flashcards?|cards?|questions?|mcqs?|items?)?\b/i);
+    const parsedCount = countMatch ? parseInt(countMatch[1], 10) : null;
+
+    // Extract clean topic if user specified "on X" or "about X" or "for X"
+    let extractedTopic = '';
+    const topicMatch = text.match(/(?:on|about|for|regarding|covering)\s+(.+?)(?:[.,?!]|$)/i);
+    if (topicMatch) {
+      extractedTopic = topicMatch[1].trim();
+    }
+
+    const mentionsDocExplicitly = /\b(notes?|document|doc|pdf|lecture|upload|file|material)\b/i.test(text);
+    const hasActiveDoc = Boolean(selectedDocId || uploadedDocs.length > 0);
+    const useDoc = selectedDocId || mentionsDocExplicitly || (hasActiveDoc && !extractedTopic);
+
+    // Route to Flashcards generator
+    if (isFlashcardRequest && !isQuizRequest) {
+      const targetCount = parsedCount && parsedCount > 0 ? parsedCount : 8;
+      setInputText('');
+      const activeDoc = useDoc ? (uploadedDocs.find((d) => (d.doc_id || d.id) === selectedDocId) || uploadedDocs[0]) : null;
+      handleGenerateFlashcards(
+        activeDoc?.doc_id || activeDoc?.id || null,
+        activeDoc?.filename || null,
+        targetCount,
+        extractedTopic || (activeDoc ? activeDoc.filename : text),
+        text
+      );
+      return;
+    }
+
+    // Route to MCQ Quiz generator
+    if (isQuizRequest) {
+      const targetCount = parsedCount && parsedCount > 0 ? parsedCount : 5;
+      setInputText('');
+      const activeDoc = useDoc ? (uploadedDocs.find((d) => (d.doc_id || d.id) === selectedDocId) || uploadedDocs[0]) : null;
+      handleGenerateMCQ(
+        activeDoc?.doc_id || activeDoc?.id || null,
+        activeDoc?.filename || null,
+        null,
+        targetCount,
+        extractedTopic || (activeDoc ? activeDoc.filename : text),
+        text
+      );
+      return;
+    }
 
     const userMsg = {
       id: `u-${Date.now()}`,
@@ -1245,7 +1309,7 @@ export default function ChatterGuruView({
       <div
         className="chatter-guru-compose"
         style={{
-          padding: '10px 16px calc(14px + env(safe-area-inset-bottom))',
+          padding: '8px 14px max(8px, env(safe-area-inset-bottom, 8px))',
           background: 'var(--chatter-sheet)',
           borderTop: '1px solid rgba(255, 255, 255, 0.08)',
           flexShrink: 0,
@@ -2061,7 +2125,7 @@ function FlashcardDeck({ cards = [], onRegenerate }) {
 
       {/* Card Footer Hint */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11.5, color: 'var(--chatter-light-text)' }}>
-        <span>{flipped ? '✓ Tap to view question' : '• Active recall prompt'}</span>
+        <span>{flipped ? '✓ Tap to view question' : '• Tap card to flip'}</span>
         <span>Swipe or use arrows</span>
       </div>
     </div>
@@ -2088,18 +2152,6 @@ function FlashcardDeck({ cards = [], onRegenerate }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 13.5, fontWeight: 800, color: '#fff' }}>
             🃏 Flashcard {currentIndex + 1} of {cards.length}
-          </span>
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              padding: '2px 8px',
-              borderRadius: 12,
-              background: 'rgba(64, 227, 120, 0.15)',
-              color: 'var(--chatter-primary)',
-            }}
-          >
-            Active Recall
           </span>
         </div>
 

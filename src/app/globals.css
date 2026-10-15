@@ -9243,62 +9243,69 @@ body {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
 }
 
-/* --- Social Feed Post Card --- */
+/* --- Social Feed Post Card (Twitter / X-inspired layout & typography) --- */
 .chatter-post-card {
-  background: var(--chatter-sheet);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 16px;
-  padding: 18px 20px;
-  margin: 10px 16px;
-  transition: transform 0.15s ease, border-color 0.15s ease;
+  background: transparent;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0;
+  padding: 14px 16px;
+  margin: 0;
+  transition: background 0.15s ease;
 }
 
 .chatter-post-card:hover {
-  border-color: rgba(64, 227, 120, 0.2);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .chatter-post-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .chatter-post-author {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
 }
 
 .chatter-post-avatar {
-  width: 44px;
-  height: 44px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid rgba(64, 227, 120, 0.4);
+  flex-shrink: 0;
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
 }
 
 .chatter-post-name {
-  font-size: 15.5px;
+  font-size: 15px;
   font-weight: 700;
-  color: var(--chatter-white);
+  color: #fff;
+  letter-spacing: -0.01em;
 }
 
 .chatter-post-meta {
-  font-size: 13.5px;
-  color: var(--chatter-light-text);
+  font-size: 14px;
+  color: #71767b;
 }
 
 .chatter-post-body {
-  font-size: 15.5px;
-  line-height: 1.6;
-  color: var(--chatter-white);
+  font-size: 15px;
+  line-height: 1.55;
+  color: #e7e9ea;
   margin-bottom: 12px;
+  word-break: break-word;
 }
 
 .chatter-hashtag {
-  font-size: 13px;
-  color: var(--chatter-hashtag);
+  font-size: 13.5px;
+  color: var(--chatter-primary);
   font-weight: 600;
   cursor: pointer;
 }
@@ -9310,31 +9317,83 @@ body {
 .chatter-post-actions {
   display: flex;
   align-items: center;
-  gap: 20px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-  color: var(--chatter-light-text);
+  justify-content: space-between;
+  max-width: 420px;
+  padding-top: 8px;
+  color: #71767b;
 }
 
 .chatter-post-action-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   background: transparent;
   border: none;
-  color: var(--chatter-light-text);
-  font-size: 13.5px;
-  font-weight: 600;
+  color: #71767b;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
   transition: color 0.15s ease, transform 0.12s ease;
+  padding: 4px 6px;
+  border-radius: 8px;
 }
 
 .chatter-post-action-btn:hover {
   color: var(--chatter-primary);
+  background: rgba(64, 227, 120, 0.08);
 }
 
 .chatter-post-action-btn--liked {
   color: var(--chatter-red) !important;
+}
+
+/* --- Twitter / X-style Top Bar Feed Tabs --- */
+.chatter-topbar-tabs {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+  flex: 1;
+  max-width: 320px;
+  justify-content: center;
+}
+
+.chatter-topbar-tab {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: #71767b;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0 16px;
+  height: 100%;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.chatter-topbar-tab:hover {
+  background: rgba(255, 255, 255, 0.03);
+  color: #fff;
+}
+
+.chatter-topbar-tab--active {
+  color: #fff !important;
+  font-weight: 750 !important;
+}
+
+.chatter-topbar-tab__indicator {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 56px;
+  height: 4px;
+  border-radius: 9999px;
+  background: var(--chatter-primary);
+  box-shadow: 0 0 10px rgba(64, 227, 120, 0.5);
 }
 
 /* --- Chatter Audio Space / Room Card --- */
@@ -9477,14 +9536,14 @@ body {
 /* --- Chatter Mobile Compose Bar & Flush Spacing --- */
 .chatter-guru-compose {
   padding: 8px 16px;
-  background: var(--chatter-black);
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--chatter-sheet);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   flex-shrink: 0;
 }
 
 @media (max-width: 768px) {
   .chatter-guru-compose {
-    padding: 6px 12px 6px !important;
+    padding: 8px 14px max(8px, env(safe-area-inset-bottom, 8px)) !important;
   }
 }
 
@@ -9554,16 +9613,15 @@ body {
   height: 100dvh;
   overflow: hidden;
   background: var(--chatter-black);
-  padding-bottom: 0;
-  transition: padding-bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  padding-bottom: 0 !important;
 }
 
 @media (max-width: 768px) {
   .chatter-guru-wrapper {
-    padding-bottom: calc(62px + env(safe-area-inset-bottom));
+    padding-bottom: 0 !important;
   }
   .chatter-guru-wrapper.chatter-guru-wrapper--nav-hidden {
-    padding-bottom: max(6px, env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: 0 !important;
   }
 }
 
@@ -9624,14 +9682,24 @@ body {
   }
 }
 
-/* Center main column container on desktop - fills column space cleanly */
+/* Center main column container on desktop - Twitter / X 650px centered feed with sleek borders */
 .chatter-center-container {
   flex: 1;
   min-width: 0;
   width: 100%;
-  max-width: 100%;
+  max-width: 650px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+@media (max-width: 768px) {
+  .chatter-center-container {
+    border-left: none;
+    border-right: none;
+  }
 }
 
 @keyframes spin {

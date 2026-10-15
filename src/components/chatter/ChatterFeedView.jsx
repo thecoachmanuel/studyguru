@@ -121,7 +121,13 @@ export default function ChatterFeedView({
   targetPostId = null,
   filterTag = null,
   onSelectTag,
+  feedTab = 'forYou',
+  onSelectFeedTab,
 }) {
+  const [internalFeedTab, setInternalFeedTab] = useState('forYou');
+  const activeFeedTab = feedTab || internalFeedTab;
+  const setTab = onSelectFeedTab || setInternalFeedTab;
+
   const [posts, setPosts] = useState(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -188,12 +194,23 @@ export default function ChatterFeedView({
     });
   }, [posts, filterTag]);
 
+  // Filter by For you (all posts) vs Following (only followed scholars)
+  const tabFilteredPosts = useMemo(() => {
+    if (activeFeedTab === 'following') {
+      return sortedPosts.filter((p) => {
+        const authorId = p.author?.id || p.author_id;
+        return Boolean(activeFollowing[authorId]);
+      });
+    }
+    return sortedPosts;
+  }, [sortedPosts, activeFeedTab, activeFollowing]);
+
   // 10 posts at a time chunked loading
   const visiblePosts = useMemo(() => {
-    return sortedPosts.slice(0, visibleCount);
-  }, [sortedPosts, visibleCount]);
+    return tabFilteredPosts.slice(0, visibleCount);
+  }, [tabFilteredPosts, visibleCount]);
 
-  const hasMore = visibleCount < sortedPosts.length;
+  const hasMore = visibleCount < tabFilteredPosts.length;
 
   useEffect(() => {
     if (!loadMoreRef.current || !hasMore) return;
@@ -201,7 +218,7 @@ export default function ChatterFeedView({
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
-          setVisibleCount((prev) => Math.min(prev + 10, sortedPosts.length));
+          setVisibleCount((prev) => Math.min(prev + 10, tabFilteredPosts.length));
         }
       },
       { rootMargin: '300px' }
@@ -209,7 +226,7 @@ export default function ChatterFeedView({
 
     observer.observe(loadMoreRef.current);
     return () => observer.disconnect();
-  }, [hasMore, sortedPosts.length]);
+  }, [hasMore, tabFilteredPosts.length]);
 
   // Auto-scroll to target post when navigated from profile
   useEffect(() => {
@@ -606,6 +623,169 @@ export default function ChatterFeedView({
       {/* ── 1. Top Chatter Study Notes & Stories Carousel ── */}
       <ChatterNotesBar user={{ id: userId }} profile={profile} followingMap={activeFollowing} onOpenLiveSpaces={onOpenLiveSpaces} />
 
+      {/* ── Twitter / X Style Inline Quick Compose Box ── */}
+      <div
+        style={{
+          padding: '14px 16px',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          display: 'flex',
+          gap: 12,
+          background: 'transparent',
+        }}
+      >
+        {profile?.avatar_url ? (
+          <img
+            src={profile.avatar_url}
+            alt={profile.name || 'Scholar'}
+            style={{ width: 42, height: 42, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+          />
+        ) : (
+          <div
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: '50%',
+              background: '#2A2A2A',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 700,
+              color: 'var(--chatter-primary)',
+              fontSize: 16,
+              flexShrink: 0,
+            }}
+          >
+            {profile?.name?.[0] || 'U'}
+          </div>
+        )}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <textarea
+            value={newPostText}
+            onChange={(e) => setNewPostText(e.target.value)}
+            placeholder="What's happening in your studies?"
+            rows={2}
+            style={{
+              width: '100%',
+              background: 'transparent',
+              border: 'none',
+              outline: 'none',
+              color: '#fff',
+              fontSize: 16,
+              lineHeight: 1.45,
+              resize: 'none',
+              fontFamily: 'inherit',
+              padding: '4px 0',
+            }}
+          />
+          {attachedImage && (
+            <div style={{ position: 'relative', display: 'inline-block', marginBottom: 10 }}>
+              <img src={attachedImage} alt="Preview" style={{ maxHeight: 200, maxWidth: '100%', borderRadius: 14, border: '1px solid rgba(255, 255, 255, 0.1)' }} />
+              <button
+                type="button"
+                onClick={() => setAttachedImage(null)}
+                style={{
+                  position: 'absolute',
+                  top: 6,
+                  right: 6,
+                  background: 'rgba(0,0,0,0.75)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: 24,
+                  height: 24,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 12,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              {/* Image Picker */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handleImageFileChange}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingImage}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--chatter-primary)',
+                  cursor: uploadingImage ? 'not-allowed' : 'pointer',
+                  padding: '4px 6px',
+                  borderRadius: 8,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'background 0.15s ease',
+                }}
+                title="Add Image"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <polyline points="21 15 16 10 5 21" />
+                </svg>
+              </button>
+
+              {/* Tag selector */}
+              <select
+                value={newPostTag}
+                onChange={(e) => setNewPostTag(e.target.value)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.06)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: 12,
+                  color: '#fff',
+                  fontSize: 12,
+                  padding: '3px 8px',
+                  outline: 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                <option value="#GeneralStudy">#GeneralStudy</option>
+                <option value="#ComputerScience">#ComputerScience</option>
+                <option value="#Mathematics">#Mathematics</option>
+                <option value="#Biology">#Biology</option>
+                <option value="#Medicine">#Medicine</option>
+                <option value="#Physics">#Physics</option>
+                <option value="#ExamPrep">#ExamPrep</option>
+              </select>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleCreatePost}
+              disabled={!newPostText.trim() && !attachedImage}
+              style={{
+                background: (newPostText.trim() || attachedImage) ? 'var(--chatter-primary)' : 'rgba(64, 227, 120, 0.25)',
+                color: '#0E0E0E',
+                border: 'none',
+                borderRadius: 20,
+                padding: '6px 18px',
+                fontSize: 13.5,
+                fontWeight: 750,
+                cursor: (newPostText.trim() || attachedImage) ? 'pointer' : 'not-allowed',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              Post
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Active Hashtag Filter Banner */}
       {filterTag && (
         <div
@@ -622,7 +802,7 @@ export default function ChatterFeedView({
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: 'var(--chatter-primary)' }}>
             <span>Filtered by {filterTag.startsWith('#') ? filterTag : `#${filterTag}`}</span>
-            <span style={{ fontSize: 11, color: '#D4D4D4', fontWeight: 500 }}>({sortedPosts.length} {sortedPosts.length === 1 ? 'post' : 'posts'})</span>
+            <span style={{ fontSize: 11, color: '#D4D4D4', fontWeight: 500 }}>({tabFilteredPosts.length} {tabFilteredPosts.length === 1 ? 'post' : 'posts'})</span>
           </div>
           <button
             type="button"
@@ -644,7 +824,7 @@ export default function ChatterFeedView({
       )}
 
       {/* ── 2. Chatter Social Posts Stream (Chunked infinite scroll) ── */}
-      <div style={{ marginTop: 8 }}>
+      <div style={{ marginTop: 2 }}>
         {loadingPosts && visiblePosts.length === 0 ? (
           <>
             <ChatterPostSkeleton />
@@ -890,6 +1070,39 @@ export default function ChatterFeedView({
               </article>
             );
           })
+        ) : activeFeedTab === 'following' ? (
+          <div
+            style={{
+              padding: '60px 20px',
+              textAlign: 'center',
+              color: '#71767b',
+            }}
+          >
+            <div style={{ fontSize: 36, marginBottom: 10 }}>👥</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: '#fff', marginBottom: 6 }}>
+              Welcome to your Following feed!
+            </div>
+            <div style={{ fontSize: 14, color: '#71767b', maxWidth: 360, margin: '0 auto 18px', lineHeight: 1.5 }}>
+              You aren't following anyone yet, or scholars you follow haven't posted yet. Follow scholars to see their updates here.
+            </div>
+            <button
+              type="button"
+              onClick={() => setTab('forYou')}
+              style={{
+                padding: '8px 22px',
+                borderRadius: 20,
+                background: 'var(--chatter-primary)',
+                color: '#0E0E0E',
+                border: 'none',
+                fontWeight: 750,
+                fontSize: 14,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              Discover Posts in For you
+            </button>
+          </div>
         ) : (
           <div
             style={{

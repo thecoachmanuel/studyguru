@@ -6,6 +6,9 @@ export default function ChatterTopBar({
   onOpenLiveSpaces,
   onRandomTopic,
   unreadNotificationsCount = 0,
+  feedTab = null,
+  onSelectFeedTab = null,
+  title = null,
 }) {
   return (
     <header className="chatter-topbar" aria-label="StudyCord Top Header">
@@ -43,11 +46,33 @@ export default function ChatterTopBar({
         </button>
       </div>
 
-      {/* Center Logo Tag matching Chatter */}
-      <div className="chatter-logo-tag">
-        <span>Study<span style={{ color: 'var(--chatter-primary)' }}>Cord</span></span>
-        <span className="chatter-logo-tag__dot" />
-      </div>
+      {/* Center Content: Twitter / X Tabs on Feed or Clean Section Title */}
+      {feedTab ? (
+        <div className="chatter-topbar-tabs">
+          <button
+            type="button"
+            className={`chatter-topbar-tab ${feedTab === 'forYou' ? 'chatter-topbar-tab--active' : ''}`}
+            onClick={() => onSelectFeedTab?.('forYou')}
+          >
+            <span>For you</span>
+            {feedTab === 'forYou' && <span className="chatter-topbar-tab__indicator" />}
+          </button>
+          <button
+            type="button"
+            className={`chatter-topbar-tab ${feedTab === 'following' ? 'chatter-topbar-tab--active' : ''}`}
+            onClick={() => onSelectFeedTab?.('following')}
+          >
+            <span>Following</span>
+            {feedTab === 'following' && <span className="chatter-topbar-tab__indicator" />}
+          </button>
+        </div>
+      ) : title ? (
+        <div style={{ fontSize: 17, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' }}>
+          {title}
+        </div>
+      ) : (
+        <div style={{ flex: 1 }} />
+      )}
 
       <div className="chatter-topbar__actions">
         {/* Live Audio Spaces / Rooms shortcut */}

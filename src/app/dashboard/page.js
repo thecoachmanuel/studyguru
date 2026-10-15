@@ -200,6 +200,7 @@ export default function DashboardPage() {
   const [targetPostId, setTargetPostId] = useState(null);
   const [filterTag, setFilterTag] = useState(null);
   const [activePartnerUser, setActivePartnerUser] = useState(null);
+  const [feedTab, setFeedTab] = useState('forYou');
 
   // Shared following state synchronized across Feed, Profile Modal, and Profile View
   const [followingMap, setFollowingMap] = useState({});
@@ -1092,6 +1093,8 @@ export default function DashboardPage() {
                 onOpenSearch={() => setSearchModalOpen(true)}
                 onOpenLiveSpaces={() => setChatterTab('rooms')}
                 onRandomTopic={() => setChatterTab('rooms')}
+                feedTab={feedTab}
+                onSelectFeedTab={setFeedTab}
               />
               <ChatterFeedView
                 serverId={activeServerId}
@@ -1104,6 +1107,8 @@ export default function DashboardPage() {
                 targetPostId={targetPostId}
                 filterTag={filterTag}
                 onSelectTag={setFilterTag}
+                feedTab={feedTab}
+                onSelectFeedTab={setFeedTab}
               />
             </div>
           </div>
@@ -1123,16 +1128,17 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* If chatterTab === 'rooms', render ChatterRoomsView with desktop right sidebar */}
+      {/* If chatterTab === 'rooms', render ChatterRoomsView with desktop right sidebar or active room chat */}
       {chatterTab === 'rooms' && (
         <div style={{ flex: 1, display: 'flex', height: '100dvh', overflow: 'hidden', background: 'var(--chatter-black)' }}>
-          <div className="chatter-main-column">
+          <div className={`chatter-main-column ${activeChannelId && !activePartnerUser ? 'chatter-chats-list-pane--with-active' : ''}`}>
             <div className="chatter-center-container">
               <ChatterTopBar
                 onOpenNotifications={() => showToast('No new notifications')}
                 onOpenSearch={() => setSearchModalOpen(true)}
                 onOpenLiveSpaces={() => setChatterTab('rooms')}
                 onRandomTopic={() => setChatterTab('rooms')}
+                title="Study Rooms"
               />
               <ChatterRoomsView
                 servers={servers}
@@ -1146,7 +1152,8 @@ export default function DashboardPage() {
                     setActiveChannelName(roomName);
                     setActiveChannelType('text');
                   }
-                  setChatterTab('chats');
+                  setActivePartnerUser(null);
+                  setChatterTab('rooms');
                 }}
                 onCreateServer={() => setServerActionModal('create')}
                 onJoinServer={() => setServerActionModal('join')}
@@ -1163,19 +1170,66 @@ export default function DashboardPage() {
               />
             </div>
           </div>
-          <ChatterRightSidebar
-            onOpenSearch={() => setSearchModalOpen(true)}
-            onOpenRooms={() => setChatterTab('rooms')}
-            onOpenGuru={() => setChatterTab('guru')}
-            onSelectTag={(tag) => {
-              setFilterTag(tag);
-              setChatterTab('feed');
-            }}
-            followingMap={followingMap}
-            onToggleFollow={handleToggleFollow}
-            onOpenUserProfile={(scholar) => setUserProfileModalTarget(scholar)}
-            currentUserId={user?.id}
-          />
+
+          {activeChannelId && !activePartnerUser ? (
+            <div className="chatter-chat-room-pane">
+              <ChatterChatRoom
+                channelId={activeChannelId}
+                channelName={activeChannelName}
+                channelType={activeChannelType || 'text'}
+                serverId={activeServerId}
+                serverName={activeServerName}
+                userId={user?.id}
+                profile={profile}
+                partnerUser={null}
+                onBack={() => {
+                  setActiveChannelId(null);
+                  setActivePartnerUser(null);
+                }}
+                onStartDM={handleStartDM}
+                onLeaveRoom={(leftServerId) => {
+                  setServers((prev) => prev.filter((s) => s.id !== leftServerId));
+                  setActiveServerId(null);
+                  setActiveChannelId(null);
+                  setChatterTab('rooms');
+                  showToast('Left study room');
+                }}
+                onStartAudioCall={() => {
+                  setAudioSpaceModalOpen(true);
+                  const targetChannelId = activeChannelId || activeServerId || 'general-study';
+                  const targetChannelName = activeChannelName || 'Study Room';
+                  const targetServerId = activeServerId || 'direct-space';
+                  voiceSession?.handleJoin?.(targetChannelId, targetChannelName, targetServerId);
+                }}
+                onStartVideoCall={async () => {
+                  setAudioSpaceModalOpen(true);
+                  const targetChannelId = activeChannelId || activeServerId || 'general-study';
+                  const targetChannelName = activeChannelName || 'Study Room';
+                  const targetServerId = activeServerId || 'direct-space';
+                  await voiceSession?.handleJoin?.(targetChannelId, targetChannelName, targetServerId);
+                  setTimeout(() => {
+                    if (!voiceSession?.cameraEnabled) {
+                      voiceSession?.toggleCamera?.();
+                    }
+                  }, 300);
+                }}
+              />
+            </div>
+          ) : (
+            <ChatterRightSidebar
+              onOpenSearch={() => setSearchModalOpen(true)}
+              onOpenRooms={() => setChatterTab('rooms')}
+              onOpenGuru={() => setChatterTab('guru')}
+              onSelectTag={(tag) => {
+                setFilterTag(tag);
+                setChatterTab('feed');
+              }}
+              followingMap={followingMap}
+              onToggleFollow={handleToggleFollow}
+              onOpenUserProfile={(scholar) => setUserProfileModalTarget(scholar)}
+              currentUserId={user?.id}
+            />
+          )}
         </div>
       )}
 
@@ -1262,6 +1316,7 @@ export default function DashboardPage() {
                   setActivePartnerUser(partnerData);
                 } else {
                   setActivePartnerUser(null);
+                  setChatterTab('rooms');
                 }
               }}
               onOpenDMsModal={() => setNewDMSheetOpen(true)}
@@ -1385,7 +1440,7 @@ export default function DashboardPage() {
 
       {/* ── Mobile 5-Tab Navigation Bar (Exact Chatter App TabBarScreen) ── */}
       {/* Hide bottom navigation when inside active chat room or when StudyCord AI (AI Guru) is open to occupy fullscreen */}
-      {!(chatterTab === 'chats' && activeChannelId) && chatterTab !== 'guru' && (
+      {!(chatterTab === 'chats' && activeChannelId) && !(chatterTab === 'rooms' && activeChannelId) && chatterTab !== 'guru' && (
         <ChatterBottomNav
           activeTab={chatterTab}
           onSelectTab={(tab) => {
