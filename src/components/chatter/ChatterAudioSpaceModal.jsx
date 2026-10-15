@@ -68,6 +68,8 @@ export default function ChatterAudioSpaceModal({
     localVideoStream,
     localScreenStream,
     remoteStreams = {},
+    remoteScreenShareStates = {},
+    remoteCameraStates = {},
   } = voiceSession || {};
 
   const onToggleMic = () => {
@@ -106,13 +108,25 @@ export default function ChatterAudioSpaceModal({
     const normId = String(rawId).replace(/^vp-[^-]+-/, '');
     const isMe = normId === String(userId) || String(rawId) === String(userId);
 
+    const rawName =
+      p.name ||
+      p.full_name ||
+      p.profiles?.full_name ||
+      p.profiles?.name ||
+      p.profiles?.username ||
+      p.user_name ||
+      p.username;
+
     const displayName = isMe
       ? (profile?.full_name || profile?.name || 'You')
-      : (p.profiles?.full_name || p.profiles?.username || p.name || 'Scholar');
+      : (rawName && rawName !== 'Scholar' && rawName !== 'User'
+          ? rawName
+          : (p.profiles?.username || p.username || 'Study Partner'));
 
     participantsMap.set(normId, {
       userId: normId,
       name: displayName,
+      username: p.username || p.profiles?.username || '',
       avatar_url: isMe
         ? (profile?.avatar_url || null)
         : (p.profiles?.avatar_url || p.avatar_url || null),
@@ -138,14 +152,56 @@ export default function ChatterAudioSpaceModal({
   const speakers = fullParticipants.filter((p) => !p.isMuted);
   const listeners = fullParticipants.filter((p) => p.isMuted);
 
-  // Local video ref
+  // Fullscreen Theater Mode for Shared Screen
+  const [isScreenMaximized, setIsScreenMaximized] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isScreenMaximized) {
+        setIsScreenMaximized(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isScreenMaximized]);
+
+  // Identify active screen share (local or remote)
+  const remoteScreenSharerId = Object.keys(remoteScreenShareStates).find(
+    (id) => remoteScreenShareStates[id]?.enabled && remoteStreams[id]
+  );
+  const activeScreenShare = isScreenSharing
+    ? {
+        isLocal: true,
+        stream: localScreenStream || localVideoStream,
+        userId: String(userId),
+        name: profile?.full_name || profile?.name || 'You',
+        avatar_url: profile?.avatar_url,
+      }
+    : remoteScreenSharerId
+      ? {
+          isLocal: false,
+          stream: remoteStreams[remoteScreenSharerId],
+          userId: remoteScreenSharerId,
+          name: participantsMap.get(remoteScreenSharerId)?.name || 'Study Partner',
+          avatar_url: participantsMap.get(remoteScreenSharerId)?.avatar_url,
+        }
+      : null;
+
+  const hasLocalCamera = Boolean(cameraEnabled && !isScreenSharing);
+  const remoteVideoEntries = Object.entries(remoteStreams).filter(
+    ([remoteId]) => remoteId !== remoteScreenSharerId
+  );
+  const hasAnyVideo = hasLocalCamera || remoteVideoEntries.length > 0;
+  const totalVideos = (hasLocalCamera ? 1 : 0) + remoteVideoEntries.length;
+
+  // Local camera video ref
   const localVideoRef = useRef(null);
   useEffect(() => {
-    if (localVideoRef.current && (localVideoStream || localScreenStream)) {
-      localVideoRef.current.srcObject = localScreenStream || localVideoStream;
+    if (localVideoRef.current && localVideoStream) {
+      localVideoRef.current.srcObject = localVideoStream;
       localVideoRef.current.play?.().catch(() => {});
     }
-  }, [localVideoStream, localScreenStream]);
+  }, [localVideoStream]);
 
   return (
     <div
@@ -223,7 +279,7 @@ export default function ChatterAudioSpaceModal({
       </header>
 
       {/* ── 2. Stage Area: Speakers & Video Tiles ── */}
-      <main style={{ flex: 1, overflowY: 'auto', padding: '24px 20px', maxWidth: 840, width: '100%', margin: '0 auto' }}>
+      <main style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', maxWidth: activeScreenShare ? '100%' : '1100px', width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
         {/* Floating Error / Notification Banner */}
         {(screenShareError || cameraError || error || autoplayWarning) && (
           <div
@@ -301,136 +357,247 @@ export default function ChatterAudioSpaceModal({
           </div>
         )}
 
-        {/* Live Video Grid Area when Camera, Screen, or Remote Streams are active */}
-        {(cameraEnabled || isScreenSharing || Object.keys(remoteStreams).length > 0) && (() => {
-          const hasLocalVideo = Boolean(cameraEnabled || isScreenSharing);
-          const remoteEntries = Object.entries(remoteStreams);
-          const totalVideos = (hasLocalVideo ? 1 : 0) + remoteEntries.length;
+        {/* ── LIVE SCREEN SHARE & VIDEO STAGE ── */}
+        {(activeScreenShare || hasAnyVideo) && (
+          <div style={{ marginBottom: 28, width: '100%' }}>
+            {/* 1. When a screen is being shared, show it boldly across 100% width at top */}
+            {activeScreenShare && (
+              <ScreenSharePlayer
+                stream={activeScreenShare.stream}
+                isLocal={activeScreenShare.isLocal}
+                sharerName={activeScreenShare.name}
+                isMaximized={isScreenMaximized}
+                onToggleMaximize={() => setIsScreenMaximized((prev) => !prev)}
+                onStopSharing={activeScreenShare.isLocal ? handleStopScreenShare : null}
+              />
+            )}
 
-          return (
-            <div style={{ marginBottom: 26 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--chatter-primary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  Live Video Stage ({totalVideos})
-                </div>
-                {raisedHand && (
-                  <span style={{ fontSize: 12.5, background: 'rgba(64, 227, 120, 0.16)', color: 'var(--chatter-primary)', padding: '3px 9px', borderRadius: 12, fontWeight: 700 }}>
-                    ✋ Hand Raised
-                  </span>
-                )}
-              </div>
-              <div
-                className={`chatter-video-stage-grid ${totalVideos === 1 ? 'single-video' : 'multi-video'}`}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns:
-                    totalVideos === 1
-                      ? '1fr'
-                      : totalVideos === 2
-                        ? 'repeat(auto-fit, minmax(280px, 1fr))'
-                        : 'repeat(auto-fit, minmax(220px, 1fr))',
-                  gap: 14,
-                  width: '100%',
-                }}
-              >
-                {/* Local Video Tile */}
-                {hasLocalVideo && (
+            {/* 2. When screen is sharing, render active camera feeds in a neat participant strip below the screen */}
+            {activeScreenShare ? (
+              hasAnyVideo && (
+                <div style={{ marginBottom: 18 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--chatter-light-text)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+                    Active Cameras ({hasLocalCamera ? 1 : 0 + remoteVideoEntries.length})
+                  </div>
                   <div
-                    className="chatter-video-tile"
                     style={{
-                      position: 'relative',
-                      borderRadius: 20,
-                      overflow: 'hidden',
-                      background: '#111',
-                      border: !isMuted ? '2px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.1)',
-                      boxShadow: !isMuted ? '0 0 16px rgba(64, 227, 120, 0.4)' : 'none',
-                      aspectRatio: isScreenSharing ? '16/9' : (totalVideos === 1 ? '16/10' : '4/3'),
-                      maxWidth: totalVideos === 1 ? (isScreenSharing ? '100%' : '540px') : '100%',
-                      margin: '0 auto',
-                      width: '100%',
-                      minHeight: totalVideos === 1 ? 260 : 180,
+                      display: 'flex',
+                      gap: 12,
+                      overflowX: 'auto',
+                      padding: '4px 2px 10px',
+                      scrollbarWidth: 'thin',
                     }}
                   >
-                    <video
-                      ref={localVideoRef}
-                      autoPlay
-                      playsInline
-                      muted
+                    {/* Local Camera Tile in strip */}
+                    {hasLocalCamera && (
+                      <div
+                        className="chatter-video-tile"
+                        style={{
+                          position: 'relative',
+                          borderRadius: 16,
+                          overflow: 'hidden',
+                          background: '#111',
+                          border: !isMuted ? '2px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.1)',
+                          boxShadow: !isMuted ? '0 0 14px rgba(64, 227, 120, 0.35)' : 'none',
+                          aspectRatio: '16/9',
+                          width: 200,
+                          minWidth: 180,
+                          height: 120,
+                          flexShrink: 0,
+                        }}
+                      >
+                        <video
+                          ref={localVideoRef}
+                          autoPlay
+                          playsInline
+                          muted
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            objectPosition: 'center center',
+                            display: 'block',
+                            transform: 'scaleX(-1)',
+                          }}
+                        />
+                        <div
+                          style={{
+                            position: 'absolute',
+                            bottom: 8,
+                            left: 8,
+                            background: 'rgba(0,0,0,0.7)',
+                            backdropFilter: 'blur(4px)',
+                            padding: '3px 8px',
+                            borderRadius: 8,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            color: '#fff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 5,
+                            zIndex: 2,
+                          }}
+                        >
+                          <span>{profile?.name || 'You'} (You)</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Remote Camera Tiles in strip */}
+                    {remoteVideoEntries.map(([remoteId, stream]) => {
+                      const p = participantsMap.get(remoteId) || participants.find((part) => String(part.userId || part.user_id) === String(remoteId));
+                      const isSpeaking = p?.speaking;
+                      return (
+                        <div
+                          key={remoteId}
+                          style={{
+                            width: 200,
+                            minWidth: 180,
+                            height: 120,
+                            flexShrink: 0,
+                          }}
+                        >
+                          <RemoteVideoTile
+                            remoteUserId={remoteId}
+                            stream={stream}
+                            participant={p}
+                            isSpeaking={isSpeaking}
+                            totalVideos={remoteVideoEntries.length + (hasLocalCamera ? 1 : 0)}
+                            isHandRaised={Boolean(raisedHandsMap[remoteId])}
+                            compact={true}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )
+            ) : (
+              /* 3. When NO screen is sharing, show cameras in modern responsive grid */
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--chatter-primary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    Live Video Stage ({totalVideos})
+                  </div>
+                  {raisedHand && (
+                    <span style={{ fontSize: 12.5, background: 'rgba(64, 227, 120, 0.16)', color: 'var(--chatter-primary)', padding: '3px 9px', borderRadius: 12, fontWeight: 700 }}>
+                      ✋ Hand Raised
+                    </span>
+                  )}
+                </div>
+                <div
+                  className={`chatter-video-stage-grid ${totalVideos === 1 ? 'single-video' : 'multi-video'}`}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns:
+                      totalVideos === 1
+                        ? '1fr'
+                        : totalVideos === 2
+                          ? 'repeat(auto-fit, minmax(280px, 1fr))'
+                          : 'repeat(auto-fit, minmax(240px, 1fr))',
+                    gap: 14,
+                    width: '100%',
+                  }}
+                >
+                  {/* Local Camera Tile */}
+                  {hasLocalCamera && (
+                    <div
+                      className="chatter-video-tile"
                       style={{
+                        position: 'relative',
+                        borderRadius: 20,
+                        overflow: 'hidden',
+                        background: '#111',
+                        border: !isMuted ? '2px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.1)',
+                        boxShadow: !isMuted ? '0 0 16px rgba(64, 227, 120, 0.4)' : 'none',
+                        aspectRatio: totalVideos === 1 ? '16/10' : '4/3',
+                        maxWidth: totalVideos === 1 ? '620px' : '100%',
+                        margin: '0 auto',
                         width: '100%',
-                        height: '100%',
-                        objectFit: isScreenSharing ? 'contain' : 'cover',
-                        objectPosition: 'center center',
-                        display: 'block',
-                        transform: isScreenSharing ? 'none' : 'scaleX(-1)',
+                        minHeight: totalVideos === 1 ? 260 : 180,
                       }}
-                    />
-                    {raisedHand && (
+                    >
+                      <video
+                        ref={localVideoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          objectPosition: 'center center',
+                          display: 'block',
+                          transform: 'scaleX(-1)',
+                        }}
+                      />
+                      {raisedHand && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 10,
+                            right: 10,
+                            background: 'rgba(64, 227, 120, 0.95)',
+                            color: '#0E0E0E',
+                            padding: '4px 10px',
+                            borderRadius: 12,
+                            fontSize: 12,
+                            fontWeight: 800,
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            zIndex: 3,
+                          }}
+                        >
+                          <span>✋</span> Hand Raised
+                        </div>
+                      )}
                       <div
                         style={{
                           position: 'absolute',
-                          top: 10,
-                          right: 10,
-                          background: 'rgba(64, 227, 120, 0.95)',
-                          color: '#0E0E0E',
+                          bottom: 10,
+                          left: 10,
+                          background: 'rgba(0,0,0,0.65)',
+                          backdropFilter: 'blur(4px)',
                           padding: '4px 10px',
-                          borderRadius: 12,
-                          fontSize: 12,
-                          fontWeight: 800,
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+                          borderRadius: 10,
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: '#fff',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: 4,
-                          zIndex: 3,
+                          gap: 6,
+                          zIndex: 2,
                         }}
                       >
-                        <span>✋</span> Hand Raised
+                        <span>{profile?.name || 'You'} (You)</span>
                       </div>
-                    )}
-                    <div
-                      style={{
-                        position: 'absolute',
-                        bottom: 10,
-                        left: 10,
-                        background: 'rgba(0,0,0,0.65)',
-                        backdropFilter: 'blur(4px)',
-                        padding: '4px 10px',
-                        borderRadius: 10,
-                        fontSize: 13,
-                        fontWeight: 600,
-                        color: '#fff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        zIndex: 2,
-                      }}
-                    >
-                      <span>{profile?.name || 'You'} (You)</span>
-                      {isScreenSharing && <span style={{ fontSize: 12, color: 'var(--chatter-primary)' }}>· Screen</span>}
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Remote Video Tiles */}
-                {remoteEntries.map(([remoteId, stream]) => {
-                  const p = participants.find((part) => String(part.userId || part.user_id) === String(remoteId));
-                  const isSpeaking = p?.speaking;
-                  return (
-                    <RemoteVideoTile
-                      key={remoteId}
-                      remoteUserId={remoteId}
-                      stream={stream}
-                      participant={p}
-                      isSpeaking={isSpeaking}
-                      totalVideos={totalVideos}
-                      isHandRaised={Boolean(raisedHandsMap[remoteId])}
-                    />
-                  );
-                })}
+                  {/* Remote Video Tiles */}
+                  {remoteVideoEntries.map(([remoteId, stream]) => {
+                    const p = participantsMap.get(remoteId) || participants.find((part) => String(part.userId || part.user_id) === String(remoteId));
+                    const isSpeaking = p?.speaking;
+                    return (
+                      <RemoteVideoTile
+                        key={remoteId}
+                        remoteUserId={remoteId}
+                        stream={stream}
+                        participant={p}
+                        isSpeaking={isSpeaking}
+                        totalVideos={totalVideos}
+                        isHandRaised={Boolean(raisedHandsMap[remoteId])}
+                        compact={false}
+                      />
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          );
-        })()}
+            )}
+          </div>
+        )}
 
         {/* Section: Speakers on Stage */}
         <div style={{ marginBottom: 28 }}>
@@ -486,7 +653,7 @@ export default function ChatterAudioSpaceModal({
                           color: 'var(--chatter-primary)',
                         }}
                       >
-                        {speaker.name?.[0]?.toUpperCase() || 'S'}
+                        {speaker.name?.[0]?.toUpperCase() || 'P'}
                       </div>
                     )}
 
@@ -597,7 +764,7 @@ export default function ChatterAudioSpaceModal({
                         {listener.avatar_url ? (
                           <img src={listener.avatar_url} alt={listener.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
-                          listener.name?.[0]?.toUpperCase() || 'L'
+                          listener.name?.[0]?.toUpperCase() || 'P'
                         )}
                       </div>
                       {hasHandRaised && (
@@ -645,9 +812,10 @@ export default function ChatterAudioSpaceModal({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          maxWidth: 840,
+          maxWidth: activeScreenShare ? '100%' : '1000px',
           width: '100%',
           margin: '0 auto',
+          boxSizing: 'border-box',
         }}
       >
         {/* Left: Raise Hand button */}
@@ -827,7 +995,159 @@ export default function ChatterAudioSpaceModal({
   );
 }
 
-function RemoteVideoTile({ remoteUserId, stream, participant, isSpeaking, totalVideos = 1, isHandRaised = false }) {
+function ScreenSharePlayer({ stream, isLocal, sharerName, isMaximized, onToggleMaximize, onStopSharing }) {
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.play?.().catch(() => {});
+    }
+  }, [stream]);
+
+  return (
+    <div
+      style={{
+        position: isMaximized ? 'fixed' : 'relative',
+        inset: isMaximized ? 0 : undefined,
+        zIndex: isMaximized ? 400 : 1,
+        width: '100%',
+        height: isMaximized ? '100dvh' : undefined,
+        maxHeight: isMaximized ? '100dvh' : '65vh',
+        aspectRatio: isMaximized ? undefined : '16 / 9',
+        background: '#050505',
+        borderRadius: isMaximized ? 0 : 20,
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        border: isMaximized ? 'none' : '2px solid rgba(64, 227, 120, 0.5)',
+        boxShadow: isMaximized ? 'none' : '0 12px 40px rgba(0,0,0,0.7)',
+        margin: isMaximized ? 0 : '0 auto 20px',
+      }}
+    >
+      {/* Floating Header Overlay */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          padding: '12px 18px',
+          background: 'linear-gradient(to bottom, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0) 100%)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          zIndex: 10,
+          pointerEvents: 'auto',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span
+            style={{
+              background: 'var(--chatter-primary)',
+              color: '#0E0E0E',
+              fontSize: 12,
+              fontWeight: 800,
+              padding: '3px 10px',
+              borderRadius: 12,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+            }}
+          >
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#0E0E0E' }} />
+            LIVE SCREEN
+          </span>
+          <span style={{ fontSize: 14.5, fontWeight: 700, color: '#fff', textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>
+            🖥️ {sharerName}{isLocal ? ' (You)' : ''}&apos;s Screen
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {isLocal && onStopSharing && (
+            <button
+              type="button"
+              onClick={onStopSharing}
+              style={{
+                background: 'rgba(239, 68, 68, 0.9)',
+                border: 'none',
+                color: '#fff',
+                borderRadius: 12,
+                padding: '6px 14px',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)',
+                transition: 'background 0.15s ease',
+              }}
+            >
+              <span>⏹</span> Stop Sharing
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={onToggleMaximize}
+            title={isMaximized ? 'Exit Fullscreen (Esc)' : 'Maximize Screen'}
+            style={{
+              background: isMaximized ? 'var(--chatter-primary)' : 'rgba(0, 0, 0, 0.7)',
+              border: isMaximized ? 'none' : '1px solid rgba(255, 255, 255, 0.25)',
+              color: isMaximized ? '#0E0E0E' : '#fff',
+              borderRadius: 12,
+              padding: '6px 14px',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              backdropFilter: 'blur(8px)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <span style={{ fontSize: 16 }}>{isMaximized ? '⤢' : '⛶'}</span>
+            <span>{isMaximized ? 'Exit Fullscreen' : 'Maximize'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Screen Video Frame */}
+      <div
+        style={{
+          flex: 1,
+          width: '100%',
+          height: '100%',
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: '#000',
+        }}
+      >
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted={isLocal}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'contain',
+            background: '#000',
+            display: 'block',
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function RemoteVideoTile({ remoteUserId, stream, participant, isSpeaking, totalVideos = 1, isHandRaised = false, compact = false }) {
   const videoRef = useRef(null);
   const [hasVideo, setHasVideo] = useState(false);
 
@@ -864,21 +1184,26 @@ function RemoteVideoTile({ remoteUserId, stream, participant, isSpeaking, totalV
     }
   }, [stream, hasVideo]);
 
+  const participantName =
+    participant?.name && participant.name !== 'Scholar' && participant.name !== 'User'
+      ? participant.name
+      : (participant?.username || 'Study Partner');
+
   return (
     <div
       className="chatter-video-tile"
       style={{
         position: 'relative',
-        borderRadius: 20,
+        borderRadius: compact ? 16 : 20,
         overflow: 'hidden',
         background: '#141414',
         border: isSpeaking ? '2px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
         boxShadow: isSpeaking ? '0 0 16px rgba(64, 227, 120, 0.4)' : 'none',
-        aspectRatio: totalVideos === 1 ? '16/10' : '4/3',
-        maxWidth: totalVideos === 1 ? '540px' : '100%',
+        aspectRatio: compact ? '16/9' : (totalVideos === 1 ? '16/10' : '4/3'),
+        maxWidth: compact ? '100%' : (totalVideos === 1 ? '540px' : '100%'),
         margin: '0 auto',
         width: '100%',
-        minHeight: totalVideos === 1 ? 260 : 180,
+        minHeight: compact ? undefined : (totalVideos === 1 ? 260 : 180),
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -898,32 +1223,32 @@ function RemoteVideoTile({ remoteUserId, stream, participant, isSpeaking, totalV
       />
 
       {!hasVideo && (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: compact ? 6 : 10 }}>
           {participant?.avatar_url ? (
             <img
               src={participant.avatar_url}
-              alt={participant.name}
-              style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover' }}
+              alt={participantName}
+              style={{ width: compact ? 44 : 64, height: compact ? 44 : 64, borderRadius: '50%', objectFit: 'cover' }}
             />
           ) : (
             <div
               style={{
-                width: 64,
-                height: 64,
+                width: compact ? 44 : 64,
+                height: compact ? 44 : 64,
                 borderRadius: '50%',
                 background: '#252525',
                 color: 'var(--chatter-primary)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: 24,
+                fontSize: compact ? 18 : 24,
                 fontWeight: 700,
               }}
             >
-              {participant?.name?.[0]?.toUpperCase() || 'P'}
+              {participantName?.[0]?.toUpperCase() || 'P'}
             </div>
           )}
-          <span style={{ fontSize: 15.5, color: '#fff', fontWeight: 600 }}>{participant?.name || 'Scholar'}</span>
+          <span style={{ fontSize: compact ? 13 : 15.5, color: '#fff', fontWeight: 600 }}>{participantName}</span>
         </div>
       )}
 
@@ -932,13 +1257,13 @@ function RemoteVideoTile({ remoteUserId, stream, participant, isSpeaking, totalV
         <div
           style={{
             position: 'absolute',
-            top: 10,
-            right: 10,
+            top: 8,
+            right: 8,
             background: 'rgba(64, 227, 120, 0.95)',
             color: '#0E0E0E',
-            padding: '4px 10px',
-            borderRadius: 12,
-            fontSize: 12.5,
+            padding: '3px 8px',
+            borderRadius: 10,
+            fontSize: 11.5,
             fontWeight: 800,
             boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
             display: 'flex',
@@ -954,21 +1279,21 @@ function RemoteVideoTile({ remoteUserId, stream, participant, isSpeaking, totalV
       <div
         style={{
           position: 'absolute',
-          bottom: 10,
-          left: 10,
+          bottom: 8,
+          left: 8,
           background: 'rgba(0,0,0,0.65)',
           backdropFilter: 'blur(4px)',
-          padding: '4px 10px',
-          borderRadius: 10,
-          fontSize: 13.5,
+          padding: '3px 8px',
+          borderRadius: 8,
+          fontSize: compact ? 12 : 13.5,
           fontWeight: 600,
           color: '#fff',
           display: 'flex',
           alignItems: 'center',
-          gap: 6,
+          gap: 5,
         }}
       >
-        <span>{participant?.name || 'Scholar'}</span>
+        <span>{participantName}</span>
         {isSpeaking && (
           <span
             style={{

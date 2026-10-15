@@ -895,9 +895,8 @@ export default function ChatterGuruView({
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
-        maxWidth: 960,
-        margin: '0 auto',
         width: '100%',
+        maxWidth: '100%',
         color: '#fff',
         overflow: 'hidden',
         position: 'relative',
@@ -1541,7 +1540,11 @@ export default function ChatterGuruView({
               }}
             >
               <span className="chatter-audiospace-live-dot" />
-              <span>StudyCord AI is analyzing notes & synthesizing response...</span>
+              <span>
+                {aiMode === 'free'
+                  ? 'StudyCord AI is thinking & composing response...'
+                  : 'StudyCord AI is analyzing notes & synthesizing response...'}
+              </span>
             </div>
           </div>
         )}

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import { getDatabase, safeObjectId } from '@/lib/mongodb';
 import {
   addOrUpdateParticipant,
   removeParticipant,
@@ -44,11 +45,45 @@ export async function POST(req, { params }) {
     const body = await req.json().catch(() => ({}));
     const { action = 'join', serverId, isMuted } = body;
 
+    let userDoc = null;
+    try {
+      const db = await getDatabase();
+      userDoc = await db.collection('users').findOne({
+        $or: [{ _id: safeObjectId(session.user.id) }, { id: session.user.id }],
+      });
+    } catch {}
+
+    const resolvedName =
+      body.userName ||
+      body.name ||
+      userDoc?.name ||
+      userDoc?.username ||
+      session.user.name ||
+      session.user.email?.split('@')[0] ||
+      'Study Partner';
+
+    const resolvedUsername =
+      body.username ||
+      userDoc?.username ||
+      session.user.username ||
+      session.user.email?.split('@')[0] ||
+      resolvedName;
+
+    const resolvedAvatar =
+      body.avatar_url ||
+      userDoc?.avatar_url ||
+      userDoc?.image ||
+      session.user.image ||
+      null;
+
     const user = {
       id: session.user.id,
-      name: session.user.name,
+      name: resolvedName,
+      username: resolvedUsername,
+      full_name: resolvedName,
       email: session.user.email,
-      image: session.user.image,
+      image: resolvedAvatar,
+      avatar_url: resolvedAvatar,
     };
 
     if (action === 'join') {
@@ -65,7 +100,7 @@ export async function POST(req, { params }) {
       await removeParticipant({
         channelId,
         userId: session.user.id,
-        userName: session.user.name,
+        userName: resolvedName,
         serverId,
       });
       return NextResponse.json({ success: true });
@@ -84,7 +119,7 @@ export async function POST(req, { params }) {
       await broadcastHandRaise({
         channelId,
         userId: session.user.id,
-        userName: session.user.name,
+        userName: resolvedName,
         raised: Boolean(body.raised),
       });
       return NextResponse.json({ success: true, raised: Boolean(body.raised) });

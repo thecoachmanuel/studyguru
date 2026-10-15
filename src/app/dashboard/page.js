@@ -104,9 +104,9 @@ export default function DashboardPage() {
     if (!user) return null;
     return {
       id: user.id,
-      name: dbProfile?.name || user.name || user.email?.split('@')[0] || 'Scholar',
-      username: dbProfile?.username || user.name || user.email?.split('@')[0] || 'Scholar',
-      full_name: dbProfile?.name || user.name || user.email?.split('@')[0] || 'Scholar',
+      name: dbProfile?.name || user.name || user.email?.split('@')[0] || 'Study Partner',
+      username: dbProfile?.username || user.name || user.email?.split('@')[0] || 'Study Partner',
+      full_name: dbProfile?.name || user.name || user.email?.split('@')[0] || 'Study Partner',
       email: dbProfile?.email || user.email,
       avatar_url: dbProfile?.avatar_url || user.image || null,
       banner_url: dbProfile?.banner_url || null,
@@ -735,7 +735,7 @@ export default function DashboardPage() {
       if (!payload) return;
       if (String(payload.caller?.id) === String(user.id)) return;
       playSpaceTone();
-      const callerName = payload.caller?.full_name || payload.caller?.username || 'Scholar';
+      const callerName = payload.caller?.full_name || payload.caller?.username || payload.caller?.name || 'Study Partner';
       showToast(`🎙️ ${callerName} started a live study space!`);
     };
 
@@ -822,7 +822,7 @@ export default function DashboardPage() {
       if (!payload) return;
       if (String(payload.caller?.id) === String(user.id)) return;
       playSpaceTone();
-      const callerName = payload.caller?.full_name || payload.caller?.username || 'Scholar';
+      const callerName = payload.caller?.full_name || payload.caller?.username || payload.caller?.name || 'Study Partner';
       const currentServer = servers.find((s) => s.id === activeServerId);
       const sName = currentServer?.name || 'this room';
       showToast(`🎙️ ${callerName} started a live space in ${sName}!`);

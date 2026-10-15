@@ -1468,9 +1468,12 @@ export function useVoiceSession(userId, profile = null) {
         is_muted: false,
         joined_at: new Date().toISOString(),
         last_seen: new Date().toISOString(),
+        name: profile?.full_name || profile?.name || 'You',
+        user_name: profile?.full_name || profile?.name || 'You',
         profiles: {
           username: profile?.username || 'You',
-          full_name: profile?.full_name || 'You',
+          full_name: profile?.full_name || profile?.name || 'You',
+          name: profile?.full_name || profile?.name || 'You',
           avatar_url: profile?.avatar_url || null,
         },
       };
@@ -1488,6 +1491,9 @@ export function useVoiceSession(userId, profile = null) {
             action: 'join',
             serverId,
             isMuted: false,
+            userName: profile?.full_name || profile?.name || profile?.username,
+            username: profile?.username,
+            avatar_url: profile?.avatar_url,
           }),
         });
       } catch (e) {

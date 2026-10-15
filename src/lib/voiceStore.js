@@ -58,10 +58,13 @@ export async function addOrUpdateParticipant({ channelId, serverId, user, isMute
     is_muted: Boolean(isMuted),
     joined_at: nowIso,
     last_seen: nowIso,
+    name: user.full_name || user.name || user.username || 'Study Partner',
+    user_name: user.full_name || user.name || user.username || 'Study Partner',
     profiles: {
       id: userId,
-      username: user.name || user.username || user.email?.split('@')[0] || 'User',
-      full_name: user.name || user.full_name || 'User',
+      username: user.username || user.name || user.email?.split('@')[0] || 'Study Partner',
+      full_name: user.full_name || user.name || 'Study Partner',
+      name: user.full_name || user.name || 'Study Partner',
       avatar_url: user.image || user.avatar_url || null,
     },
   };
@@ -133,7 +136,7 @@ export async function broadcastHandRaise({ channelId, userId, userName, raised }
     const pusher = getPusherServer();
     await pusher.trigger(`voice-channel-${channelId}`, 'hand-raise-updated', {
       user_id: String(userId),
-      user_name: userName || 'Scholar',
+      user_name: userName || 'Study Partner',
       raised: Boolean(raised),
     });
     return true;
