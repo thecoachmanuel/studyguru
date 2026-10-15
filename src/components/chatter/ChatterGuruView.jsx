@@ -8,6 +8,7 @@ import { TwitterVerifiedBadge } from './ChatterFeedView';
 export default function ChatterGuruView({
   channelName,
   serverId,
+  onBack,
   onHideNavChange,
   isNavHidden = false,
 }) {
@@ -15,7 +16,7 @@ export default function ChatterGuruView({
     {
       id: 'g-intro',
       role: 'assistant',
-      content: 'Hello! I am **StudyCord AI**, your intelligent study partner powered by StudyCord. You can upload lecture notes, textbook chapters (.pdf, .docx, .txt), generate automated quizzes, create flashcards, or ask any complex study question!',
+      content: 'Hello! I am **AI Guru**, your personal intelligent study partner. You can upload lecture notes, textbook chapters (.pdf, .docx, .txt), generate quizzes, review flashcards, or ask any study question across any subject!',
       timestamp: 'Now',
     },
   ]);
@@ -544,17 +545,6 @@ export default function ChatterGuruView({
     const text = textToSend || inputText;
     if (!text.trim() || loading) return;
 
-    if (text.toLowerCase().includes('quiz') || text.toLowerCase().includes('mcq') || text.toLowerCase().includes('cbt')) {
-      handleGenerateMCQ();
-      setInputText('');
-      return;
-    }
-    if (text.toLowerCase().includes('flashcard') || text.toLowerCase().includes('flash card')) {
-      handleGenerateFlashcards();
-      setInputText('');
-      return;
-    }
-
     const userMsg = {
       id: `u-${Date.now()}`,
       role: 'user',
@@ -714,10 +704,33 @@ export default function ChatterGuruView({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--chatter-primary)',
+                padding: '4px 6px 4px 0',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                marginRight: 2,
+              }}
+              aria-label="Back"
+              title="Back"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+          )}
+
           <div
             style={{
-              width: 32,
-              height: 32,
+              width: 34,
+              height: 34,
               borderRadius: 10,
               background: 'rgba(64, 227, 120, 0.16)',
               color: 'var(--chatter-primary)',
@@ -730,8 +743,8 @@ export default function ChatterGuruView({
             <ChatbotIcon size={18} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-            <span style={{ fontSize: 16, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' }}>
-              StudyCord AI
+            <span style={{ fontSize: 17, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' }}>
+              AI Guru
             </span>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--chatter-primary)', display: 'inline-block', boxShadow: '0 0 8px var(--chatter-primary)' }} />
           </div>
@@ -1086,31 +1099,23 @@ export default function ChatterGuruView({
                 </div>
               )}
 
-              <div style={{ maxWidth: '100%' }}>
-                {/* Message Header */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    marginBottom: 4,
-                    justifyContent: isUser ? 'flex-end' : 'flex-start',
-                  }}
-                >
-                  <span
+              <div style={{ maxWidth: '100%', minWidth: 0, flex: 1 }}>
+                {/* User Message Header (subtle) */}
+                {isUser && (
+                  <div
                     style={{
-                      fontSize: 12.5,
-                      fontWeight: 700,
-                      color: isUser ? '#fff' : 'var(--chatter-primary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      marginBottom: 4,
+                      justifyContent: 'flex-end',
                     }}
                   >
-                    {isUser ? 'You' : 'StudyCord AI'}
-                  </span>
-                  {!isUser && <TwitterVerifiedBadge />}
-                  <span style={{ fontSize: 11, color: 'var(--chatter-light-text)' }}>
-                    {m.timestamp || 'Just now'}
-                  </span>
-                </div>
+                    <span style={{ fontSize: 11.5, color: 'var(--chatter-light-text)' }}>
+                      {m.timestamp || 'Just now'}
+                    </span>
+                  </div>
+                )}
 
                 {/* Message Bubble */}
                 <div
@@ -1125,6 +1130,10 @@ export default function ChatterGuruView({
                     lineHeight: 1.65,
                     boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
                     whiteSpace: isUser ? 'pre-wrap' : undefined,
+                    maxWidth: '100%',
+                    boxSizing: 'border-box',
+                    overflowWrap: 'anywhere',
+                    wordBreak: 'break-word',
                   }}
                 >
                   {isUser ? (
@@ -1224,11 +1233,11 @@ export default function ChatterGuruView({
         ))}
       </div>
 
-      {/* ── 5. Bottom Compose Input (Flush directly over bottom nav) ── */}
+      {/* ── 5. Bottom Compose Input (Clean Fullscreen Chat Screen) ── */}
       <div
         className="chatter-guru-compose"
         style={{
-          padding: '8px 16px 10px',
+          padding: '10px 16px calc(14px + env(safe-area-inset-bottom))',
           background: 'var(--chatter-black)',
           flexShrink: 0,
         }}
@@ -1507,19 +1516,22 @@ function QuizAssessmentCard({ questions = [], onRegenerate, messageId }) {
         style={{
           background: '#181818',
           borderRadius: 16,
-          padding: fullscreen ? '24px 28px' : '16px',
+          padding: fullscreen ? '24px 28px' : '14px 16px',
           border: '1px solid rgba(255, 255, 255, 0.06)',
+          maxWidth: '100%',
+          boxSizing: 'border-box',
+          overflow: 'hidden',
         }}
       >
         <div style={{ fontSize: fullscreen ? 13 : 11.5, color: 'var(--chatter-light-text)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>
           Question {currentQIndex + 1} of {totalQuestions}
         </div>
-        <div style={{ fontSize: fullscreen ? 18.5 : 15, fontWeight: 700, color: '#fff', lineHeight: 1.5, marginBottom: fullscreen ? 18 : 14 }}>
+        <div style={{ fontSize: fullscreen ? 18.5 : 15, fontWeight: 700, color: '#fff', lineHeight: 1.5, marginBottom: fullscreen ? 18 : 14, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
           {currentQ.question}
         </div>
 
         {/* Options */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: fullscreen ? 12 : 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: fullscreen ? 12 : 8, width: '100%', maxWidth: '100%' }}>
           {currentQ.options?.map((opt, i) => {
             const letter = String.fromCharCode(65 + i); // 'A', 'B', 'C', 'D'
             const isSelected = selectedAnswers[currentQIndex] === opt;
@@ -1565,6 +1577,10 @@ function QuizAssessmentCard({ questions = [], onRegenerate, messageId }) {
                   fontWeight: 600,
                   cursor: isSubmitted ? 'default' : 'pointer',
                   transition: 'all 0.15s ease',
+                  width: '100%',
+                  maxWidth: '100%',
+                  boxSizing: 'border-box',
+                  overflow: 'hidden',
                 }}
               >
                 <span
@@ -1584,9 +1600,9 @@ function QuizAssessmentCard({ questions = [], onRegenerate, messageId }) {
                 >
                   {letter}
                 </span>
-                <span style={{ flex: 1 }}>{opt}</span>
-                {isSubmitted && isCorrect && <span style={{ fontSize: 14 }}>✓</span>}
-                {isSubmitted && isSelected && !isCorrect && <span style={{ fontSize: 14 }}>✗</span>}
+                <span style={{ flex: 1, minWidth: 0, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{opt}</span>
+                {isSubmitted && isCorrect && <span style={{ fontSize: 14, flexShrink: 0 }}>✓</span>}
+                {isSubmitted && isSelected && !isCorrect && <span style={{ fontSize: 14, flexShrink: 0 }}>✗</span>}
               </button>
             );
           })}
@@ -2053,6 +2069,9 @@ function FlashcardDeck({ cards = [], onRegenerate }) {
         display: 'flex',
         flexDirection: 'column',
         gap: 14,
+        maxWidth: '100%',
+        boxSizing: 'border-box',
+        overflow: 'hidden',
       }}
     >
       {/* Header with counter and fullscreen button */}

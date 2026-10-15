@@ -434,25 +434,25 @@ export default function ChatterChatRoom({
             </button>
           )}
 
-          <div style={{ position: 'relative' }}>
-            <div
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 14,
-                background: '#242424',
-                color: channelType === 'voice' ? 'var(--chatter-primary)' : '#fff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 16,
-                fontWeight: 700,
-                overflow: 'hidden',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-              }}
-            >
-              {channelType === 'dm' ? (
-                currentPartnerAvatar ? (
+          {channelType === 'dm' && (
+            <div style={{ position: 'relative' }}>
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 14,
+                  background: '#242424',
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 16,
+                  fontWeight: 700,
+                  overflow: 'hidden',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                }}
+              >
+                {currentPartnerAvatar ? (
                   <img
                     src={currentPartnerAvatar}
                     alt={displayRoomTitle}
@@ -460,15 +460,9 @@ export default function ChatterChatRoom({
                   />
                 ) : (
                   <span>{(displayRoomTitle?.[0] || 'U').toUpperCase()}</span>
-                )
-              ) : channelType === 'voice' ? (
-                '🎙️'
-              ) : (
-                '📚'
-              )}
-            </div>
-            {channelType === 'dm' && (
-              isPartnerOnline ? (
+                )}
+              </div>
+              {isPartnerOnline ? (
                 <span
                   style={{
                     position: 'absolute',
@@ -497,9 +491,9 @@ export default function ChatterChatRoom({
                   }}
                   title="Offline"
                 />
-              )
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>

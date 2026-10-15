@@ -64,6 +64,7 @@ export async function POST(req, { params }) {
       await removeParticipant({
         channelId,
         userId: session.user.id,
+        userName: session.user.name,
         serverId,
       });
       return NextResponse.json({ success: true });

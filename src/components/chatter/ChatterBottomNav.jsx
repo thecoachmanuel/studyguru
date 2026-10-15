@@ -33,7 +33,7 @@ export default function ChatterBottomNav({
     },
     {
       id: 'guru',
-      label: 'StudyCord AI',
+      label: 'AI Guru',
       icon: (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="10" />
@@ -64,13 +64,12 @@ export default function ChatterBottomNav({
     },
   ];
 
+  const shouldHide = isHidden || activeTab === 'guru';
+  if (shouldHide) return null;
+
   return (
     <nav
-      className={`chatter-tabbar ${isHidden ? 'chatter-tabbar--hidden' : ''}`}
-      style={{
-        transform: isHidden ? 'translateY(120%)' : 'translateY(0)',
-        transition: 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-      }}
+      className="chatter-tabbar"
       aria-label="Chatter Bottom Navigation"
     >
       {tabs.map((tab) => {

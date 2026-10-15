@@ -102,21 +102,35 @@ export async function addOrUpdateParticipant({ channelId, serverId, user, isMute
   return participant;
 }
 
-export async function removeParticipant({ channelId, userId, serverId }) {
+export async function removeParticipant({ channelId, userId, serverId, userName }) {
   cleanupStale();
   let removed = false;
+  let participantName = userName || null;
   if (participantsByChannel.has(channelId)) {
+    const existing = participantsByChannel.get(channelId).get(userId);
+    if (existing?.profiles?.full_name || existing?.profiles?.username) {
+      participantName = existing.profiles.full_name || existing.profiles.username;
+    }
     removed = participantsByChannel.get(channelId).delete(userId);
   }
 
   try {
     const db = await getDatabase();
+    if (!participantName) {
+      const doc = await db.collection('voice_participants').findOne({ channel_id: channelId, user_id: userId });
+      if (doc?.profiles?.full_name || doc?.profiles?.username) {
+        participantName = doc.profiles.full_name || doc.profiles.username;
+      }
+    }
     await db.collection('voice_participants').deleteOne({ channel_id: channelId, user_id: userId });
   } catch {}
 
   try {
     const pusher = getPusherServer();
-    await pusher.trigger(`voice-channel-${channelId}`, 'participant-left', { user_id: userId });
+    await pusher.trigger(`voice-channel-${channelId}`, 'participant-left', {
+      user_id: userId,
+      user_name: participantName || 'A scholar',
+    });
     const liveCount = participantsByChannel.get(channelId)?.size || 0;
     if (serverId) {
       await pusher.trigger(`voice-counts-${serverId}`, 'voice-counts-updated', {

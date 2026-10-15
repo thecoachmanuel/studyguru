@@ -1675,15 +1675,24 @@ export function useVoiceSession(userId, profile = null) {
         }
       });
 
-      chan.bind('participant-left', ({ user_id }) => {
+      chan.bind('participant-left', ({ user_id, user_name }) => {
         if (user_id) {
           if (user_id !== userId) {
             try {
               new Audio('/sounds/user-leave.mp3').play().catch(() => {});
             } catch {}
             explicitlyLeftRef.current.add(user_id);
+            const foundName = user_name || participantsRef.current.find((p) => String(p.user_id || p.userId) === String(user_id))?.profiles?.full_name || 'A scholar';
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('studycord_voice_user_left', {
+                detail: { userId: user_id, name: foundName },
+              }));
+              window.dispatchEvent(new CustomEvent('studycord_toast', {
+                detail: `${foundName} left the call`,
+              }));
+            }
           }
-          setParticipants((prev) => prev.filter((p) => p.user_id !== user_id));
+          setParticipants((prev) => prev.filter((p) => String(p.user_id || p.userId) !== String(user_id)));
           cleanupPeerConnection(user_id);
         }
       });

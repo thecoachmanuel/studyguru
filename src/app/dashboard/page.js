@@ -1151,6 +1151,7 @@ export default function DashboardPage() {
         <ChatterGuruView
           channelName={activeChannelName}
           serverId={activeServerId}
+          onBack={() => setChatterTab('feed')}
         />
       </div>
 
@@ -1342,8 +1343,8 @@ export default function DashboardPage() {
       )}
 
       {/* ── Mobile 5-Tab Navigation Bar (Exact Chatter App TabBarScreen) ── */}
-      {/* Hide bottom navigation when inside active chat room so compose input is never obscured */}
-      {!(chatterTab === 'chats' && activeChannelId) && (
+      {/* Hide bottom navigation when inside active chat room or when StudyCord AI (AI Guru) is open to occupy fullscreen */}
+      {!(chatterTab === 'chats' && activeChannelId) && chatterTab !== 'guru' && (
         <ChatterBottomNav
           activeTab={chatterTab}
           onSelectTab={(tab) => {

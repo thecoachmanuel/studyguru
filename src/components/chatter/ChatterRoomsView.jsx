@@ -185,91 +185,68 @@ export default function ChatterRoomsView({
 
   return (
     <div style={{ paddingBottom: 'calc(84px + env(safe-area-inset-bottom))', width: '100%' }}>
-      {/* ── 1. Top Subject & Interest Carousel ── */}
-      <div
-        style={{
-          display: 'flex',
-          gap: 8,
-          overflowX: 'auto',
-          padding: '12px 16px',
-          scrollbarWidth: 'none',
-          msOverflowStyle: 'none',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-        }}
-      >
-        {interests.map((tag) => {
-          const isSelected = selectedInterest === tag;
-          return (
-            <button
-              key={tag}
-              type="button"
-              onClick={() => setSelectedInterest(tag)}
-              style={{
-                padding: '8px 18px',
-                borderRadius: 20,
-                fontSize: 14,
-                fontWeight: 600,
-                whiteSpace: 'nowrap',
-                border: 'none',
-                cursor: 'pointer',
-                background: isSelected ? 'var(--chatter-primary)' : 'rgba(255, 255, 255, 0.08)',
-                color: isSelected ? '#0E0E0E' : '#979797',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              #{tag}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ── 2. Study Rooms (Primary High-Priority Section) ── */}
+      {/* ── 1. Study Rooms Section ── */}
       <div style={{ padding: '16px 16px 8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-          <div>
-            <h2 style={{ fontSize: 21, fontWeight: 800, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span>Study Rooms</span>
-              <span style={{ fontSize: 13, background: 'rgba(64, 227, 120, 0.16)', color: 'var(--chatter-primary)', padding: '3px 9px', borderRadius: 12, fontWeight: 700 }}>
-                {filteredServers.length}
-              </span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <h2 style={{ fontSize: 22, fontWeight: 800, color: '#fff', margin: 0, letterSpacing: '-0.01em' }}>
+              Study Rooms
             </h2>
+            <span style={{ fontSize: 13, background: 'rgba(64, 227, 120, 0.16)', color: 'var(--chatter-primary)', padding: '3px 10px', borderRadius: 12, fontWeight: 700 }}>
+              {servers.length}
+            </span>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button
               type="button"
               onClick={onJoinServer}
               style={{
-                padding: '7px 15px',
-                borderRadius: 16,
+                padding: '8px 16px',
+                borderRadius: 14,
                 background: 'rgba(255, 255, 255, 0.08)',
-                border: 'none',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
                 color: '#fff',
                 fontSize: 13.5,
-                fontWeight: 600,
+                fontWeight: 700,
                 cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                transition: 'all 0.15s ease',
               }}
             >
-              Join Room
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                <polyline points="10 17 15 12 10 7" />
+                <line x1="15" y1="12" x2="3" y2="12" />
+              </svg>
+              <span>Join Room</span>
             </button>
             <button
               type="button"
               onClick={onCreateServer}
               style={{
-                padding: '7px 16px',
-                borderRadius: 16,
+                padding: '8px 18px',
+                borderRadius: 14,
                 background: 'var(--chatter-primary)',
                 border: 'none',
                 color: '#0E0E0E',
                 fontSize: 13.5,
-                fontWeight: 700,
+                fontWeight: 800,
                 cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                boxShadow: '0 2px 12px rgba(64, 227, 120, 0.3)',
+                transition: 'all 0.15s ease',
               }}
             >
-              + Create Room
+              <span style={{ fontSize: 16, lineHeight: 1 }}>+</span>
+              <span>Create Room</span>
             </button>
           </div>
         </div>
-        <p style={{ fontSize: 14.5, lineHeight: 1.5, color: 'var(--chatter-light-text)', margin: '0 0 16px 0' }}>
+        <p style={{ fontSize: 14, lineHeight: 1.5, color: 'var(--chatter-light-text)', margin: '0 0 16px 0' }}>
           Collaborative course groups, textbook revision channels, and shared study materials.
         </p>
 
@@ -495,27 +472,24 @@ export default function ChatterRoomsView({
         )}
       </div>
 
-      {/* ── 3. Live Audio Spaces (Drop-in Voice Study Discussions) ── */}
-      <div style={{ padding: '0 16px 8px' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 }}>
-          <div>
-            <h2 style={{ fontSize: 21, fontWeight: 800, color: '#fff', margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+      {/* ── 2. Live Audio Spaces (Drop-in Voice Study Discussions) ── */}
+      <div style={{ padding: '8px 16px 8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <h2 style={{ fontSize: 22, fontWeight: 800, color: '#fff', margin: 0, letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: 8 }}>
               <span>Live Audio Spaces</span>
               <span className="chatter-audiospace-live-badge">
                 <span className="chatter-audiospace-live-dot" />
                 LIVE
               </span>
             </h2>
-            <p style={{ fontSize: 14.5, lineHeight: 1.5, color: 'var(--chatter-light-text)', margin: 0 }}>
-              Drop-in audio study spaces. Join as a listener or unmute to discuss topics with peers in real time.
-            </p>
           </div>
           <button
             type="button"
             onClick={handleOpenStartSpace}
             style={{
-              padding: '8px 16px',
-              borderRadius: 16,
+              padding: '8px 18px',
+              borderRadius: 14,
               background: 'rgba(64, 227, 120, 0.15)',
               border: '1px solid var(--chatter-primary)',
               color: 'var(--chatter-primary)',
@@ -525,13 +499,17 @@ export default function ChatterRoomsView({
               whiteSpace: 'nowrap',
               display: 'flex',
               alignItems: 'center',
-              gap: 5,
+              gap: 6,
               flexShrink: 0,
             }}
           >
-            <span>🎙️</span> + Start Space
+            <span>🎙️</span>
+            <span>+ Start Space</span>
           </button>
         </div>
+        <p style={{ fontSize: 14, lineHeight: 1.5, color: 'var(--chatter-light-text)', margin: '0 0 16px 0' }}>
+          Drop-in audio study spaces. Join as a listener or unmute to discuss topics with peers in real time.
+        </p>
 
         {filteredSpaces.length === 0 ? (
           <div
