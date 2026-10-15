@@ -110,11 +110,12 @@ export default function DashboardPage() {
       email: dbProfile?.email || user.email,
       avatar_url: dbProfile?.avatar_url || user.image || null,
       banner_url: dbProfile?.banner_url || null,
-      bio: dbProfile?.bio || '',
-      followers_count: typeof dbProfile?.followers_count === 'number' ? dbProfile.followers_count : 0,
-      following_count: typeof dbProfile?.following_count === 'number' ? dbProfile.following_count : 0,
-      study_hours: typeof dbProfile?.study_hours === 'number' ? dbProfile.study_hours : 0,
-      day_streak: typeof dbProfile?.day_streak === 'number' ? dbProfile.day_streak : 1,
+      bio: dbProfile ? (dbProfile.bio || '') : undefined,
+      followers_count: typeof dbProfile?.followers_count === 'number' ? dbProfile.followers_count : undefined,
+      following_count: typeof dbProfile?.following_count === 'number' ? dbProfile.following_count : undefined,
+      study_hours: typeof dbProfile?.study_hours === 'number' ? dbProfile.study_hours : undefined,
+      day_streak: typeof dbProfile?.day_streak === 'number' ? dbProfile.day_streak : undefined,
+      loaded: Boolean(dbProfile),
     };
   }, [user, dbProfile]);
 

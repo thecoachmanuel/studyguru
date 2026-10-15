@@ -55,3 +55,30 @@ export function cleanEmDashes(text) {
 
   return sanitized;
 }
+
+/**
+ * Sanitizes raw AI model responses by stripping internal thinking traces,
+ * reasoning scratchpads (like DeepSeek/Nemotron thoughts), and leading em-dashes/hyphens.
+ *
+ * @param {string} text - Raw AI output text
+ * @returns {string} Clean response starting directly with user answer
+ */
+export function cleanAiResponse(text) {
+  if (!text || typeof text !== 'string') return text;
+
+  let cleaned = text;
+
+  // 1. Strip <think>...</think> blocks from reasoning models
+  cleaned = cleaned.replace(/<think>[\s\S]*?<\/think>/gi, '');
+
+  // 2. Strip internal reasoning/planning prefixes at the beginning of output
+  cleaned = cleaned.replace(/^(?:[—–\-*]\s*(?:I need to|Let me think|Thinking Process|Plan:|As an AI|I will provide).*?\n+)+/gi, '');
+  cleaned = cleaned.replace(/^(?:Okay|Alright|Sure),?\s*(?:I need to|let me|I will|here is concise).*?(?:\n\n|\n)/gi, '');
+
+  // 3. Remove leading em-dash, en-dash, or hyphens at the very start of the response
+  cleaned = cleaned.replace(/^[—–\-]+\s*/, '');
+
+  // 4. Run through cleanEmDashes
+  return cleanEmDashes(cleaned).trim();
+}
+

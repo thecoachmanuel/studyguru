@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import { cleanEmDashes } from './cleanText';
+import { cleanEmDashes, cleanAiResponse } from './cleanText';
 
 // ── 1. Robust Multi-Key Pool Support for Gemini & OpenRouter ──
 function parseKeyPool(...envNames) {
@@ -227,9 +227,9 @@ async function callOpenRouter({ prompt, systemPrompt = '', json = false }) {
           }
 
           const data = await res.json();
-          const outputText = data.choices?.[0]?.message?.content || data.choices?.[0]?.message?.reasoning || '';
-          if (outputText) {
-            return outputText;
+          const rawOutput = data.choices?.[0]?.message?.content || '';
+          if (rawOutput) {
+            return json ? rawOutput : cleanAiResponse(rawOutput);
           }
         } catch (err) {
           lastError = err;
@@ -311,10 +311,14 @@ async function* streamOpenRouter({ prompt, systemPrompt = '' }) {
             if (trimmed.startsWith('data: ')) {
               try {
                 const json = JSON.parse(trimmed.slice(6));
-                const content = json.choices?.[0]?.delta?.content || json.choices?.[0]?.delta?.reasoning;
-                if (content) {
-                  streamSucceeded = true;
-                  yield content;
+                const content = json.choices?.[0]?.delta?.content;
+                if (content && typeof content === 'string') {
+                  // Filter out think tags or reasoning scratchpads from stream
+                  const filtered = content.replace(/<\/?think>/gi, '');
+                  if (filtered) {
+                    streamSucceeded = true;
+                    yield filtered;
+                  }
                 }
               } catch {}
             }
@@ -438,10 +442,18 @@ export async function* generateStreamWithFallback({ prompt, systemPrompt = '' })
           });
 
           let hadChunks = false;
+          let isStart = true;
           for await (const chunk of responseStream) {
             if (chunk.text) {
               hadChunks = true;
-              yield cleanEmDashes(chunk.text);
+              if (isStart) {
+                const stripped = chunk.text.replace(/^[—–\-]+\s*/, '');
+                if (!stripped) continue;
+                isStart = false;
+                yield cleanEmDashes(stripped);
+              } else {
+                yield cleanEmDashes(chunk.text);
+              }
             }
           }
           if (hadChunks) return;
@@ -461,9 +473,17 @@ export async function* generateStreamWithFallback({ prompt, systemPrompt = '' })
     try {
       console.log(`[LLM Stream Scale] Streaming via resilient OpenRouter free model pool...`);
       let hadOpenRouterChunks = false;
+      let isStart = true;
       for await (const chunk of streamOpenRouter({ prompt, systemPrompt })) {
         hadOpenRouterChunks = true;
-        yield cleanEmDashes(chunk);
+        if (isStart) {
+          const stripped = chunk.replace(/^[—–\-]+\s*/, '');
+          if (!stripped) continue;
+          isStart = false;
+          yield cleanEmDashes(stripped);
+        } else {
+          yield cleanEmDashes(chunk);
+        }
       }
       if (hadOpenRouterChunks) return;
     } catch (openrouterStreamError) {
@@ -472,7 +492,7 @@ export async function* generateStreamWithFallback({ prompt, systemPrompt = '' })
       try {
         const text = await callOpenRouter({ prompt, systemPrompt });
         if (text && text.trim()) {
-          yield cleanEmDashes(text);
+          yield cleanAiResponse(text);
           return;
         }
       } catch (callError) {

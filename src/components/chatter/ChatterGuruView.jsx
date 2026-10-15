@@ -5,6 +5,30 @@ import ChatbotIcon from '@/components/ChatbotIcon';
 import ChatMarkdownMessage from '@/components/ChatMarkdownMessage';
 import { TwitterVerifiedBadge } from './ChatterFeedView';
 
+const WORD_TO_NUMBER = {
+  one: 1, two: 2, three: 3, four: 4, five: 5,
+  six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+  eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15,
+  sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20,
+};
+
+function extractRequestedCount(text) {
+  if (!text || typeof text !== 'string') return null;
+  // 1. Match digits e.g. "8 questions", "generate 10 questions", "5 flashcards"
+  const digitMatch = text.match(/\b(\d{1,2})\s*(?:flashcards?|cards?|questions?|mcqs?|items?)?\b/i);
+  if (digitMatch && digitMatch[1]) {
+    const num = parseInt(digitMatch[1], 10);
+    if (num >= 1 && num <= 30) return num;
+  }
+  // 2. Match written numbers e.g. "eight questions", "five flashcards", "ten"
+  const wordMatch = text.match(/\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\b/i);
+  if (wordMatch && wordMatch[1]) {
+    const w = wordMatch[1].toLowerCase();
+    if (WORD_TO_NUMBER[w]) return WORD_TO_NUMBER[w];
+  }
+  return null;
+}
+
 export default function ChatterGuruView({
   channelName,
   serverId,
@@ -19,7 +43,7 @@ export default function ChatterGuruView({
     {
       id: 'g-intro-free',
       role: 'assistant',
-      content: '👋 Welcome to **Free Chat**! I am your AI Guru ready to answer anything from first principles—ask math problems, coding questions, concept explanations, brainstorming, or study tips without needing any document upload.',
+      content: '👋 How can I help you study today?',
       timestamp: 'Now',
     },
   ];
@@ -28,7 +52,7 @@ export default function ChatterGuruView({
     {
       id: 'g-intro-guided',
       role: 'assistant',
-      content: '📚 Welcome to **Guided Document Study**! Upload your lecture slides, notes, or textbook chapters (.pdf, .docx, .txt) below to generate targeted 5-question quizzes, smart study flashcards, and exam drills tailored to your documents.',
+      content: '📚 Upload notes or documents below to start guided study.',
       timestamp: 'Now',
     },
   ];
@@ -66,6 +90,22 @@ export default function ChatterGuruView({
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const [copiedMsgId, setCopiedMsgId] = useState(null);
+  const [isModeBarVisible, setIsModeBarVisible] = useState(true);
+  const lastScrollYRef = useRef(0);
+
+  const handleMessagesScroll = (e) => {
+    if (!e?.currentTarget) return;
+    const currentY = e.currentTarget.scrollTop;
+    const diff = currentY - lastScrollYRef.current;
+    if (diff > 12 && currentY > 35) {
+      // User is scrolling down into the messages - collapse mode bar for maximum reading room
+      setIsModeBarVisible(false);
+    } else if (diff < -8 || currentY <= 25) {
+      // User is scrolling back up or near top - smoothly reveal mode bar
+      setIsModeBarVisible(true);
+    }
+    lastScrollYRef.current = currentY;
+  };
 
   const MAX_DOCS = 10;
   const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB file limit
@@ -541,7 +581,18 @@ export default function ChatterGuruView({
           // In-place refresh of existing quiz card with brand new questions!
           setTargetMessages((prev) =>
             prev.map((m) =>
-              m.id === targetMessageId ? { ...m, chatMode: currentMode, quizData: questions, timestamp: 'Just now' } : m
+              m.id === targetMessageId
+                ? {
+                    ...m,
+                    chatMode: currentMode,
+                    quizData: questions,
+                    quizDocId: targetDocId,
+                    quizDocName: targetDocName,
+                    quizCount: count,
+                    quizTopic: customTopic || targetDocName,
+                    timestamp: 'Just now',
+                  }
+                : m
             )
           );
         } else {
@@ -552,6 +603,10 @@ export default function ChatterGuruView({
               role: 'assistant',
               chatMode: currentMode,
               quizData: questions,
+              quizDocId: targetDocId,
+              quizDocName: targetDocName,
+              quizCount: count,
+              quizTopic: customTopic || targetDocName,
               timestamp: 'Just now',
             },
           ]);
@@ -565,7 +620,18 @@ export default function ChatterGuruView({
       if (targetMessageId) {
         setTargetMessages((prev) =>
           prev.map((m) =>
-            m.id === targetMessageId ? { ...m, chatMode: currentMode, quizData: fallbackQuestions, timestamp: 'Just now' } : m
+            m.id === targetMessageId
+              ? {
+                  ...m,
+                  chatMode: currentMode,
+                  quizData: fallbackQuestions,
+                  quizDocId: targetDocId,
+                  quizDocName: targetDocName,
+                  quizCount: count,
+                  quizTopic: customTopic || targetDocName,
+                  timestamp: 'Just now',
+                }
+              : m
           )
         );
       } else {
@@ -576,6 +642,10 @@ export default function ChatterGuruView({
             role: 'assistant',
             chatMode: currentMode,
             quizData: fallbackQuestions,
+            quizDocId: targetDocId,
+            quizDocName: targetDocName,
+            quizCount: count,
+            quizTopic: customTopic || targetDocName,
             timestamp: 'Just now',
           },
         ]);
@@ -586,7 +656,14 @@ export default function ChatterGuruView({
   };
 
   // Generate Flashcards
-  const handleGenerateFlashcards = async (docId, docName, customCount = null, customTopic = '', customUserPrompt = '') => {
+  const handleGenerateFlashcards = async (
+    docId,
+    docName,
+    customCount = null,
+    customTopic = '',
+    customUserPrompt = '',
+    targetMessageId = null
+  ) => {
     const isFree = aiModeRef.current === 'free';
     setLoading(true);
     setDocsPanelOpen(false);
@@ -603,18 +680,20 @@ export default function ChatterGuruView({
     const setTargetMessages = isFree ? setFreeMessages : setGuidedMessages;
     const currentMode = isFree ? 'free' : 'guided';
 
-    setTargetMessages((prev) => [
-      ...prev,
-      {
-        id: `u-cards-${Date.now()}`,
-        role: 'user',
-        chatMode: currentMode,
-        content: customUserPrompt || (isRegen
-          ? `Create a fresh set of ${count} new study flashcards on ${targetDocName}.`
-          : `Create ${count} flashcards on ${targetDocName}.`),
-        timestamp: 'Now',
-      },
-    ]);
+    if (!targetMessageId) {
+      setTargetMessages((prev) => [
+        ...prev,
+        {
+          id: `u-cards-${Date.now()}`,
+          role: 'user',
+          chatMode: currentMode,
+          content: customUserPrompt || (isRegen
+            ? `Create a fresh set of ${count} new study flashcards on ${targetDocName}.`
+            : `Create ${count} flashcards on ${targetDocName}.`),
+          timestamp: 'Now',
+        },
+      ]);
+    }
 
     try {
       const res = await fetch('/api/rag/flashcards', {
@@ -632,36 +711,83 @@ export default function ChatterGuruView({
       const cards = data.flashcards || data.cards || [];
 
       if (cards.length > 0) {
+        if (targetMessageId) {
+          setTargetMessages((prev) =>
+            prev.map((m) =>
+              m.id === targetMessageId
+                ? {
+                    ...m,
+                    chatMode: currentMode,
+                    flashcardsData: cards,
+                    flashcardsDocId: targetDocId,
+                    flashcardsDocName: targetDocName,
+                    flashcardsCount: count,
+                    flashcardsTopic: customTopic || targetDocName,
+                    timestamp: 'Just now',
+                  }
+                : m
+            )
+          );
+        } else {
+          setTargetMessages((prev) => [
+            ...prev,
+            {
+              id: `g-cards-${Date.now()}`,
+              role: 'assistant',
+              chatMode: currentMode,
+              flashcardsData: cards,
+              flashcardsDocId: targetDocId,
+              flashcardsDocName: targetDocName,
+              flashcardsCount: count,
+              flashcardsTopic: customTopic || targetDocName,
+              timestamp: 'Just now',
+            },
+          ]);
+        }
+      } else {
+        throw new Error('No flashcards returned');
+      }
+    } catch {
+      const fallbackCards = [
+        { front: 'Stokes’ Theorem Formula', back: '∮_C F · dr = ∬_S (∇ × F) · dS' },
+        { front: 'Pre-LN vs Post-LN benefit', back: 'Pre-LN yields well-behaved gradient norms, allowing training stability without warmup.' },
+        { front: 'Eigenvalue Characteristic Equation', back: 'det(A - λI) = 0 defines the characteristic equation for eigenvalues λ.' },
+        { front: 'Bayes Theorem Conditional Formula', back: 'P(A|B) = [P(B|A) · P(A)] / P(B)' },
+        { front: 'Heisenberg Uncertainty Principle', back: 'Δx · Δp ≥ ℏ / 2' },
+      ];
+      if (targetMessageId) {
+        setTargetMessages((prev) =>
+          prev.map((m) =>
+            m.id === targetMessageId
+              ? {
+                  ...m,
+                  chatMode: currentMode,
+                  flashcardsData: fallbackCards,
+                  flashcardsDocId: targetDocId,
+                  flashcardsDocName: targetDocName,
+                  flashcardsCount: count,
+                  flashcardsTopic: customTopic || targetDocName,
+                  timestamp: 'Just now',
+                }
+              : m
+          )
+        );
+      } else {
         setTargetMessages((prev) => [
           ...prev,
           {
             id: `g-cards-${Date.now()}`,
             role: 'assistant',
             chatMode: currentMode,
-            flashcardsData: cards,
+            flashcardsData: fallbackCards,
+            flashcardsDocId: targetDocId,
+            flashcardsDocName: targetDocName,
+            flashcardsCount: count,
+            flashcardsTopic: customTopic || targetDocName,
             timestamp: 'Just now',
           },
         ]);
-      } else {
-        throw new Error('No flashcards returned');
       }
-    } catch {
-      setTargetMessages((prev) => [
-        ...prev,
-        {
-          id: `g-cards-${Date.now()}`,
-          role: 'assistant',
-          chatMode: currentMode,
-          flashcardsData: [
-            { front: 'Stokes’ Theorem Formula', back: '∮_C F · dr = ∬_S (∇ × F) · dS' },
-            { front: 'Pre-LN vs Post-LN benefit', back: 'Pre-LN yields well-behaved gradient norms, allowing training stability without warmup.' },
-            { front: 'Eigenvalue Characteristic Equation', back: 'det(A - λI) = 0 defines the characteristic equation for eigenvalues λ.' },
-            { front: 'Bayes Theorem Conditional Formula', back: 'P(A|B) = [P(B|A) · P(A)] / P(B)' },
-            { front: 'Heisenberg Uncertainty Principle', back: 'Δx · Δp ≥ ℏ / 2' },
-          ],
-          timestamp: 'Just now',
-        },
-      ]);
     } finally {
       setLoading(false);
     }
@@ -675,17 +801,16 @@ export default function ChatterGuruView({
     // 1. Detect dynamic requests for Flashcards
     const isFlashcardRequest =
       /\b(flashcards?|flash\s*cards?)\b/i.test(text) ||
-      /\b(\d+)\s*(?:cards?|flashcards?)\b/i.test(text) ||
+      /\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|twelve|fifteen|twenty)\s*(?:cards?|flashcards?)\b/i.test(text) ||
       (/\b(cards?)\b/i.test(text) && /\b(give|make|create|generate|provide|show|study|practice)\b/i.test(text));
 
     // 2. Detect dynamic requests for Practice Questions / Quiz / MCQ
     const isQuizRequest =
       /\b(quiz|mcq|multiple\s*choice|practice\s*questions?|assessment|exam)\b/i.test(text) ||
-      (/\b(questions?)\b/i.test(text) && /\b(give|make|create|generate|provide|test|ask|practice|\d+)\b/i.test(text));
+      (/\b(questions?)\b/i.test(text) && /\b(give|make|create|generate|provide|test|ask|practice|\d+|one|two|three|four|five|six|seven|eight|nine|ten|twelve|fifteen|twenty)\b/i.test(text));
 
-    // Extract count if user specified (e.g., 5, 10, 20)
-    const countMatch = text.match(/\b(\d{1,2})\s*(?:flashcards?|cards?|questions?|mcqs?|items?)?\b/i);
-    const parsedCount = countMatch ? parseInt(countMatch[1], 10) : null;
+    // Extract count if user specified (digits like 8 or written words like "eight", "ten")
+    const parsedCount = extractRequestedCount(text);
 
     // Extract clean topic if user specified "on X" or "about X" or "for X"
     let extractedTopic = '';
@@ -1051,15 +1176,19 @@ export default function ChatterGuruView({
         </div>
       </div>
 
-      {/* ── 1b. Mode Toggle Pill: Free Chat vs Guided Document Study (Fixed & Non-flickering) ── */}
+      {/* ── 1b. Mode Toggle Pill: Chat vs Guided (Auto-hides on scroll for max reading space) ── */}
       <div
         style={{
+          maxHeight: isModeBarVisible ? 60 : 0,
+          opacity: isModeBarVisible ? 1 : 0,
+          padding: isModeBarVisible ? '8px 16px' : '0 16px',
+          overflow: 'hidden',
+          transition: 'max-height 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s ease, padding 0.18s ease',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '8px 16px',
           background: 'var(--chatter-sheet)',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+          borderBottom: isModeBarVisible ? '1px solid rgba(255, 255, 255, 0.06)' : 'none',
           flexShrink: 0,
         }}
       >
@@ -1070,7 +1199,7 @@ export default function ChatterGuruView({
             borderRadius: 24,
             padding: 3,
             border: '1px solid rgba(255, 255, 255, 0.08)',
-            maxWidth: 440,
+            maxWidth: 380,
             width: '100%',
           }}
         >
@@ -1094,7 +1223,7 @@ export default function ChatterGuruView({
               transition: 'all 0.18s ease',
             }}
           >
-            <span>💬</span> Free Chat
+            <span>💬</span> Chat
           </button>
           <button
             type="button"
@@ -1116,7 +1245,7 @@ export default function ChatterGuruView({
               transition: 'all 0.18s ease',
             }}
           >
-            <span>📖</span> Guided Doc Study
+            <span>📖</span> Guided
             {uploadedDocs.length > 0 && (
               <span
                 style={{
@@ -1139,12 +1268,16 @@ export default function ChatterGuruView({
       {aiMode === 'guided' && (
         <div
           style={{
+            maxHeight: isModeBarVisible ? 54 : 0,
+            opacity: isModeBarVisible ? 1 : 0,
+            padding: isModeBarVisible ? '7px 16px' : '0 16px',
+            overflow: 'hidden',
+            transition: 'max-height 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s ease, padding 0.18s ease',
             display: 'flex',
             alignItems: 'center',
             gap: 7,
             overflowX: 'auto',
-            padding: '7px 16px',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+            borderBottom: isModeBarVisible ? '1px solid rgba(255, 255, 255, 0.06)' : 'none',
             background: 'var(--chatter-black)',
             scrollbarWidth: 'none',
             flexShrink: 0,
@@ -1411,6 +1544,7 @@ export default function ChatterGuruView({
 
       {/* ── 3. Conversational Message Stream ── */}
       <div
+        onScroll={handleMessagesScroll}
         style={{
           flex: 1,
           overflowY: 'auto',
@@ -1541,7 +1675,15 @@ export default function ChatterGuruView({
                     <QuizAssessmentCard
                       messageId={m.id}
                       questions={m.quizData}
-                      onRegenerate={() => handleGenerateMCQ(selectedDocId, null, m.id)}
+                      onRegenerate={() =>
+                        handleGenerateMCQ(
+                          m.quizDocId || selectedDocId,
+                          m.quizDocName,
+                          m.id,
+                          m.quizCount || m.quizData?.length || 5,
+                          m.quizTopic || m.quizDocName || ''
+                        )
+                      }
                     />
                   )}
 
@@ -1549,12 +1691,21 @@ export default function ChatterGuruView({
                   {m.flashcardsData && (
                     <FlashcardDeck
                       cards={m.flashcardsData}
-                      onRegenerate={() => handleGenerateFlashcards(selectedDocId)}
+                      onRegenerate={() =>
+                        handleGenerateFlashcards(
+                          m.flashcardsDocId || selectedDocId,
+                          m.flashcardsDocName,
+                          m.flashcardsCount || m.flashcardsData?.length || 8,
+                          m.flashcardsTopic || m.flashcardsDocName || '',
+                          '',
+                          m.id
+                        )
+                      }
                     />
                   )}
 
-                  {/* Assistant Message Actions (Copy response, etc.) */}
-                  {!isUser && m.content && (
+                  {/* Assistant Message Actions (Copy response, etc.) - Hidden on welcome messages */}
+                  {!isUser && m.content && !m.id?.startsWith('g-intro') && (
                     <div
                       style={{
                         display: 'flex',
@@ -2307,13 +2458,17 @@ function QuizAssessmentCard({ questions = [], onRegenerate, messageId }) {
           style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 10000,
+            width: '100vw',
+            height: '100dvh',
+            maxHeight: '100dvh',
+            zIndex: 99999,
             background: 'rgba(10, 10, 10, 0.98)',
             backdropFilter: 'blur(20px)',
             display: 'flex',
             flexDirection: 'column',
             overflowY: 'auto',
-            padding: 'calc(16px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom))',
+            boxSizing: 'border-box',
+            padding: 'calc(16px + env(safe-area-inset-top, 0px)) 20px calc(24px + env(safe-area-inset-bottom, 0px))',
           }}
         >
           <div style={{ maxWidth: 840, width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -2702,13 +2857,17 @@ function FlashcardDeck({ cards = [], onRegenerate }) {
           style={{
             position: 'fixed',
             inset: 0,
+            width: '100vw',
+            height: '100dvh',
+            maxHeight: '100dvh',
             zIndex: 99999,
-            background: 'rgba(10, 10, 10, 0.96)',
-            backdropFilter: 'blur(16px)',
+            background: 'rgba(10, 10, 10, 0.98)',
+            backdropFilter: 'blur(20px)',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
-            padding: '24px 20px',
+            boxSizing: 'border-box',
+            padding: 'calc(16px + env(safe-area-inset-top, 0px)) 20px calc(24px + env(safe-area-inset-bottom, 0px))',
           }}
         >
           {/* Top Fullscreen Bar */}

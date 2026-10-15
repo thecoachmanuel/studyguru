@@ -271,11 +271,11 @@ export default function ChatterUserProfileModal({
               <div style={{ height: 14, width: '92%', borderRadius: 4, background: 'rgba(255, 255, 255, 0.08)', animation: 'pulse 1.2s infinite ease-in-out' }} />
               <div style={{ height: 14, width: '68%', borderRadius: 4, background: 'rgba(255, 255, 255, 0.08)', animation: 'pulse 1.2s infinite ease-in-out' }} />
             </div>
-          ) : (
+          ) : liveUser.bio ? (
             <p style={{ fontSize: 15.5, color: '#D4D4D4', lineHeight: 1.55, margin: '0 0 16px 0' }}>
-              {liveUser.bio || '🎓 Studying and preparing for upcoming semester exams · Sharing notes on mathematics & computer science.'}
+              {liveUser.bio}
             </p>
-          )}
+          ) : null}
 
           {/* Stats Bar */}
           <div

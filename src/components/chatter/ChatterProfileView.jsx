@@ -46,22 +46,26 @@ export default function ChatterProfileView({
   const [savedNotes, setSavedNotes] = useState([]);
   const [loadingNotes, setLoadingNotes] = useState(true);
 
-  const initialFollowers = typeof profile?.followers_count === 'number'
-    ? profile.followers_count
-    : (typeof cachedProfile?.followers_count === 'number' ? cachedProfile.followers_count : null);
-  const initialStreak = typeof profile?.day_streak === 'number'
-    ? profile.day_streak
-    : (typeof cachedProfile?.day_streak === 'number' ? cachedProfile.day_streak : null);
-  const initialHours = typeof profile?.study_hours === 'number'
-    ? profile.study_hours
-    : (typeof cachedProfile?.study_hours === 'number' ? cachedProfile.study_hours : null);
+  const hasPropFollowers = typeof profile?.followers_count === 'number';
+  const hasPropHours = typeof profile?.study_hours === 'number';
+  const hasPropStreak = typeof profile?.day_streak === 'number';
 
-  const [followersCount, setFollowersCount] = useState(initialFollowers ?? 0);
-  const [dayStreak, setDayStreak] = useState(initialStreak ?? 1);
-  const [studyHours, setStudyHours] = useState(initialHours ?? 0);
-  const [loadingStats, setLoadingStats] = useState(
-    initialFollowers === null && initialStreak === null && initialHours === null
+  const [followersCount, setFollowersCount] = useState(
+    hasPropFollowers
+      ? profile.followers_count
+      : (typeof cachedProfile?.followers_count === 'number' ? cachedProfile.followers_count : null)
   );
+  const [dayStreak, setDayStreak] = useState(
+    hasPropStreak
+      ? profile.day_streak
+      : (typeof cachedProfile?.day_streak === 'number' ? cachedProfile.day_streak : null)
+  );
+  const [studyHours, setStudyHours] = useState(
+    hasPropHours
+      ? profile.study_hours
+      : (typeof cachedProfile?.study_hours === 'number' ? cachedProfile.study_hours : null)
+  );
+  const [profileLoaded, setProfileLoaded] = useState(hasPropFollowers && hasPropHours && hasPropStreak);
 
   const avatarInputRef = useRef(null);
   const bannerInputRef = useRef(null);
@@ -77,11 +81,11 @@ export default function ChatterProfileView({
   useEffect(() => {
     if (typeof profile?.followers_count === 'number') {
       setFollowersCount(profile.followers_count);
-      setLoadingStats(false);
+      setProfileLoaded(true);
     }
     if (typeof profile?.day_streak === 'number') setDayStreak(profile.day_streak);
     if (typeof profile?.study_hours === 'number') setStudyHours(profile.study_hours);
-    if (profile?.bio) {
+    if (profile?.bio !== undefined) {
       setBioText(profile.bio);
       setEditBio(profile.bio);
     }
@@ -106,10 +110,8 @@ export default function ChatterProfileView({
             } catch {}
             if (data.avatar_url) setAvatarUrl(data.avatar_url);
             if (data.banner_url) setBannerUrl(data.banner_url);
-            if (data.bio) {
-              setBioText(data.bio);
-              setEditBio(data.bio);
-            }
+            setBioText(data.bio || '');
+            setEditBio(data.bio || '');
             if (data.name) {
               setEditName(data.name);
               setDisplayName(data.name);
@@ -121,12 +123,13 @@ export default function ChatterProfileView({
             if (typeof data.followers_count === 'number') setFollowersCount(data.followers_count);
             if (typeof data.day_streak === 'number') setDayStreak(data.day_streak);
             if (typeof data.study_hours === 'number') setStudyHours(data.study_hours);
+            setProfileLoaded(true);
           }
         }
       } catch (err) {
         console.warn('Profile load notice:', err);
       } finally {
-        if (mounted) setLoadingStats(false);
+        if (mounted) setProfileLoaded(true);
       }
     };
 
@@ -609,16 +612,16 @@ export default function ChatterProfileView({
 
         {/* Bio Section */}
         <div style={{ margin: '0 0 16px 0' }}>
-          {loadingStats && !bioText ? (
+          {!profileLoaded && bioText === null ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, margin: '6px 0' }}>
               <div style={{ height: 14, width: '85%', borderRadius: 4, background: 'rgba(255, 255, 255, 0.08)', animation: 'pulse 1.2s infinite ease-in-out' }} />
               <div style={{ height: 14, width: '60%', borderRadius: 4, background: 'rgba(255, 255, 255, 0.08)', animation: 'pulse 1.2s infinite ease-in-out' }} />
             </div>
-          ) : (
+          ) : bioText ? (
             <p style={{ fontSize: 15.5, color: '#E5E5E5', lineHeight: 1.55, margin: 0 }}>
-              {bioText || '📚 Studying & collaborating on StudyCord · Always open to join study rooms & exam drills!'}
+              {bioText}
             </p>
-          )}
+          ) : null}
         </div>
 
         {/* ── 3. Flutter Chatter / Twitter Style Inline Stats Row ── */}
@@ -634,16 +637,16 @@ export default function ChatterProfileView({
           }}
         >
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-            {loadingStats ? (
+            {!profileLoaded && followersCount === null ? (
               <span style={{ display: 'inline-block', width: 26, height: 16, borderRadius: 4, background: 'rgba(255, 255, 255, 0.15)', animation: 'pulse 1.2s infinite ease-in-out' }} />
             ) : (
-              <strong style={{ color: '#fff', fontWeight: 800, fontSize: 18.5 }}>{followersCount}</strong>
+              <strong style={{ color: '#fff', fontWeight: 800, fontSize: 18.5 }}>{followersCount ?? 0}</strong>
             )}
             <span>Followers</span>
           </div>
           <span style={{ opacity: 0.35 }}>·</span>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-            {loadingStats ? (
+            {!profileLoaded && followersCount === null ? (
               <span style={{ display: 'inline-block', width: 26, height: 16, borderRadius: 4, background: 'rgba(255, 255, 255, 0.15)', animation: 'pulse 1.2s infinite ease-in-out' }} />
             ) : (
               <strong style={{ color: '#fff', fontWeight: 800, fontSize: 18.5 }}>{followingCount}</strong>
@@ -652,19 +655,19 @@ export default function ChatterProfileView({
           </div>
           <span style={{ opacity: 0.35 }}>·</span>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-            {loadingStats ? (
+            {!profileLoaded && studyHours === null ? (
               <span style={{ display: 'inline-block', width: 28, height: 16, borderRadius: 4, background: 'rgba(64, 227, 120, 0.25)', animation: 'pulse 1.2s infinite ease-in-out' }} />
             ) : (
-              <strong style={{ color: 'var(--chatter-primary)', fontWeight: 800, fontSize: 18.5 }}>{studyHours}h</strong>
+              <strong style={{ color: 'var(--chatter-primary)', fontWeight: 800, fontSize: 18.5 }}>{studyHours ?? 0}h</strong>
             )}
             <span>Study Hours</span>
           </div>
           <span style={{ opacity: 0.35 }}>·</span>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-            {loadingStats ? (
+            {!profileLoaded && dayStreak === null ? (
               <span style={{ display: 'inline-block', width: 28, height: 16, borderRadius: 4, background: 'rgba(254, 240, 138, 0.25)', animation: 'pulse 1.2s infinite ease-in-out' }} />
             ) : (
-              <strong style={{ color: '#FEF08A', fontWeight: 800, fontSize: 18.5 }}>{dayStreak}🔥</strong>
+              <strong style={{ color: '#FEF08A', fontWeight: 800, fontSize: 18.5 }}>{dayStreak ?? 0}🔥</strong>
             )}
             <span>Streak</span>
           </div>
