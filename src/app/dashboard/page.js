@@ -1260,6 +1260,7 @@ export default function DashboardPage() {
                 onOpenSearch={() => setSearchModalOpen(true)}
                 onOpenLiveSpaces={() => setChatterTab('rooms')}
                 onRandomTopic={() => setChatterTab('rooms')}
+                title="Profile"
               />
               <ChatterProfileView
                 profile={profile}
@@ -1302,6 +1303,7 @@ export default function DashboardPage() {
               onOpenSearch={() => setSearchModalOpen(true)}
               onOpenLiveSpaces={() => setChatterTab('rooms')}
               onRandomTopic={() => setChatterTab('rooms')}
+              title="Chats"
             />
             <ChatterChatsView
               servers={servers}

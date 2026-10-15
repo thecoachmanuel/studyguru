@@ -12,23 +12,26 @@ export default function ChatterGuruView({
   onHideNavChange,
   isNavHidden = false,
 }) {
-  const [messages, setMessages] = useState([
+  const FREE_STORAGE_KEY = 'studycord_guru_free_chat_v3';
+  const GUIDED_STORAGE_KEY = 'studycord_guru_guided_chat_v3';
+
+  const initialFreeMessages = [
     {
-      id: 'g-intro',
+      id: 'g-intro-free',
       role: 'assistant',
-      content: 'Hello! I am **AI Guru**, your personal intelligent study partner. You can upload lecture notes, textbook chapters (.pdf, .docx, .txt), generate quizzes, review flashcards, or ask any study question across any subject!',
+      content: '👋 Welcome to **Free Chat**! I am your AI Guru ready to answer anything from first principles—ask math problems, coding questions, concept explanations, brainstorming, or study tips without needing any document upload.',
       timestamp: 'Now',
     },
-  ]);
-  const [inputText, setInputText] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [targetBarHidden, setTargetBarHidden] = useState(false);
-  const [quickPromptsHidden, setQuickPromptsHidden] = useState(false);
-  const [toggleBarHidden, setToggleBarHidden] = useState(false);
-  const lastScrollTopRef = useRef(0);
+  ];
 
-  const MAX_DOCS = 3;
-  const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB file limit
+  const initialGuidedMessages = [
+    {
+      id: 'g-intro-guided',
+      role: 'assistant',
+      content: '📚 Welcome to **Guided Document Study**! Upload your lecture slides, notes, or textbook chapters (.pdf, .docx, .txt) below to generate targeted 5-question quizzes, smart study flashcards, and exam drills tailored to your documents.',
+      timestamp: 'Now',
+    },
+  ];
 
   // AI Mode: 'free' (free chat without document constraints) vs 'guided' (grounded study on uploaded documents)
   const [aiMode, setAiMode] = useState(() => {
@@ -40,11 +43,44 @@ export default function ChatterGuruView({
     return 'free';
   });
 
+  const [freeMessages, setFreeMessages] = useState(initialFreeMessages);
+  const [guidedMessages, setGuidedMessages] = useState(initialGuidedMessages);
+
+  // Active messages based on current aiMode
+  const messages = aiMode === 'free' ? freeMessages : guidedMessages;
+
+  const aiModeRef = useRef(aiMode);
+  useEffect(() => {
+    aiModeRef.current = aiMode;
+  }, [aiMode]);
+
+  // Dynamic updater targeting the active mode's chat space
+  const setMessages = (updater) => {
+    if (aiModeRef.current === 'free') {
+      setFreeMessages(updater);
+    } else {
+      setGuidedMessages(updater);
+    }
+  };
+
+  const [inputText, setInputText] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [targetBarHidden, setTargetBarHidden] = useState(false);
+  const [quickPromptsHidden, setQuickPromptsHidden] = useState(false);
+  const [toggleBarHidden, setToggleBarHidden] = useState(false);
+  const lastScrollTopRef = useRef(0);
+
+  const MAX_DOCS = 3;
+  const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB file limit
+
   const handleSwitchMode = (mode) => {
     setAiMode(mode);
     try {
       localStorage.setItem('studycord_guru_mode', mode);
     } catch {}
+    setTimeout(() => {
+      chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 50);
   };
   const [uploadedDocs, setUploadedDocs] = useState([]);
   const [selectedDocId, setSelectedDocId] = useState(null); // null = All Knowledge
@@ -57,16 +93,21 @@ export default function ChatterGuruView({
   const quizGenCountRef = useRef(0);
   const flashcardsGenCountRef = useRef(0);
 
-  const GURU_STORAGE_KEY = 'studycord_guru_chat_history_v2';
-
   // Load persisted AI guru messages on initial mount
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(GURU_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
+      const savedFree = localStorage.getItem(FREE_STORAGE_KEY);
+      if (savedFree) {
+        const parsed = JSON.parse(savedFree);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setMessages(parsed);
+          setFreeMessages(parsed);
+        }
+      }
+      const savedGuided = localStorage.getItem(GUIDED_STORAGE_KEY);
+      if (savedGuided) {
+        const parsed = JSON.parse(savedGuided);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setGuidedMessages(parsed);
         }
       }
     } catch (e) {
@@ -74,16 +115,27 @@ export default function ChatterGuruView({
     }
   }, []);
 
-  // Save AI guru messages to localStorage
+  // Save freeMessages to localStorage
   useEffect(() => {
     try {
-      if (messages && messages.length > 0) {
-        localStorage.setItem(GURU_STORAGE_KEY, JSON.stringify(messages));
+      if (freeMessages && freeMessages.length > 0) {
+        localStorage.setItem(FREE_STORAGE_KEY, JSON.stringify(freeMessages));
       }
     } catch (e) {
-      console.warn('Failed to save AI chat history:', e);
+      console.warn('Failed to save free AI chat history:', e);
     }
-  }, [messages]);
+  }, [freeMessages]);
+
+  // Save guidedMessages to localStorage
+  useEffect(() => {
+    try {
+      if (guidedMessages && guidedMessages.length > 0) {
+        localStorage.setItem(GUIDED_STORAGE_KEY, JSON.stringify(guidedMessages));
+      }
+    } catch (e) {
+      console.warn('Failed to save guided AI chat history:', e);
+    }
+  }, [guidedMessages]);
 
   // Load real user documents on mount
   useEffect(() => {
@@ -128,7 +180,7 @@ export default function ChatterGuruView({
       await fetch(`/api/rag/documents?id=${docId}`, { method: 'DELETE' });
     } catch {}
 
-    setMessages((prev) => [
+    setGuidedMessages((prev) => [
       ...prev,
       {
         id: `g-delete-${Date.now()}`,
@@ -145,7 +197,7 @@ export default function ChatterGuruView({
     if (!file) return;
 
     if (file.size > MAX_FILE_SIZE) {
-      setMessages((prev) => [
+      setGuidedMessages((prev) => [
         ...prev,
         {
           id: `g-size-limit-${Date.now()}`,
@@ -160,7 +212,7 @@ export default function ChatterGuruView({
 
     if (uploadedDocs.length >= MAX_DOCS) {
       setDocsPanelOpen(true);
-      setMessages((prev) => [
+      setGuidedMessages((prev) => [
         ...prev,
         {
           id: `g-limit-${Date.now()}`,
@@ -204,7 +256,7 @@ export default function ChatterGuruView({
       setSelectedDocId(newDoc.doc_id);
 
       // Add assistant confirmation message in chat
-      setMessages((prev) => [
+      setGuidedMessages((prev) => [
         ...prev,
         {
           id: `g-upload-${Date.now()}`,
@@ -225,7 +277,7 @@ export default function ChatterGuruView({
       };
       setUploadedDocs((prev) => [newDoc, ...prev]);
       setSelectedDocId(newDoc.doc_id);
-      setMessages((prev) => [
+      setGuidedMessages((prev) => [
         ...prev,
         {
           id: `g-upload-${Date.now()}`,
@@ -650,6 +702,9 @@ export default function ChatterGuruView({
       return;
     }
 
+    const isFreeChat = aiModeRef.current === 'free';
+    const sendMode = isFreeChat ? 'free' : 'guided';
+
     const userMsg = {
       id: `u-${Date.now()}`,
       role: 'user',
@@ -658,17 +713,21 @@ export default function ChatterGuruView({
     };
 
     const aiMsgId = `g-${Date.now()}`;
-    // Do NOT push initial empty assistant message to avoid empty ghost box
-    setMessages((prev) => [...prev, userMsg]);
+    if (sendMode === 'free') {
+      setFreeMessages((prev) => [...prev, userMsg]);
+    } else {
+      setGuidedMessages((prev) => [...prev, userMsg]);
+    }
     setInputText('');
     setLoading(true);
 
     try {
-      const isFreeChat = aiMode === 'free';
       const activeDoc = isFreeChat ? null : (uploadedDocs.find((d) => (d.doc_id || d.id) === selectedDocId) || (selectedDocId === null ? uploadedDocs[0] : null));
       const docText = isFreeChat ? '' : (activeDoc?.extractedText || (uploadedDocs.length > 0 ? uploadedDocs.map((d) => d.extractedText).filter(Boolean).join('\n\n') : ''));
       const docTitle = isFreeChat ? '' : (activeDoc?.filename || activeDoc?.title || '');
       const docIdToSend = isFreeChat ? null : (selectedDocId || activeDoc?.doc_id || activeDoc?.id || null);
+
+      const targetSpaceHistory = sendMode === 'free' ? freeMessages : guidedMessages;
 
       const res = await fetch('/api/rag/chat', {
         method: 'POST',
@@ -679,13 +738,13 @@ export default function ChatterGuruView({
         body: JSON.stringify({
           message: text,
           stream: true,
-          mode: isFreeChat ? 'free' : 'guided',
+          mode: sendMode,
           serverId,
           channelName,
           documentId: docIdToSend,
           documentTitle: docTitle,
           documentText: docText,
-          history: messages.slice(-6).map((m) => ({ role: m.role, content: m.content })),
+          history: targetSpaceHistory.slice(-6).map((m) => ({ role: m.role, content: m.content })),
         }),
       });
 
@@ -702,7 +761,7 @@ export default function ChatterGuruView({
           const chunk = decoder.decode(value, { stream: true });
           accumulated += chunk;
           setLoading(false);
-          setMessages((prev) => {
+          const updateActiveStream = (prev) => {
             const exists = prev.some((m) => m.id === aiMsgId);
             if (exists) {
               return prev.map((m) => (m.id === aiMsgId ? { ...m, content: accumulated } : m));
@@ -716,7 +775,12 @@ export default function ChatterGuruView({
                 timestamp: 'Just now',
               },
             ];
-          });
+          };
+          if (sendMode === 'free') {
+            setFreeMessages(updateActiveStream);
+          } else {
+            setGuidedMessages(updateActiveStream);
+          }
         }
 
         if (!accumulated.trim()) {
@@ -725,20 +789,22 @@ export default function ChatterGuruView({
       } else {
         const data = await res.json();
         setLoading(false);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: aiMsgId,
-            role: 'assistant',
-            content: data.reply || data.answer || 'Tutoring session active. Ask any specific question!',
-            timestamp: 'Just now',
-          },
-        ]);
+        const replyMsg = {
+          id: aiMsgId,
+          role: 'assistant',
+          content: data.reply || data.answer || 'Tutoring session active. Ask any specific question!',
+          timestamp: 'Just now',
+        };
+        if (sendMode === 'free') {
+          setFreeMessages((prev) => [...prev, replyMsg]);
+        } else {
+          setGuidedMessages((prev) => [...prev, replyMsg]);
+        }
       }
     } catch {
       const fallbackContent = `Here is the study breakdown for **"${text}"**:\n\n1. **Core Concept**: Break the problem down into first principles and define given parameters.\n2. **Key Theorems / Equations**: Check that all boundary conditions and invariants hold.\n3. **Active Practice**: Try explaining the solution steps aloud to test your mastery!`;
       setLoading(false);
-      setMessages((prev) => {
+      const updateFallback = (prev) => {
         const exists = prev.some((m) => m.id === aiMsgId);
         if (exists) {
           return prev.map((m) => (m.id === aiMsgId ? { ...m, content: fallbackContent } : m));
@@ -752,24 +818,29 @@ export default function ChatterGuruView({
             timestamp: 'Just now',
           },
         ];
-      });
+      };
+      if (sendMode === 'free') {
+        setFreeMessages(updateFallback);
+      } else {
+        setGuidedMessages(updateFallback);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const handleClearSession = () => {
-    try {
-      localStorage.removeItem(GURU_STORAGE_KEY);
-    } catch {}
-    setMessages([
-      {
-        id: `g-intro-${Date.now()}`,
-        role: 'assistant',
-        content: 'New study session started! Ask any question, test yourself with a quiz, or upload notes.',
-        timestamp: 'Now',
-      },
-    ]);
+    if (aiModeRef.current === 'free') {
+      try {
+        localStorage.removeItem(FREE_STORAGE_KEY);
+      } catch {}
+      setFreeMessages(initialFreeMessages);
+    } else {
+      try {
+        localStorage.removeItem(GUIDED_STORAGE_KEY);
+      } catch {}
+      setGuidedMessages(initialGuidedMessages);
+    }
   };
 
   const handleMessagesScroll = (e) => {

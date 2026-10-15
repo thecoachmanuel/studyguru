@@ -9601,6 +9601,11 @@ body {
 }
 
 @media (min-width: 769px) {
+  .chatter-chats-list-pane {
+    width: 380px !important;
+    max-width: 380px !important;
+    flex: 0 0 380px !important;
+  }
   .chatter-chats-list-pane--with-active {
     width: 380px !important;
     max-width: 380px !important;

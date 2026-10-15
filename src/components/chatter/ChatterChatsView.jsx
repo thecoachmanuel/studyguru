@@ -213,76 +213,66 @@ export default function ChatterChatsView({
 
   return (
     <div style={{ paddingBottom: 'calc(84px + env(safe-area-inset-bottom))', width: '100%' }}>
-      {/* ── Page Title Header: Chats ── */}
-      <div style={{ padding: '16px 16px 8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <h2 style={{ fontSize: 22, fontWeight: 800, color: '#fff', margin: 0, letterSpacing: '-0.01em' }}>
-              Chats
-            </h2>
-            {conversations.length > 0 && (
-              <span style={{ fontSize: 13, background: 'rgba(64, 227, 120, 0.16)', color: 'var(--chatter-primary)', padding: '3px 10px', borderRadius: 12, fontWeight: 700 }}>
-                {conversations.length}
+      {/* ── 1. Cupertino-style Sliding Segmented Control & New Chat Action ── */}
+      <div style={{ padding: '8px 16px 4px', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="chatter-segment-control" style={{ flex: 1, margin: 0 }}>
+          <button
+            type="button"
+            className={`chatter-segment-btn ${activeSegment === 0 ? 'chatter-segment-btn--active' : ''}`}
+            onClick={() => setActiveSegment(0)}
+          >
+            <span>Direct</span>
+            {directChats.some((d) => d.unread > 0) && (
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--chatter-red)' }} />
+            )}
+          </button>
+          <button
+            type="button"
+            className={`chatter-segment-btn ${activeSegment === 1 ? 'chatter-segment-btn--active' : ''}`}
+            onClick={() => setActiveSegment(1)}
+          >
+            <span>Rooms</span>
+          </button>
+          <button
+            type="button"
+            className={`chatter-segment-btn ${activeSegment === 2 ? 'chatter-segment-btn--active' : ''}`}
+            onClick={() => setActiveSegment(2)}
+          >
+            <span>Requests</span>
+            {studyRequests.length > 0 && (
+              <span style={{ fontSize: 10, background: 'var(--chatter-primary)', color: '#0E0E0E', padding: '1px 6px', borderRadius: 10, fontWeight: 800 }}>
+                {studyRequests.length}
               </span>
             )}
-          </div>
-          {onOpenDMsModal && (
-            <button
-              type="button"
-              onClick={onOpenDMsModal}
-              style={{
-                padding: '8px 16px',
-                borderRadius: 14,
-                background: 'var(--chatter-primary)',
-                border: 'none',
-                color: '#0E0E0E',
-                fontSize: 13.5,
-                fontWeight: 750,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                boxShadow: '0 2px 10px rgba(64, 227, 120, 0.25)',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <span>+ New Chat</span>
-            </button>
-          )}
+          </button>
         </div>
-      </div>
 
-      {/* ── 1. Cupertino-style Sliding Segmented Control ── */}
-      <div className="chatter-segment-control">
-        <button
-          type="button"
-          className={`chatter-segment-btn ${activeSegment === 0 ? 'chatter-segment-btn--active' : ''}`}
-          onClick={() => setActiveSegment(0)}
-        >
-          <span>Direct Chats</span>
-          {directChats.some((d) => d.unread > 0) && (
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--chatter-red)' }} />
-          )}
-        </button>
-        <button
-          type="button"
-          className={`chatter-segment-btn ${activeSegment === 1 ? 'chatter-segment-btn--active' : ''}`}
-          onClick={() => setActiveSegment(1)}
-        >
-          <span>Study Rooms</span>
-        </button>
-        <button
-          type="button"
-          className={`chatter-segment-btn ${activeSegment === 2 ? 'chatter-segment-btn--active' : ''}`}
-          onClick={() => setActiveSegment(2)}
-        >
-          <span>Requests</span>
-          {studyRequests.length > 0 && (
-            <span style={{ fontSize: 10, background: 'var(--chatter-primary)', color: '#0E0E0E', padding: '1px 6px', borderRadius: 10, fontWeight: 800 }}>
-              {studyRequests.length}
-            </span>
-          )}
-        </button>
+        {onOpenDMsModal && (
+          <button
+            type="button"
+            onClick={onOpenDMsModal}
+            style={{
+              padding: '7px 13px',
+              borderRadius: 18,
+              background: 'var(--chatter-primary)',
+              border: 'none',
+              color: '#0E0E0E',
+              fontSize: 12.5,
+              fontWeight: 750,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              whiteSpace: 'nowrap',
+              boxShadow: '0 2px 10px rgba(64, 227, 120, 0.25)',
+              flexShrink: 0,
+              transition: 'all 0.15s ease',
+            }}
+            title="Start New Direct Chat"
+          >
+            <span>+</span> <span>New</span>
+          </button>
+        )}
       </div>
 
       {/* ── 2. Search Input ── */}
