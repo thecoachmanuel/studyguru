@@ -1911,31 +1911,28 @@ export function useVoiceSession(userId, profile = null) {
         return;
       }
 
-      const participant = participants.find((p) => p.user_id === otherUserId);
+      const pc = peerConnectionsRef.current[otherUserId];
+      // If the peer is actively connected via WebRTC, never tear it down due to HTTP polling jitter
+      if (pc && (pc.connectionState === 'connected' || pc.iceConnectionState === 'connected')) {
+        delete lastAbsentRef.current[otherUserId];
+        return;
+      }
+
+      const participant = participants.find((p) => String(p.user_id || p.userId) === String(otherUserId));
       if (!participant) {
         // User is absent from the current participants list
         if (!lastAbsentRef.current[otherUserId]) {
           lastAbsentRef.current[otherUserId] = now;
-          console.log(`[WebRTC] User ${otherUserId} is missing from participant list, starting grace period.`);
         } else {
           const absentDuration = now - lastAbsentRef.current[otherUserId];
-          if (absentDuration > 10000) {
-            console.log(`[WebRTC] User ${otherUserId} absent for ${absentDuration}ms (>10s). Closing connection.`);
+          // Grace period of 30 seconds before closing disconnected non-active peer
+          if (absentDuration > 30000 && pc && pc.connectionState !== 'connected') {
+            console.log(`[WebRTC] Inactive peer ${otherUserId} absent for ${absentDuration}ms. Closing connection.`);
             cleanupPeerConnection(otherUserId);
           }
         }
       } else {
-        // User is present in the list - clear absent timer
         delete lastAbsentRef.current[otherUserId];
-
-        // 2. Check if their last_seen is stale (> 20 seconds)
-        if (participant.last_seen) {
-          const lastSeenTime = new Date(participant.last_seen).getTime();
-          if (now - lastSeenTime > 20000) {
-            console.log(`[WebRTC] User ${otherUserId} is stale (last_seen > 20s ago). Closing connection.`);
-            cleanupPeerConnection(otherUserId);
-          }
-        }
       }
     });
   }, [participants, joinedChannelId, micConnected, userId, createPeerConnection, negotiatePeer, cleanupPeerConnection, cleanupAllCalls]);

@@ -361,11 +361,24 @@ export default function DashboardPage() {
     }
   }, [status, router]);
 
-  // Show Toast Helper
+  // Show Toast Helper (Faster 2.2s auto-dismiss + deduplication)
+  const toastTimerRef = useRef(null);
   const showToast = useCallback((message) => {
+    if (!message) return;
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     setToast(message);
-    window.setTimeout(() => setToast(''), 3000);
+    toastTimerRef.current = window.setTimeout(() => setToast(''), 2200);
   }, []);
+
+  // Listen to studycord_toast window events
+  useEffect(() => {
+    const handleCustomToast = (e) => {
+      const msg = typeof e.detail === 'string' ? e.detail : e.detail?.message;
+      if (msg) showToast(msg);
+    };
+    window.addEventListener('studycord_toast', handleCustomToast);
+    return () => window.removeEventListener('studycord_toast', handleCustomToast);
+  }, [showToast]);
 
   // ──────────────────────────────────────────────
   // 1. Fetch Servers
@@ -1064,10 +1077,38 @@ export default function DashboardPage() {
 
   return (
     <div className={shellClasses} id="dashboard-shell" suppressHydrationWarning>
-      {/* ── Fixed Toast ── */}
+      {/* ── Unified Toast Notification (Faster auto-dismiss, tap/swipe to dismiss) ── */}
       {toast && (
-        <div className="toast" style={{ zIndex: 10000 }}>
-          {toast}
+        <div
+          className="toast studycord-unified-toast"
+          style={{ zIndex: 10000 }}
+          onClick={() => setToast('')}
+          onTouchStart={(e) => {
+            const touch = e.touches[0];
+            e.currentTarget.__startY = touch.clientY;
+          }}
+          onTouchEnd={(e) => {
+            const touch = e.changedTouches[0];
+            const startY = e.currentTarget.__startY || 0;
+            if (Math.abs(touch.clientY - startY) > 25) {
+              setToast('');
+            }
+          }}
+          role="status"
+          aria-live="polite"
+        >
+          <span className="studycord-unified-toast__text">{toast}</span>
+          <button
+            type="button"
+            className="studycord-unified-toast__close"
+            onClick={(e) => {
+              e.stopPropagation();
+              setToast('');
+            }}
+            aria-label="Dismiss notification"
+          >
+            ✕
+          </button>
         </div>
       )}
 
@@ -1628,31 +1669,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ── Toast Popup ── */}
-      {toast && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 24,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'var(--chatter-sheet)',
-            color: 'var(--chatter-primary)',
-            border: '1px solid var(--chatter-primary)',
-            padding: '8px 18px',
-            borderRadius: 20,
-            fontSize: 14,
-            fontWeight: 700,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
-            zIndex: 9998,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-          }}
-        >
-          {toast}
-        </div>
-      )}
+
     </div>
   );
 }

@@ -65,10 +65,7 @@ export default function ChatterGuruView({
 
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
-  const [targetBarHidden, setTargetBarHidden] = useState(false);
-  const [quickPromptsHidden, setQuickPromptsHidden] = useState(false);
-  const [toggleBarHidden, setToggleBarHidden] = useState(false);
-  const lastScrollTopRef = useRef(0);
+  const [copiedMsgId, setCopiedMsgId] = useState(null);
 
   const MAX_DOCS = 10;
   const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB file limit
@@ -101,7 +98,7 @@ export default function ChatterGuruView({
         const parsed = JSON.parse(savedFree);
         if (Array.isArray(parsed) && parsed.length > 0) {
           const cleanFree = parsed.filter(
-            (m) => m && m.chatMode !== 'guided' && !m.quizData && !m.flashcardsData && !m.documentRef
+            (m) => m && m.chatMode !== 'guided' && !m.documentRef
           );
           if (cleanFree.length > 0) {
             setFreeMessages(cleanFree);
@@ -128,7 +125,7 @@ export default function ChatterGuruView({
     try {
       if (freeMessages && freeMessages.length > 0) {
         const clean = freeMessages.filter(
-          (m) => m && m.chatMode !== 'guided' && !m.quizData && !m.flashcardsData && !m.documentRef
+          (m) => m && m.chatMode !== 'guided' && !m.documentRef
         );
         localStorage.setItem(FREE_STORAGE_KEY, JSON.stringify(clean));
       }
@@ -488,27 +485,30 @@ export default function ChatterGuruView({
 
   // Generate Interactive MCQ Quiz
   const handleGenerateMCQ = async (docId, docName, targetMessageId = null, customCount = null, customTopic = '', customUserPrompt = '') => {
-    if (aiModeRef.current !== 'guided') {
-      handleSwitchMode('guided');
-    }
+    const isFree = aiModeRef.current === 'free';
     setLoading(true);
     setDocsPanelOpen(false);
-    const activeDoc = uploadedDocs.find((d) => (d.doc_id || d.id) === (docId || selectedDocId)) || (selectedDocId === null ? uploadedDocs[0] : null);
-    const targetDocId = docId || selectedDocId || activeDoc?.doc_id || activeDoc?.id || null;
-    const targetDocName = docName || activeDoc?.filename || customTopic || 'the active study session';
+    const activeDoc = isFree ? null : (uploadedDocs.find((d) => (d.doc_id || d.id) === (docId || selectedDocId)) || (selectedDocId === null ? uploadedDocs[0] : null));
+    const targetDocId = isFree ? null : (docId || selectedDocId || activeDoc?.doc_id || activeDoc?.id || null);
+    const targetDocName = isFree
+      ? (customTopic || 'Core Academic Concepts')
+      : (docName || activeDoc?.filename || customTopic || 'the active study session');
 
     const count = customCount && customCount > 0 ? customCount : 5;
     const isRegen = quizGenCountRef.current > 0;
     const currentIteration = quizGenCountRef.current;
     quizGenCountRef.current += 1;
 
+    const setTargetMessages = isFree ? setFreeMessages : setGuidedMessages;
+    const currentMode = isFree ? 'free' : 'guided';
+
     if (!targetMessageId) {
-      setGuidedMessages((prev) => [
+      setTargetMessages((prev) => [
         ...prev,
         {
           id: `u-quiz-${Date.now()}`,
           role: 'user',
-          chatMode: 'guided',
+          chatMode: currentMode,
           content: customUserPrompt || (isRegen
             ? `Generate a fresh, new ${count}-question Quiz Assessment on ${targetDocName}.`
             : `Generate a ${count}-question multiple choice Quiz Assessment on ${targetDocName}.`),
@@ -539,18 +539,18 @@ export default function ChatterGuruView({
       if (Array.isArray(questions) && questions.length > 0) {
         if (targetMessageId) {
           // In-place refresh of existing quiz card with brand new questions!
-          setGuidedMessages((prev) =>
+          setTargetMessages((prev) =>
             prev.map((m) =>
-              m.id === targetMessageId ? { ...m, chatMode: 'guided', quizData: questions, timestamp: 'Just now' } : m
+              m.id === targetMessageId ? { ...m, chatMode: currentMode, quizData: questions, timestamp: 'Just now' } : m
             )
           );
         } else {
-          setGuidedMessages((prev) => [
+          setTargetMessages((prev) => [
             ...prev,
             {
               id: `g-mcq-${Date.now()}`,
               role: 'assistant',
-              chatMode: 'guided',
+              chatMode: currentMode,
               quizData: questions,
               timestamp: 'Just now',
             },
@@ -563,18 +563,18 @@ export default function ChatterGuruView({
       // Dynamic fallback rotating through subjects so fresh questions are always shown
       const fallbackQuestions = generateGuruFallbackQuestions(currentIteration, targetDocName);
       if (targetMessageId) {
-        setGuidedMessages((prev) =>
+        setTargetMessages((prev) =>
           prev.map((m) =>
-            m.id === targetMessageId ? { ...m, chatMode: 'guided', quizData: fallbackQuestions, timestamp: 'Just now' } : m
+            m.id === targetMessageId ? { ...m, chatMode: currentMode, quizData: fallbackQuestions, timestamp: 'Just now' } : m
           )
         );
       } else {
-        setGuidedMessages((prev) => [
+        setTargetMessages((prev) => [
           ...prev,
           {
             id: `g-mcq-${Date.now()}`,
             role: 'assistant',
-            chatMode: 'guided',
+            chatMode: currentMode,
             quizData: fallbackQuestions,
             timestamp: 'Just now',
           },
@@ -587,28 +587,31 @@ export default function ChatterGuruView({
 
   // Generate Flashcards
   const handleGenerateFlashcards = async (docId, docName, customCount = null, customTopic = '', customUserPrompt = '') => {
-    if (aiModeRef.current !== 'guided') {
-      handleSwitchMode('guided');
-    }
+    const isFree = aiModeRef.current === 'free';
     setLoading(true);
     setDocsPanelOpen(false);
-    const activeDoc = uploadedDocs.find((d) => (d.doc_id || d.id) === (docId || selectedDocId)) || (selectedDocId === null ? uploadedDocs[0] : null);
-    const targetDocId = docId || selectedDocId || activeDoc?.doc_id || activeDoc?.id || null;
-    const targetDocName = docName || activeDoc?.filename || customTopic || 'the active study session';
+    const activeDoc = isFree ? null : (uploadedDocs.find((d) => (d.doc_id || d.id) === (docId || selectedDocId)) || (selectedDocId === null ? uploadedDocs[0] : null));
+    const targetDocId = isFree ? null : (docId || selectedDocId || activeDoc?.doc_id || activeDoc?.id || null);
+    const targetDocName = isFree
+      ? (customTopic || 'Core Subject Definitions & Facts')
+      : (docName || activeDoc?.filename || customTopic || 'the active study session');
 
     const count = customCount && customCount > 0 ? customCount : 8;
     const isRegen = flashcardsGenCountRef.current > 0;
     flashcardsGenCountRef.current += 1;
 
-    setGuidedMessages((prev) => [
+    const setTargetMessages = isFree ? setFreeMessages : setGuidedMessages;
+    const currentMode = isFree ? 'free' : 'guided';
+
+    setTargetMessages((prev) => [
       ...prev,
       {
         id: `u-cards-${Date.now()}`,
         role: 'user',
-        chatMode: 'guided',
+        chatMode: currentMode,
         content: customUserPrompt || (isRegen
-          ? `Create a fresh set of ${count} new study flashcards from ${targetDocName}.`
-          : `Create ${count} flashcards from ${targetDocName}.`),
+          ? `Create a fresh set of ${count} new study flashcards on ${targetDocName}.`
+          : `Create ${count} flashcards on ${targetDocName}.`),
         timestamp: 'Now',
       },
     ]);
@@ -629,12 +632,12 @@ export default function ChatterGuruView({
       const cards = data.flashcards || data.cards || [];
 
       if (cards.length > 0) {
-        setGuidedMessages((prev) => [
+        setTargetMessages((prev) => [
           ...prev,
           {
             id: `g-cards-${Date.now()}`,
             role: 'assistant',
-            chatMode: 'guided',
+            chatMode: currentMode,
             flashcardsData: cards,
             timestamp: 'Just now',
           },
@@ -643,12 +646,12 @@ export default function ChatterGuruView({
         throw new Error('No flashcards returned');
       }
     } catch {
-      setGuidedMessages((prev) => [
+      setTargetMessages((prev) => [
         ...prev,
         {
           id: `g-cards-${Date.now()}`,
           role: 'assistant',
-          chatMode: 'guided',
+          chatMode: currentMode,
           flashcardsData: [
             { front: 'Stokes’ Theorem Formula', back: '∮_C F · dr = ∬_S (∇ × F) · dS' },
             { front: 'Pre-LN vs Post-LN benefit', back: 'Pre-LN yields well-behaved gradient norms, allowing training stability without warmup.' },
@@ -872,21 +875,33 @@ export default function ChatterGuruView({
     }
   };
 
-  const handleMessagesScroll = (e) => {
-    const currentScrollTop = e.currentTarget.scrollTop;
-    const delta = currentScrollTop - lastScrollTopRef.current;
-
-    // Smoothly collapse toggle bar, target bar, and suggestion prompts when scrolling, reappear when scrolling back down
-    if (delta > 8 && currentScrollTop > 40) {
-      setTargetBarHidden(true);
-      setQuickPromptsHidden(true);
-      setToggleBarHidden(true);
-    } else if (delta < -8 || currentScrollTop <= 15) {
-      setTargetBarHidden(false);
-      setQuickPromptsHidden(false);
-      setToggleBarHidden(false);
+  const handleCopyMessage = async (id, text) => {
+    if (!text) return;
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setCopiedMsgId(id);
+      setTimeout(() => {
+        setCopiedMsgId((curr) => (curr === id ? null : curr));
+      }, 2000);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('studycord-toast', {
+            detail: { message: 'AI response copied to clipboard' },
+          })
+        );
+      }
+    } catch (e) {
+      console.warn('Failed to copy text:', e);
     }
-    lastScrollTopRef.current = currentScrollTop;
   };
 
   return (
@@ -1013,20 +1028,15 @@ export default function ChatterGuruView({
         </div>
       </div>
 
-      {/* ── 1b. Mode Toggle Pill: Free Chat vs Guided Document Study – collapses smoothly on scroll up and reappears on scroll down ── */}
+      {/* ── 1b. Mode Toggle Pill: Free Chat vs Guided Document Study (Fixed & Non-flickering) ── */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: toggleBarHidden ? '0 16px' : '8px 16px',
-          maxHeight: toggleBarHidden ? 0 : 58,
-          opacity: toggleBarHidden ? 0 : 1,
-          pointerEvents: toggleBarHidden ? 'none' : 'auto',
-          transition: 'all 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
+          padding: '8px 16px',
           background: 'var(--chatter-sheet)',
-          borderBottom: toggleBarHidden ? 'none' : '1px solid rgba(255, 255, 255, 0.06)',
-          overflow: 'hidden',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
           flexShrink: 0,
         }}
       >
@@ -1110,12 +1120,8 @@ export default function ChatterGuruView({
             alignItems: 'center',
             gap: 7,
             overflowX: 'auto',
-            padding: targetBarHidden ? '0 16px' : '7px 16px',
-            maxHeight: targetBarHidden ? 0 : 54,
-            opacity: targetBarHidden ? 0 : 1,
-            pointerEvents: targetBarHidden ? 'none' : 'auto',
-            transition: 'all 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
-            borderBottom: targetBarHidden ? 'none' : '1px solid rgba(255, 255, 255, 0.06)',
+            padding: '7px 16px',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
             background: 'var(--chatter-black)',
             scrollbarWidth: 'none',
             flexShrink: 0,
@@ -1382,7 +1388,6 @@ export default function ChatterGuruView({
 
       {/* ── 3. Conversational Message Stream ── */}
       <div
-        onScroll={handleMessagesScroll}
         style={{
           flex: 1,
           overflowY: 'auto',
@@ -1524,6 +1529,60 @@ export default function ChatterGuruView({
                       onRegenerate={() => handleGenerateFlashcards(selectedDocId)}
                     />
                   )}
+
+                  {/* Assistant Message Actions (Copy response, etc.) */}
+                  {!isUser && m.content && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'flex-end',
+                        marginTop: 10,
+                        paddingTop: 8,
+                        borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+                        gap: 6,
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleCopyMessage(m.id, m.content)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          padding: '5px 11px',
+                          borderRadius: 8,
+                          background: copiedMsgId === m.id ? 'rgba(64, 227, 120, 0.16)' : 'rgba(255, 255, 255, 0.06)',
+                          border: '1px solid',
+                          borderColor: copiedMsgId === m.id ? 'rgba(64, 227, 120, 0.4)' : 'rgba(255, 255, 255, 0.08)',
+                          color: copiedMsgId === m.id ? '#40E378' : '#A0A0A0',
+                          fontSize: 12.5,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          transition: 'all 0.18s ease',
+                        }}
+                        title="Copy AI response"
+                        aria-label="Copy AI response"
+                      >
+                        {copiedMsgId === m.id ? (
+                          <>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                            <span>Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                            </svg>
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1559,20 +1618,17 @@ export default function ChatterGuruView({
         <div ref={chatBottomRef} />
       </div>
 
-      {/* ── 4. Quick Prompts Rail (smoothly collapses when scrolling up) ── */}
+      {/* ── 4. Quick Prompts Rail (Clean, stable suggestions anchored above compose) ── */}
       <div
         style={{
           display: 'flex',
           gap: 8,
           overflowX: 'auto',
-          padding: quickPromptsHidden ? '0 18px' : '6px 18px',
-          maxHeight: quickPromptsHidden ? 0 : 44,
-          opacity: quickPromptsHidden ? 0 : 1,
-          pointerEvents: quickPromptsHidden ? 'none' : 'auto',
-          transition: 'all 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
+          padding: '7px 18px',
           scrollbarWidth: 'none',
           flexShrink: 0,
           background: 'var(--chatter-black)',
+          borderTop: '1px solid rgba(255, 255, 255, 0.05)',
         }}
       >
         {activePrompts.map((p, i) => (
@@ -1585,7 +1641,7 @@ export default function ChatterGuruView({
                   docFileInputRef.current?.click();
                   return;
                 }
-                handleGenerateMCQ();
+                handleGenerateMCQ(null, null, null, 5, aiMode === 'free' ? 'Core Academic Concepts & Revision Drill' : null);
                 return;
               }
               if (p.includes('Flashcards')) {
@@ -1593,7 +1649,7 @@ export default function ChatterGuruView({
                   docFileInputRef.current?.click();
                   return;
                 }
-                handleGenerateFlashcards();
+                handleGenerateFlashcards(null, null, 8, aiMode === 'free' ? 'Key Academic Definitions & Core Facts' : null);
                 return;
               }
               handleSend(p);

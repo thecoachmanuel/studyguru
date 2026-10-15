@@ -119,10 +119,11 @@ export async function POST(req) {
       const rawSubject = (imgMatch ? imgMatch[1] : drawMatch[1]).replace(/[.?!\s]+$/, '').trim();
       if (rawSubject.length > 1) {
         const seed = Math.floor(Math.random() * 899999) + 100000;
-        const encodedPrompt = encodeURIComponent(`${rawSubject} educational illustration diagram detailed clear high quality 4k`);
-        const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true&seed=${seed}`;
+        const enhancedPrompt = `${rawSubject}, academic educational diagram, ultra-clear high resolution, highly detailed, pedagogical scientific illustration, sharp focus, 4k`;
+        const encodedPrompt = encodeURIComponent(enhancedPrompt);
+        const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?model=flux&enhance=true&nologo=true&seed=${seed}&width=1024&height=1024`;
 
-        const reply = `Here is the visual diagram you requested for **${rawSubject}**:\n\n![${rawSubject}](${imageUrl})\n\n*Generated with StudyCord Visual AI*\n\n💡 **Next Steps:** You can type *"explain this visual step-by-step"*, ask *"draw this from another angle"*, or ask *"how does this connect to our lesson?"*`;
+        const reply = `Here is the high-definition visual illustration for **${rawSubject}**:\n\n![${rawSubject}](${imageUrl})\n\n*Generated with FLUX.1 Open-Source AI (Ultra-HD)*\n\n💡 **Next Steps:** You can type *"explain this visual step-by-step"*, ask *"draw this from another angle"*, or ask *"how does this connect to our lesson?"*`;
 
         if (wantsStream) {
           const encoder = new TextEncoder();
@@ -318,7 +319,7 @@ CORE TUTORING PEDAGOGY & ADAPTIVE PACING:
 5. IMAGE & DIAGRAM GENERATION:
    - If the student asks you to generate, draw, illustrate, or create an image or visual diagram of any concept, process, organ, structure, or scene:
    - You CAN embed images directly using Markdown format:
-     ![Subject Description](https://image.pollinations.ai/prompt/{URL_ENCODED_DETAILED_PROMPT}?width=1024&height=1024&nologo=true)
+     ![Subject Description](https://image.pollinations.ai/prompt/{URL_ENCODED_DETAILED_PROMPT}?model=flux&enhance=true&nologo=true&width=1024&height=1024)
    - Always describe what is shown in the image and provide follow-up study guidance beneath it!`;
 
     let userPrompt = '';

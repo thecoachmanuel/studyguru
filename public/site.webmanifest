@@ -1,18 +1,52 @@
 {
-  "name": "StudyGuru",
+  "id": "/",
+  "name": "StudyGuru — AI Student Collaboration Platform",
   "short_name": "StudyGuru",
+  "description": "Real-time AI-powered student collaboration platform with voice channels, study documents, interactive quizzes, and AI Study Guru.",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0E0E0E",
+  "theme_color": "#0E0E0E",
+  "categories": [
+    "education",
+    "productivity",
+    "utilities"
+  ],
   "icons": [
     {
       "src": "/android-chrome-192x192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "/android-chrome-512x512.png",
       "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
       "type": "image/png"
     }
   ],
-  "start_url": "/",
-  "display": "standalone"
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "Open your StudyGuru servers and channels",
+      "url": "/dashboard",
+      "icons": [{ "src": "/android-chrome-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "AI Study Guru",
+      "short_name": "AI Guru",
+      "description": "Ask questions, generate quizzes, and revise",
+      "url": "/dashboard?tab=guru",
+      "icons": [{ "src": "/android-chrome-192x192.png", "sizes": "192x192" }]
+    }
+  ]
 }

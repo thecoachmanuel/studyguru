@@ -172,9 +172,13 @@ export default function VoicePanel({
 
   // Screen share participants detection
   const remoteSharingParticipants = useMemo(() => {
-    return activeParticipants.filter((p) => (
-      p.user_id !== userId && Boolean(voiceSession.remoteScreenShareStates?.[p.user_id])
-    ));
+    return activeParticipants.filter((p) => {
+      const pid = String(p.user_id || p.userId || p.id || '');
+      return pid !== String(userId) && Boolean(
+        voiceSession.remoteScreenShareStates?.[pid] ||
+        voiceSession.remoteScreenShareStates?.[p.user_id]
+      );
+    });
   }, [activeParticipants, userId, voiceSession.remoteScreenShareStates]);
 
   const isLocalSharing = voiceSession.isScreenSharing;
@@ -188,12 +192,23 @@ export default function VoicePanel({
     }
     if (remoteSharingParticipants.length > 0) {
       return (
-        remoteSharingParticipants.find((p) => p.user_id === focusedScreenShareUserId) ||
+        remoteSharingParticipants.find((p) => String(p.user_id || p.userId) === String(focusedScreenShareUserId)) ||
         remoteSharingParticipants[0]
       );
     }
+    // Fallback: check remoteScreenShareStates for any active sharer
+    const fallbackSharerId = Object.keys(voiceSession.remoteScreenShareStates || {}).find(
+      (uid) => voiceSession.remoteScreenShareStates[uid] && String(uid) !== String(userId)
+    );
+    if (fallbackSharerId) {
+      return {
+        user_id: fallbackSharerId,
+        profiles: { username: 'Study Partner' },
+        isMe: false,
+      };
+    }
     return null;
-  }, [isLocalSharing, userId, profile, remoteSharingParticipants, focusedScreenShareUserId]);
+  }, [isLocalSharing, userId, profile, remoteSharingParticipants, focusedScreenShareUserId, voiceSession.remoteScreenShareStates]);
 
   const isPresentationActive = Boolean(activeScreenSharePresenter);
 
@@ -397,7 +412,7 @@ export default function VoicePanel({
           {media.hasLiveVideo ? (
             <VideoStream
               stream={media.stream}
-              muted={media.isMe}
+              muted={true}
               mirrored={media.isMe && !media.isSharingScreen}
               screenContent={media.isSharingScreen}
               playRemoteMedia={voiceSession.playRemoteMedia}
@@ -760,8 +775,11 @@ export default function VoicePanel({
                   />
                 ) : (
                   <VideoStream
-                    stream={voiceSession.remoteStreams?.[activeScreenSharePresenter.user_id]}
-                    muted={false}
+                    stream={
+                      voiceSession.remoteStreams?.[String(activeScreenSharePresenter.user_id)] ||
+                      voiceSession.remoteStreams?.[activeScreenSharePresenter.user_id]
+                    }
+                    muted={true}
                     screenContent={true}
                     className="voice-meet-presentation-hero__video"
                     playRemoteMedia={voiceSession.playRemoteMedia}
