@@ -38,6 +38,8 @@ export default function ChatterChatsView({
 
   useEffect(() => {
     fetchConversations();
+    const interval = setInterval(fetchConversations, 4000);
+    return () => clearInterval(interval);
   }, [fetchConversations]);
 
   // Real-time Pusher updates for incoming chats and requests
@@ -52,6 +54,12 @@ export default function ChatterChatsView({
           fetchConversations();
         });
         userChannel.bind('new-message', () => {
+          fetchConversations();
+        });
+        userChannel.bind('new-direct-message', () => {
+          fetchConversations();
+        });
+        userChannel.bind('message', () => {
           fetchConversations();
         });
       }

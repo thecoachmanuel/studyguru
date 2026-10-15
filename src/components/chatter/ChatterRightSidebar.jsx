@@ -240,6 +240,10 @@ export default function ChatterRightSidebar({
                     style={{
                       width: 42,
                       height: 42,
+                      minWidth: 42,
+                      minHeight: 42,
+                      flexShrink: 0,
+                      aspectRatio: '1 / 1',
                       borderRadius: '50%',
                       objectFit: 'cover',
                       border: '2px solid rgba(64, 227, 120, 0.3)',

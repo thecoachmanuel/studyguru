@@ -155,12 +155,42 @@ export default function ChatterFeedView({
   const [profileModalUser, setProfileModalUser] = useState(null);
   const [activeCommentsPost, setActiveCommentsPost] = useState(null);
 
+  const PREMADE_TAGS = [
+    '#GeneralStudy',
+    '#ComputerScience',
+    '#Mathematics',
+    '#Biology',
+    '#Medicine',
+    '#Physics',
+    '#ExamPrep',
+    '#Engineering',
+    '#Law',
+    '#Psychology',
+  ];
+
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [newPostText, setNewPostText] = useState('');
   const [newPostTag, setNewPostTag] = useState('#GeneralStudy');
+  const [tagDropdownOpen, setTagDropdownOpen] = useState(false);
+  const [customTagInput, setCustomTagInput] = useState('');
+  const tagDropdownRef = useRef(null);
   const [attachedImage, setAttachedImage] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (tagDropdownRef.current && !tagDropdownRef.current.contains(event.target)) {
+        setTagDropdownOpen(false);
+      }
+    }
+    if (tagDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [tagDropdownOpen]);
 
   // Edit / Delete post states
   const [activeMenuPostId, setActiveMenuPostId] = useState(null);
@@ -623,8 +653,9 @@ export default function ChatterFeedView({
       {/* ── 1. Top Chatter Study Notes & Stories Carousel ── */}
       <ChatterNotesBar user={{ id: userId }} profile={profile} followingMap={activeFollowing} onOpenLiveSpaces={onOpenLiveSpaces} />
 
-      {/* ── Twitter / X Style Inline Quick Compose Box ── */}
+      {/* ── Twitter / X Style Inline Quick Compose Box (Desktop Only) ── */}
       <div
+        className="chatter-desktop-compose-box"
         style={{
           padding: '14px 16px',
           borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
@@ -739,29 +770,135 @@ export default function ChatterFeedView({
                 </svg>
               </button>
 
-              {/* Tag selector */}
-              <select
-                value={newPostTag}
-                onChange={(e) => setNewPostTag(e.target.value)}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.06)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  borderRadius: 12,
-                  color: '#fff',
-                  fontSize: 12,
-                  padding: '3px 8px',
-                  outline: 'none',
-                  cursor: 'pointer',
-                }}
-              >
-                <option value="#GeneralStudy">#GeneralStudy</option>
-                <option value="#ComputerScience">#ComputerScience</option>
-                <option value="#Mathematics">#Mathematics</option>
-                <option value="#Biology">#Biology</option>
-                <option value="#Medicine">#Medicine</option>
-                <option value="#Physics">#Physics</option>
-                <option value="#ExamPrep">#ExamPrep</option>
-              </select>
+              {/* Modern Interactive Tag selector */}
+              <div ref={tagDropdownRef} style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  onClick={() => setTagDropdownOpen((prev) => !prev)}
+                  style={{
+                    background: 'rgba(64, 227, 120, 0.12)',
+                    border: '1px solid rgba(64, 227, 120, 0.3)',
+                    borderRadius: 14,
+                    color: 'var(--chatter-primary)',
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    padding: '4px 10px',
+                    outline: 'none',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    transition: 'all 0.15s ease',
+                  }}
+                  title="Select or enter topic tag"
+                >
+                  <span>🏷️</span>
+                  <span>{newPostTag || '#GeneralStudy'}</span>
+                  <span style={{ fontSize: 10, opacity: 0.8 }}>▾</span>
+                </button>
+
+                {tagDropdownOpen && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 'calc(100% + 6px)',
+                      left: 0,
+                      zIndex: 90,
+                      background: 'var(--chatter-sheet)',
+                      border: '1px solid rgba(255, 255, 255, 0.15)',
+                      borderRadius: 16,
+                      padding: 12,
+                      width: 280,
+                      boxShadow: '0 12px 36px rgba(0,0,0,0.7)',
+                    }}
+                  >
+                    <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--chatter-light-text)', textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.04em' }}>
+                      Topic Hashtag
+                    </div>
+
+                    {/* Custom Tag Input */}
+                    <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                      <input
+                        type="text"
+                        placeholder="Type custom #tag..."
+                        value={customTagInput}
+                        onChange={(e) => setCustomTagInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (customTagInput.trim()) {
+                              const formatted = customTagInput.trim().startsWith('#') ? customTagInput.trim() : `#${customTagInput.trim()}`;
+                              setNewPostTag(formatted);
+                              setCustomTagInput('');
+                              setTagDropdownOpen(false);
+                            }
+                          }
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: '6px 10px',
+                          background: 'rgba(255, 255, 255, 0.06)',
+                          border: '1px solid rgba(255, 255, 255, 0.12)',
+                          borderRadius: 10,
+                          color: '#fff',
+                          fontSize: 12.5,
+                          outline: 'none',
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (customTagInput.trim()) {
+                            const formatted = customTagInput.trim().startsWith('#') ? customTagInput.trim() : `#${customTagInput.trim()}`;
+                            setNewPostTag(formatted);
+                            setCustomTagInput('');
+                            setTagDropdownOpen(false);
+                          }
+                        }}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: 10,
+                          background: 'var(--chatter-primary)',
+                          border: 'none',
+                          color: '#0E0E0E',
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Add
+                      </button>
+                    </div>
+
+                    {/* Pre-made tags grid */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 150, overflowY: 'auto' }}>
+                      {PREMADE_TAGS.map((tag) => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => {
+                            setNewPostTag(tag);
+                            setTagDropdownOpen(false);
+                          }}
+                          style={{
+                            padding: '4px 9px',
+                            borderRadius: 10,
+                            background: newPostTag === tag ? 'var(--chatter-primary)' : 'rgba(255, 255, 255, 0.06)',
+                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                            color: newPostTag === tag ? '#0E0E0E' : '#E5E5E5',
+                            fontSize: 12,
+                            fontWeight: newPostTag === tag ? 750 : 500,
+                            cursor: 'pointer',
+                            transition: 'all 0.12s ease',
+                          }}
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             <button
@@ -1220,24 +1357,56 @@ export default function ChatterFeedView({
 
             <form onSubmit={handleCreatePost}>
               <div style={{ marginBottom: 14 }}>
-                <input
-                  type="text"
-                  placeholder="Subject Tag (e.g. #OrganicChemistry)"
-                  value={newPostTag}
-                  onChange={(e) => setNewPostTag(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: 12,
-                    background: '#141414',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    color: 'var(--chatter-primary)',
-                    fontWeight: 600,
-                    fontSize: 14,
-                    outline: 'none',
-                    marginBottom: 10,
-                  }}
-                />
+                <div style={{ marginBottom: 8 }}>
+                  <label style={{ fontSize: 12, color: 'var(--chatter-light-text)', display: 'block', marginBottom: 6, fontWeight: 600 }}>
+                    Select Topic or Type Custom Hashtag
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Hashtag (e.g. #OrganicChemistry)"
+                    value={newPostTag}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setNewPostTag(v ? (v.startsWith('#') ? v : `#${v}`) : '');
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: 12,
+                      background: '#141414',
+                      border: '1px solid rgba(255, 255, 255, 0.12)',
+                      color: 'var(--chatter-primary)',
+                      fontWeight: 700,
+                      fontSize: 14,
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+
+                {/* Quick Pre-made Hashtag Pills */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                  {PREMADE_TAGS.map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => setNewPostTag(tag)}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: 12,
+                        background: newPostTag === tag ? 'var(--chatter-primary)' : 'rgba(255, 255, 255, 0.06)',
+                        border: newPostTag === tag ? '1px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
+                        color: newPostTag === tag ? '#0E0E0E' : '#D4D4D4',
+                        fontSize: 12,
+                        fontWeight: newPostTag === tag ? 750 : 500,
+                        cursor: 'pointer',
+                        transition: 'all 0.12s ease',
+                      }}
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
                 <textarea
                   rows={4}
                   placeholder="What notes, key takeaways, or study insights are you sharing?"

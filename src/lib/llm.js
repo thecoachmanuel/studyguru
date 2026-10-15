@@ -195,6 +195,7 @@ async function callOpenRouter({ prompt, systemPrompt = '', json = false }) {
             model,
             messages,
             temperature: 0.7,
+            max_tokens: 800,
           };
 
           if (json) {
@@ -275,6 +276,7 @@ async function* streamOpenRouter({ prompt, systemPrompt = '' }) {
             model,
             messages,
             temperature: 0.7,
+            max_tokens: 800,
             stream: true,
           }),
         });
@@ -354,7 +356,11 @@ export async function generateContentWithFallback({ prompt, systemPrompt = '', j
       } else {
         contents.push({ role: 'user', parts: [{ text: prompt }] });
       }
-      const config = json ? { responseMimeType: 'application/json' } : undefined;
+      const config = {
+        maxOutputTokens: 800,
+        temperature: 0.7,
+        ...(json ? { responseMimeType: 'application/json' } : {}),
+      };
 
       for (const model of GEMINI_MODELS) {
         try {
@@ -420,6 +426,10 @@ export async function* generateStreamWithFallback({ prompt, systemPrompt = '' })
           const responseStream = await aiClient.models.generateContentStream({
             model,
             contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
+            config: {
+              maxOutputTokens: 800,
+              temperature: 0.7,
+            },
           });
 
           let hadChunks = false;

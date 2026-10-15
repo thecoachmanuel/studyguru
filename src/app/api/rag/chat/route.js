@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getDatabase, safeObjectId } from '@/lib/mongodb';
 import { retrieveRelevantChunks } from '@/lib/vectorSearch';
-import { generateStreamWithFallback } from '@/lib/llm';
+import { generateStreamWithFallback, generateContentWithFallback } from '@/lib/llm';
 import { cleanEmDashes } from '@/lib/cleanText';
 
 // In-memory cache for common student questions on documents
@@ -189,17 +189,19 @@ export async function POST(req) {
       : `${message} ${docTitle}`;
 
     let contextChunks = [];
-    try {
-      contextChunks = await Promise.race([
-        retrieveRelevantChunks({
-          query: chunkSearchQuery,
-          documentId: doc?._id?.toString() || documentId,
-          userId,
-          limit: isTeachingQuery ? 6 : 4,
-        }),
-        new Promise((resolve) => setTimeout(() => resolve([]), 800)),
-      ]);
-    } catch {}
+    if (doc?._id || documentId) {
+      try {
+        contextChunks = await Promise.race([
+          retrieveRelevantChunks({
+            query: chunkSearchQuery,
+            documentId: doc?._id?.toString() || documentId,
+            userId,
+            limit: isTeachingQuery ? 6 : 4,
+          }),
+          new Promise((resolve) => setTimeout(() => resolve([]), 500)),
+        ]);
+      } catch {}
+    }
 
     // 3. Assemble whole-document context
     let contextText = '';
@@ -345,13 +347,20 @@ ${isExplicitAllAtOnce ? `
     }
 
     let fullAnswer = '';
-    const generator = generateStreamWithFallback({
-      prompt: userPrompt,
-      systemPrompt,
-    });
-
-    for await (const chunk of generator) {
-      fullAnswer += chunk;
+    try {
+      const res = await generateContentWithFallback({
+        prompt: userPrompt,
+        systemPrompt,
+      });
+      fullAnswer = res?.text || '';
+    } catch {
+      const generator = generateStreamWithFallback({
+        prompt: userPrompt,
+        systemPrompt,
+      });
+      for await (const chunk of generator) {
+        fullAnswer += chunk;
+      }
     }
 
     fullAnswer = cleanEmDashes(fullAnswer);

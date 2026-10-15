@@ -547,85 +547,87 @@ export default function ChatterRoomsView({
             </button>
           </div>
         ) : (
-          filteredSpaces.map((space) => (
-            <div key={space.id} className="chatter-audiospace-card" style={{ marginTop: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-                <div>
-                  <h3 style={{ fontSize: 18, fontWeight: 700, color: '#fff', margin: '0 0 6px 0' }}>
-                    {space.title}
-                  </h3>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {space.tags?.map((t) => (
-                      <span key={t} style={{ fontSize: 13.5, color: 'var(--chatter-hashtag)', fontWeight: 600 }}>
-                        {t}
-                      </span>
-                    ))}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {filteredSpaces.map((space) => (
+              <div key={space.id} className="chatter-audiospace-card">
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                  <div>
+                    <h3 style={{ fontSize: 18, fontWeight: 700, color: '#fff', margin: '0 0 6px 0' }}>
+                      {space.title}
+                    </h3>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {space.tags?.map((t) => (
+                        <span key={t} style={{ fontSize: 13.5, color: 'var(--chatter-hashtag)', fontWeight: 600 }}>
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{ fontSize: 13.5, color: space.isLiveNow ? 'var(--chatter-primary)' : 'var(--chatter-light-text)', whiteSpace: 'nowrap', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
+                    {space.isLiveNow ? (
+                      <>
+                        <span className="chatter-audiospace-live-dot" style={{ display: 'inline-block' }} />
+                        <span>{space.listenersCount} active</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>🎙️</span>
+                        <span>{space.listenersCount > 0 ? `${space.listenersCount} listening` : 'Open space'}</span>
+                      </>
+                    )}
                   </div>
                 </div>
 
-                <div style={{ fontSize: 13.5, color: space.isLiveNow ? 'var(--chatter-primary)' : 'var(--chatter-light-text)', whiteSpace: 'nowrap', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
-                  {space.isLiveNow ? (
-                    <>
-                      <span className="chatter-audiospace-live-dot" style={{ display: 'inline-block' }} />
-                      <span>{space.listenersCount} active</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>🎙️</span>
-                      <span>{space.listenersCount > 0 ? `${space.listenersCount} listening` : 'Open space'}</span>
-                    </>
-                  )}
+                {/* Overlapping Speaker Avatars */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
+                  <div className="chatter-speaker-stack">
+                    {(space.speakers || []).map((sp, i) => (
+                      <img
+                        key={i}
+                        src={sp.avatar}
+                        alt={sp.name}
+                        className="chatter-speaker-avatar"
+                        title={sp.name}
+                      />
+                    ))}
+                    <span style={{ fontSize: 13.5, color: 'var(--chatter-light-text)', marginLeft: 10, fontWeight: 500 }}>
+                      {(space.speakers || []).length > 0
+                        ? space.speakers.map((s) => s.name).join(', ') + ' speaking'
+                        : space.isLiveNow
+                          ? `${space.listenersCount} scholar${space.listenersCount > 1 ? 's' : ''} inside`
+                          : 'Drop-in voice room'}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const serverWithVoice = servers.find((s) => s.channels?.some((c) => c.type === 'voice'));
+                      const voiceChan = serverWithVoice?.channels?.find((c) => c.type === 'voice');
+                      onJoinVoiceChannel?.(
+                        space.serverId || serverWithVoice?.id || space.id,
+                        voiceChan?.id || space.id,
+                        voiceChan?.name || space.title
+                      );
+                    }}
+                    style={{
+                      padding: '9px 18px',
+                      borderRadius: 20,
+                      background: 'var(--chatter-primary)',
+                      border: 'none',
+                      color: '#0E0E0E',
+                      fontSize: 14,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Join Space
+                  </button>
                 </div>
               </div>
-
-              {/* Overlapping Speaker Avatars */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
-                <div className="chatter-speaker-stack">
-                  {(space.speakers || []).map((sp, i) => (
-                    <img
-                      key={i}
-                      src={sp.avatar}
-                      alt={sp.name}
-                      className="chatter-speaker-avatar"
-                      title={sp.name}
-                    />
-                  ))}
-                  <span style={{ fontSize: 13.5, color: 'var(--chatter-light-text)', marginLeft: 10, fontWeight: 500 }}>
-                    {(space.speakers || []).length > 0
-                      ? space.speakers.map((s) => s.name).join(', ') + ' speaking'
-                      : space.isLiveNow
-                        ? `${space.listenersCount} scholar${space.listenersCount > 1 ? 's' : ''} inside`
-                        : 'Drop-in voice room'}
-                  </span>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    const serverWithVoice = servers.find((s) => s.channels?.some((c) => c.type === 'voice'));
-                    const voiceChan = serverWithVoice?.channels?.find((c) => c.type === 'voice');
-                    onJoinVoiceChannel?.(
-                      space.serverId || serverWithVoice?.id || space.id,
-                      voiceChan?.id || space.id,
-                      voiceChan?.name || space.title
-                    );
-                  }}
-                  style={{
-                    padding: '9px 18px',
-                    borderRadius: 20,
-                    background: 'var(--chatter-primary)',
-                    border: 'none',
-                    color: '#0E0E0E',
-                    fontSize: 14,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Join Space
-                </button>
-              </div>
-            </div>
-          ))
+            ))}
+          </div>
         )}
       </div>
 

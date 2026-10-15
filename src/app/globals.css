@@ -9396,19 +9396,22 @@ body {
   box-shadow: 0 0 10px rgba(64, 227, 120, 0.5);
 }
 
-/* --- Chatter Audio Space / Room Card --- */
+/* --- Chatter Audio Space / Room Card (matches study room card dimensions) --- */
 .chatter-audiospace-card {
-  background: var(--chatter-audiospace);
-  border-radius: 16px;
-  padding: 16px;
-  margin: 12px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  background: var(--chatter-sheet);
+  border-radius: 18px;
+  padding: 16px 18px;
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
 .chatter-audiospace-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  border-color: rgba(64, 227, 120, 0.3);
 }
 
 .chatter-audiospace-live-badge {
@@ -9682,23 +9685,61 @@ body {
   }
 }
 
-/* Center main column container on desktop - Twitter / X 650px centered feed with sleek borders */
+/* Center main column container on desktop - flush with sidebars with zero empty margins */
 .chatter-center-container {
   flex: 1;
   min-width: 0;
   width: 100%;
-  max-width: 650px;
-  margin: 0 auto;
+  max-width: 100%;
+  margin: 0;
   display: flex;
   flex-direction: column;
-  border-left: 1px solid rgba(255, 255, 255, 0.08);
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: none;
+  border-right: none;
+}
+
+/* Hide inline desktop compose box on mobile (mobile users use the floating + action button) */
+@media (max-width: 768px) {
+  .chatter-desktop-compose-box {
+    display: none !important;
+  }
+}
+
+/* Mobile Brand Header above sticky tabs */
+.chatter-mobile-brand-header {
+  display: none;
 }
 
 @media (max-width: 768px) {
-  .chatter-center-container {
-    border-left: none;
-    border-right: none;
+  .chatter-mobile-brand-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+    background: var(--chatter-black);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .chatter-topbar__actions--desktop {
+    display: none !important;
+  }
+  .chatter-topbar {
+    min-height: 48px;
+    height: 48px;
+    padding: 0 16px;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(14, 14, 14, 0.92);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    justify-content: center;
+  }
+  .chatter-topbar-tabs {
+    max-width: 100%;
+    width: 100%;
   }
 }
 

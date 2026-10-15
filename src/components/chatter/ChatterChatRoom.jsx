@@ -233,6 +233,8 @@ export default function ChatterChatRoom({
         };
 
         channel.bind('new-message', handleIncoming);
+        channel.bind('message', handleIncoming);
+        channel.bind('new-direct-message', handleIncoming);
 
         channel.bind('messages-read', () => {
           if (mounted) {
@@ -258,8 +260,40 @@ export default function ChatterChatRoom({
       }
     } catch {}
 
+    // 3. Robust silent polling fallback to guarantee 100% real-time accuracy across mobile and desktop
+    const pollInterval = setInterval(async () => {
+      if (!mounted) return;
+      try {
+        let data = null;
+        try {
+          data = await apiRequest(primaryEndpoint);
+        } catch {
+          if (fallbackEndpoint) data = await apiRequest(fallbackEndpoint);
+        }
+        if (mounted && Array.isArray(data)) {
+          const fresh = data.map((m) => normalizeMessage(m, userId)).filter(Boolean);
+          setMessages((prev) => {
+            if (fresh.length === 0 && prev.length === 0) return prev;
+            const existingIds = new Set(prev.map((m) => m.id));
+            const hasNew = fresh.some((m) => !existingIds.has(m.id));
+            if (!hasNew && fresh.length === prev.length) return prev;
+
+            const tempMessages = prev.filter((m) => m.id.startsWith('temp-'));
+            const merged = [...fresh];
+            for (const temp of tempMessages) {
+              if (!merged.some((m) => m.content === temp.content && m.sender_id === temp.sender_id)) {
+                merged.push(temp);
+              }
+            }
+            return merged;
+          });
+        }
+      } catch {}
+    }, 2500);
+
     return () => {
       mounted = false;
+      clearInterval(pollInterval);
       if (channel) {
         try {
           channel.unbind_all();
