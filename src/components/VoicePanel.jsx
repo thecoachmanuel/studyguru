@@ -31,15 +31,38 @@ function VideoStream({
     const mediaElement = mediaRef.current;
     if (!mediaElement) return;
 
-    mediaElement.srcObject = stream || null;
-    if (stream) {
-      if (muted) {
-        mediaElement.play().catch((err) => {
-          console.debug('[WebRTC] Local video preview playback failed:', err);
-        });
-      } else {
-        playRemoteMedia?.(mediaElement);
+    const attachAndPlay = () => {
+      if (!mediaElement) return;
+      if (mediaElement.srcObject !== (stream || null)) {
+        mediaElement.srcObject = stream || null;
       }
+      if (stream && stream.getTracks().length > 0) {
+        if (muted) {
+          mediaElement.play().catch((err) => {
+            console.debug('[WebRTC] Local video preview playback failed:', err);
+          });
+        } else {
+          playRemoteMedia?.(mediaElement);
+        }
+      }
+    };
+
+    attachAndPlay();
+
+    if (stream) {
+      const handleTrackChange = () => {
+        attachAndPlay();
+      };
+      stream.addEventListener('addtrack', handleTrackChange);
+      stream.addEventListener('removetrack', handleTrackChange);
+      return () => {
+        stream.removeEventListener('addtrack', handleTrackChange);
+        stream.removeEventListener('removetrack', handleTrackChange);
+        if (!muted) {
+          forgetRemoteMediaElement?.(mediaElement);
+        }
+        mediaElement.srcObject = null;
+      };
     }
 
     return () => {
@@ -332,7 +355,7 @@ export default function VoicePanel({
       : voiceSession.remoteCameraStates?.[participant.user_id];
 
     const hasLiveVideoTrack = Boolean(
-      stream?.getVideoTracks().some((track) => track.readyState === 'live' && !track.muted)
+      stream?.getVideoTracks().some((track) => track.readyState === 'live')
     );
 
     const hasLiveVideo = Boolean(

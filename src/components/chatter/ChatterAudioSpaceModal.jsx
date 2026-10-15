@@ -167,7 +167,7 @@ export default function ChatterAudioSpaceModal({
 
   // Identify active screen share (local or remote)
   const remoteScreenSharerId = Object.keys(remoteScreenShareStates).find(
-    (id) => remoteScreenShareStates[id]?.enabled && remoteStreams[id]
+    (id) => (Boolean(remoteScreenShareStates[id]?.enabled) || remoteScreenShareStates[id] === true) && remoteStreams[id]
   );
   const activeScreenShare = isScreenSharing
     ? {
@@ -999,10 +999,36 @@ function ScreenSharePlayer({ stream, isLocal, sharerName, isMaximized, onToggleM
   const videoRef = useRef(null);
 
   useEffect(() => {
-    if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream;
-      videoRef.current.play?.().catch(() => {});
+    const videoElement = videoRef.current;
+    if (!videoElement) return;
+
+    const attachAndPlay = () => {
+      if (!videoElement) return;
+      if (videoElement.srcObject !== (stream || null)) {
+        videoElement.srcObject = stream || null;
+      }
+      if (stream && stream.getTracks().length > 0) {
+        videoElement.play?.().catch(() => {});
+      }
+    };
+
+    attachAndPlay();
+
+    if (stream) {
+      const handleTrackChange = () => {
+        attachAndPlay();
+      };
+      stream.addEventListener('addtrack', handleTrackChange);
+      stream.addEventListener('removetrack', handleTrackChange);
+      return () => {
+        stream.removeEventListener('addtrack', handleTrackChange);
+        stream.removeEventListener('removetrack', handleTrackChange);
+        videoElement.srcObject = null;
+      };
     }
+    return () => {
+      videoElement.srcObject = null;
+    };
   }, [stream]);
 
   return (

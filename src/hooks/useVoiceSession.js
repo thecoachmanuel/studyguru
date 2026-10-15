@@ -79,6 +79,8 @@ export function useVoiceSession(userId, profile = null) {
   const iceServersRef = useRef([
     { urls: 'stun:stun.l.google.com:19302' }
   ]);
+  const offerWaitTimersRef = useRef({});
+  const negotiatePeerRef = useRef(null);
 
   useEffect(() => {
     participantsRef.current = participants;
@@ -242,9 +244,30 @@ export function useVoiceSession(userId, profile = null) {
       localStreamRef.current = stream;
       setMicConnected(true);
 
-      stream.getAudioTracks().forEach((track) => {
-        track.enabled = !currentMuteState;
-      });
+      const audioTrack = stream.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !currentMuteState;
+
+        // Retroactively attach audio track to any existing peer connections created before getUserMedia completed
+        Object.entries(peerConnectionsRef.current).forEach(([otherUserId, pc]) => {
+          if (pc && pc.signalingState !== 'closed') {
+            const senders = pc.getSenders();
+            const audioSender = senders.find((s) => s.track?.kind === 'audio');
+            if (audioSender) {
+              audioSender.replaceTrack(audioTrack).catch((err) => {
+                console.warn(`[WebRTC] Failed to replaceTrack audio for ${otherUserId}:`, err);
+              });
+            } else {
+              try {
+                pc.addTrack(audioTrack, stream);
+                negotiatePeerRef.current?.(otherUserId, 'audio-track-attached');
+              } catch (err) {
+                console.warn(`[WebRTC] Failed to addTrack audio for ${otherUserId}:`, err);
+              }
+            }
+          }
+        });
+      }
     } catch (err) {
       console.error('Microphone access denied or failed:', err);
       setMicConnected(false);
@@ -298,6 +321,12 @@ export function useVoiceSession(userId, profile = null) {
 
     // Clear any pending ICE candidates for this user
     delete pendingCandidatesRef.current[otherUserId];
+
+    // Clear any pending offer wait timer for this user
+    if (offerWaitTimersRef.current[otherUserId]) {
+      clearTimeout(offerWaitTimersRef.current[otherUserId]);
+      delete offerWaitTimersRef.current[otherUserId];
+    }
 
     // Clear any reconnect timeout for this user
     if (reconnectTimeoutsRef.current[otherUserId]) {
@@ -436,6 +465,10 @@ export function useVoiceSession(userId, profile = null) {
     }
   }, [logVideoDiagnostic, sendSignal]);
 
+  useEffect(() => {
+    negotiatePeerRef.current = negotiatePeer;
+  }, [negotiatePeer]);
+
   const createPeerConnection = useCallback((otherUserId) => {
     console.log(`[WebRTC] Creating peer connection for user: ${otherUserId}`);
 
@@ -573,6 +606,15 @@ export function useVoiceSession(userId, profile = null) {
         remoteStreamsRef.current[otherUserId] = remoteStream;
       }
 
+      if (event.track.kind === 'video') {
+        // Remove any old/stale video tracks so incoming live track is always primary
+        remoteStream.getVideoTracks().forEach((oldTrack) => {
+          if (oldTrack.id !== event.track.id) {
+            remoteStream.removeTrack(oldTrack);
+          }
+        });
+      }
+
       if (!remoteStream.getTracks().some((track) => track.id === event.track.id)) {
         remoteStream.addTrack(event.track);
       }
@@ -588,8 +630,12 @@ export function useVoiceSession(userId, profile = null) {
 
       event.track.onended = () => {
         const currentStream = remoteStreamsRef.current[otherUserId];
-        currentStream?.removeTrack(event.track);
-        setRemoteStreams((prev) => ({ ...prev }));
+        if (currentStream) {
+          currentStream.removeTrack(event.track);
+          const clonedAfterEnd = new MediaStream(currentStream.getTracks());
+          remoteStreamsRef.current[otherUserId] = clonedAfterEnd;
+          setRemoteStreams((prev) => ({ ...prev, [otherUserId]: clonedAfterEnd }));
+        }
         if (event.track.kind === 'video') {
           setRemoteCameraStates((prev) => ({ ...prev, [otherUserId]: false }));
         }
@@ -629,7 +675,10 @@ export function useVoiceSession(userId, profile = null) {
         unlockAudioOnMobile();
       }
 
-      setRemoteStreams((prev) => ({ ...prev, [otherUserId]: remoteStream }));
+      // Clone MediaStream with current tracks to trigger React state reactivity and component re-render
+      const clonedStream = new MediaStream(remoteStream.getTracks());
+      remoteStreamsRef.current[otherUserId] = clonedStream;
+      setRemoteStreams((prev) => ({ ...prev, [otherUserId]: clonedStream }));
       updateCallStatus();
     };
 
@@ -758,6 +807,11 @@ export function useVoiceSession(userId, profile = null) {
   }, []);
 
   const handleOffer = useCallback(async (senderId, offerSdp) => {
+    if (offerWaitTimersRef.current[senderId]) {
+      clearTimeout(offerWaitTimersRef.current[senderId]);
+      delete offerWaitTimersRef.current[senderId];
+    }
+
     let pc = peerConnectionsRef.current[senderId];
     if (!pc) {
       pc = createPeerConnection(senderId);
@@ -806,6 +860,11 @@ export function useVoiceSession(userId, profile = null) {
   }, [createPeerConnection, sendSignal, flushPendingIceCandidates, logVideoDiagnostic]);
 
   const handleAnswer = useCallback(async (senderId, answerSdp) => {
+    if (offerWaitTimersRef.current[senderId]) {
+      clearTimeout(offerWaitTimersRef.current[senderId]);
+      delete offerWaitTimersRef.current[senderId];
+    }
+
     const pc = peerConnectionsRef.current[senderId];
     if (pc) {
       logVideoDiagnostic('answer-received', senderId, {
@@ -947,14 +1006,14 @@ export function useVoiceSession(userId, profile = null) {
     try {
       const replacements = await Promise.allSettled(
         Object.entries(peerConnectionsRef.current).map(async ([otherUserId, pc]) => {
-          let negotiationRequired = false;
           const cachedSender = videoSendersRef.current[otherUserId];
-          let sender = pc.getTransceivers()
-            .find((transceiver) => (
-              transceiver.sender === cachedSender
-              || transceiver.sender.track?.kind === 'video'
-              || transceiver.receiver.track?.kind === 'video'
-            ))?.sender;
+          const transceiver = pc.getTransceivers()
+            .find((t) => (
+              t.sender === cachedSender
+              || t.sender.track?.kind === 'video'
+              || t.receiver.track?.kind === 'video'
+            ));
+          let sender = transceiver?.sender;
 
           if (sender) {
             await sender.replaceTrack(cameraTrack);
@@ -962,19 +1021,16 @@ export function useVoiceSession(userId, profile = null) {
           } else if (cameraTrack) {
             sender = pc.addTrack(cameraTrack, localStreamRef.current || new MediaStream([cameraTrack]));
             videoSendersRef.current[otherUserId] = sender;
-            negotiationRequired = true;
           }
 
           const screenAudioSender = screenAudioSendersRef.current[otherUserId];
           if (screenAudioSender) {
-            pc.removeTrack(screenAudioSender);
+            try { pc.removeTrack(screenAudioSender); } catch {}
             delete screenAudioSendersRef.current[otherUserId];
-            negotiationRequired = true;
           }
 
-          if (negotiationRequired) {
-            await negotiatePeer(otherUserId, 'screen-share-media-removed');
-          }
+          // Always renegotiate on screen share stop so all peers immediately transition away
+          await negotiatePeer(otherUserId, 'screen-share-media-removed');
         })
       );
 
@@ -1063,14 +1119,18 @@ export function useVoiceSession(userId, profile = null) {
 
       const replacements = await Promise.allSettled(
         Object.entries(peerConnectionsRef.current).map(async ([otherUserId, pc]) => {
-          let negotiationRequired = false;
           const cachedSender = videoSendersRef.current[otherUserId];
-          let sender = pc.getTransceivers()
-            .find((transceiver) => (
-              transceiver.sender === cachedSender
-              || transceiver.sender.track?.kind === 'video'
-              || transceiver.receiver.track?.kind === 'video'
-            ))?.sender;
+          const transceiver = pc.getTransceivers()
+            .find((t) => (
+              t.sender === cachedSender
+              || t.sender.track?.kind === 'video'
+              || t.receiver.track?.kind === 'video'
+            ));
+          let sender = transceiver?.sender;
+
+          if (transceiver && transceiver.direction !== 'sendrecv') {
+            transceiver.direction = 'sendrecv';
+          }
 
           if (sender) {
             await sender.replaceTrack(screenTrack);
@@ -1078,7 +1138,6 @@ export function useVoiceSession(userId, profile = null) {
           } else {
             sender = pc.addTrack(screenTrack, screenStream);
             videoSendersRef.current[otherUserId] = sender;
-            negotiationRequired = true;
           }
 
           if (screenAudioTrack) {
@@ -1086,12 +1145,10 @@ export function useVoiceSession(userId, profile = null) {
               screenAudioTrack,
               screenStream,
             );
-            negotiationRequired = true;
           }
 
-          if (negotiationRequired) {
-            await negotiatePeer(otherUserId, 'screen-share-media-added');
-          }
+          // Always renegotiate on screen share start so all peers immediately receive the video track
+          await negotiatePeer(otherUserId, 'screen-share-media-added');
         })
       );
 
@@ -1199,6 +1256,7 @@ export function useVoiceSession(userId, profile = null) {
       try {
         await sender.replaceTrack(screenTrackRef.current || null);
         videoSendersRef.current[otherUserId] = sender;
+        await negotiatePeer(otherUserId, 'camera-track-removed');
         logVideoDiagnostic('camera-track-removed', otherUserId, {
           signalingState: pc.signalingState,
           connectionState: pc.connectionState,
@@ -1308,8 +1366,9 @@ export function useVoiceSession(userId, profile = null) {
               videoSendersRef.current[otherUserId] = sender;
               logVideoDiagnostic('camera-track-replaced', otherUserId, {
                 cameraTrackId: videoTrack.id,
-                renegotiationRequested: false,
+                renegotiationRequested: true,
               });
+              await negotiatePeer(otherUserId, 'camera-track-replaced');
             } else {
               sender = pc.addTrack(outgoingVideoTrack, outgoingVideoStream);
               videoSendersRef.current[otherUserId] = sender;
@@ -1809,7 +1868,7 @@ export function useVoiceSession(userId, profile = null) {
           cleanupPeerConnection(otherUserId);
         }
 
-        // Deterministic offer rule: smaller userId sends offer
+        // Deterministic offer rule: smaller userId sends offer, with 1.5s initiator fallback timer to prevent deadlock
         if (userId < otherUserId) {
           console.log(`[WebRTC] Sending offer to ${otherUserId} (we are initiator)`);
           createPeerConnection(otherUserId);
@@ -1820,6 +1879,21 @@ export function useVoiceSession(userId, profile = null) {
           }
         } else {
           console.log(`[WebRTC] Waiting for offer from ${otherUserId} (they are initiator)`);
+          if (!offerWaitTimersRef.current[otherUserId]) {
+            offerWaitTimersRef.current[otherUserId] = setTimeout(async () => {
+              delete offerWaitTimersRef.current[otherUserId];
+              const curPc = peerConnectionsRef.current[otherUserId];
+              if (!curPc || (curPc.connectionState !== 'connected' && curPc.connectionState !== 'connecting')) {
+                console.log(`[WebRTC] Initiator fallback triggered for user ${otherUserId}`);
+                const activePc = curPc || createPeerConnection(otherUserId);
+                try {
+                  await negotiatePeer(otherUserId, 'initiator-fallback');
+                } catch (err) {
+                  console.error(`[WebRTC] Error in initiator fallback for ${otherUserId}:`, err);
+                }
+              }
+            }, 1500);
+          }
         }
       }
     };
