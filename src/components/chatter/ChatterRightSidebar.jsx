@@ -299,7 +299,7 @@ export default function ChatterRightSidebar({
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 18 }}>⚡</span>
-          <span style={{ fontSize: 15, fontWeight: 800, color: '#fff' }}>StudyCord AI</span>
+          <span style={{ fontSize: 15, fontWeight: 800, color: '#fff' }}>AI Guru</span>
           <span style={{ fontSize: 11, background: 'var(--chatter-primary)', color: '#0E0E0E', padding: '2px 7px', borderRadius: 8, fontWeight: 800 }}>
             Active
           </span>
@@ -317,7 +317,9 @@ export default function ChatterRightSidebar({
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 12px' }}>
           <a href="/terms" style={{ color: 'inherit', textDecoration: 'none' }}>Terms of Service</a>
           <a href="/privacy" style={{ color: 'inherit', textDecoration: 'none' }}>Privacy Policy</a>
-          <a href="/faq" style={{ color: 'inherit', textDecoration: 'none' }}>Guidelines</a>
+          <a href="/faq" style={{ color: 'inherit', textDecoration: 'none' }}>FAQ</a>
+          <a href="/technology" style={{ color: 'inherit', textDecoration: 'none' }}>Technology</a>
+          <a href="/team" style={{ color: 'inherit', textDecoration: 'none' }}>Team</a>
         </div>
         <div style={{ marginTop: 6, fontSize: 11.5, opacity: 0.8 }}>
           © 2026 StudyCord · Built for scholars

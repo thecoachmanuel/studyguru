@@ -9639,3 +9639,13 @@ body {
   100% { transform: rotate(360deg); }
 }
 
+@keyframes chatterPulse {
+  0%, 100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+

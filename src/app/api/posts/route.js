@@ -134,28 +134,40 @@ export async function GET(req) {
     }
 
     const postsCol = db.collection('posts');
-    const count = await postsCol.countDocuments();
-    if (count === 0) {
-      // Seed initial posts
-      await postsCol.insertMany(INITIAL_DEMO_POSTS);
+    let posts = await postsCol.find({}).sort({ created_at: -1 }).limit(50).toArray();
+
+    if (!posts || posts.length === 0) {
+      try {
+        await postsCol.insertMany(INITIAL_DEMO_POSTS);
+        posts = await postsCol.find({}).sort({ created_at: -1 }).limit(50).toArray();
+      } catch (seedErr) {
+        console.warn('Post seed fallback note:', seedErr.message);
+      }
     }
 
-    const posts = await postsCol.find({}).sort({ created_at: -1 }).limit(50).toArray();
-
-    // Fetch author users to ensure latest avatar, name, bio, and stats are applied
-    const authorIds = posts.map((p) => p.author?.id || p.author_id).filter(Boolean).map(String);
+    // Fetch author users and real follower counts in parallel to minimize network latency
+    const authorIds = (posts || []).map((p) => p.author?.id || p.author_id).filter(Boolean).map(String);
     const userObjIds = authorIds.map((id) => safeObjectId(id)).filter(Boolean);
-    const authorDocs = await db.collection('users')
-      .find({
-        $or: [{ _id: { $in: userObjIds } }, { id: { $in: authorIds } }],
-      })
-      .toArray();
 
-    // Query real follower counts from follows collection for all authorIds in one single query
-    const followCounts = await db.collection('follows').aggregate([
-      { $match: { following_id: { $in: authorIds } } },
-      { $group: { _id: '$following_id', count: { $sum: 1 } } },
-    ]).toArray().catch(() => []);
+    const [authorDocs, followCounts] = await Promise.all([
+      authorIds.length > 0 && userObjIds.length > 0
+        ? db.collection('users')
+            .find({
+              $or: [{ _id: { $in: userObjIds } }, { id: { $in: authorIds } }],
+            })
+            .toArray()
+            .catch(() => [])
+        : Promise.resolve([]),
+      authorIds.length > 0
+        ? db.collection('follows')
+            .aggregate([
+              { $match: { following_id: { $in: authorIds } } },
+              { $group: { _id: '$following_id', count: { $sum: 1 } } },
+            ])
+            .toArray()
+            .catch(() => [])
+        : Promise.resolve([]),
+    ]);
 
     const followCountMap = new Map();
     followCounts.forEach((fc) => followCountMap.set(String(fc._id), fc.count));

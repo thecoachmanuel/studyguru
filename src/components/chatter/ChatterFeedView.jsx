@@ -21,6 +21,95 @@ export function TwitterVerifiedBadge() {
   );
 }
 
+export function ChatterPostSkeleton() {
+  return (
+    <div className="chatter-post-card" style={{ opacity: 0.8, pointerEvents: 'none' }}>
+      <div className="chatter-post-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: '50%',
+              background: 'rgba(255, 255, 255, 0.08)',
+              animation: 'chatterPulse 1.4s ease-in-out infinite',
+            }}
+          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div
+              style={{
+                width: 120,
+                height: 14,
+                borderRadius: 6,
+                background: 'rgba(255, 255, 255, 0.1)',
+                animation: 'chatterPulse 1.4s ease-in-out infinite',
+              }}
+            />
+            <div
+              style={{
+                width: 75,
+                height: 11,
+                borderRadius: 6,
+                background: 'rgba(255, 255, 255, 0.06)',
+                animation: 'chatterPulse 1.4s ease-in-out infinite',
+              }}
+            />
+          </div>
+        </div>
+        <div
+          style={{
+            width: 70,
+            height: 26,
+            borderRadius: 14,
+            background: 'rgba(255, 255, 255, 0.06)',
+            animation: 'chatterPulse 1.4s ease-in-out infinite',
+          }}
+        />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, margin: '14px 0 16px' }}>
+        <div
+          style={{
+            width: '95%',
+            height: 13,
+            borderRadius: 6,
+            background: 'rgba(255, 255, 255, 0.08)',
+            animation: 'chatterPulse 1.4s ease-in-out infinite',
+          }}
+        />
+        <div
+          style={{
+            width: '80%',
+            height: 13,
+            borderRadius: 6,
+            background: 'rgba(255, 255, 255, 0.06)',
+            animation: 'chatterPulse 1.4s ease-in-out infinite',
+          }}
+        />
+      </div>
+      <div style={{ display: 'flex', gap: 24, paddingTop: 6, borderTop: '1px solid rgba(255, 255, 255, 0.04)' }}>
+        <div
+          style={{
+            width: 40,
+            height: 16,
+            borderRadius: 6,
+            background: 'rgba(255, 255, 255, 0.06)',
+            animation: 'chatterPulse 1.4s ease-in-out infinite',
+          }}
+        />
+        <div
+          style={{
+            width: 40,
+            height: 16,
+            borderRadius: 6,
+            background: 'rgba(255, 255, 255, 0.06)',
+            animation: 'chatterPulse 1.4s ease-in-out infinite',
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function ChatterFeedView({
   serverId,
   profile,
@@ -33,8 +122,27 @@ export default function ChatterFeedView({
   filterTag = null,
   onSelectTag,
 }) {
-  const [posts, setPosts] = useState([]);
-  const [loadingPosts, setLoadingPosts] = useState(true);
+  const [posts, setPosts] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = sessionStorage.getItem('chatter_cached_feed');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch {}
+    }
+    return [];
+  });
+  const [loadingPosts, setLoadingPosts] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = sessionStorage.getItem('chatter_cached_feed');
+        if (cached && JSON.parse(cached)?.length > 0) return false;
+      } catch {}
+    }
+    return true;
+  });
 
   const [localFollowing, setLocalFollowing] = useState({});
   const activeFollowing = { ...localFollowing, ...followingMap };
@@ -60,7 +168,8 @@ export default function ChatterFeedView({
   const [visibleCount, setVisibleCount] = useState(10);
   const loadMoreRef = useRef(null);
 
-  // Filter by active trending topic / tag if selected, and prioritize followed users
+  // Standard reverse-chronological social feed (Twitter / Facebook timeline)
+  // When following a user from a post, the feed maintains its stable position and does NOT jump to the top.
   const sortedPosts = useMemo(() => {
     let list = [...posts];
     if (filterTag) {
@@ -73,17 +182,11 @@ export default function ChatterFeedView({
     }
 
     return list.sort((a, b) => {
-      const aId = a.author?.id || a.author_id;
-      const bId = b.author?.id || b.author_id;
-      const aFollowing = Boolean(aId && activeFollowing[aId]);
-      const bFollowing = Boolean(bId && activeFollowing[bId]);
-      if (aFollowing && !bFollowing) return -1;
-      if (!aFollowing && bFollowing) return 1;
       const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
       const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
       return timeB - timeA;
     });
-  }, [posts, activeFollowing, filterTag]);
+  }, [posts, filterTag]);
 
   // 10 posts at a time chunked loading
   const visiblePosts = useMemo(() => {
@@ -138,6 +241,9 @@ export default function ChatterFeedView({
           const data = await res.json();
           if (mounted && Array.isArray(data)) {
             setPosts(data);
+            try {
+              sessionStorage.setItem('chatter_cached_feed', JSON.stringify(data));
+            } catch {}
           }
         }
       } catch (err) {
@@ -539,244 +645,266 @@ export default function ChatterFeedView({
 
       {/* ── 2. Chatter Social Posts Stream (Chunked infinite scroll) ── */}
       <div style={{ marginTop: 8 }}>
-        {visiblePosts.map((post) => {
-          const isMe = post.author.id === userId || post.author.id === 'me';
-          const isFollowing = !!(activeFollowing[post.author.id]);
-          return (
-            <article key={post.id} id={`post-${post.id}`} className="chatter-post-card">
-              {/* Header: Author + Follow Button + Tag */}
-              <div className="chatter-post-header">
-                <div
-                  className="chatter-post-author"
-                  onClick={() => setProfileModalUser(post.author)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  {post.author.avatar_url ? (
-                    <img
-                      src={post.author.avatar_url}
-                      alt={post.author.name}
-                      className="chatter-post-avatar"
-                    />
-                  ) : (
-                    <div
-                      className="chatter-post-avatar"
-                      style={{
-                        background: '#2A2A2A',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 700,
-                        color: 'var(--chatter-primary)',
-                        fontSize: 16,
+        {loadingPosts && visiblePosts.length === 0 ? (
+          <>
+            <ChatterPostSkeleton />
+            <ChatterPostSkeleton />
+            <ChatterPostSkeleton />
+          </>
+        ) : visiblePosts.length > 0 ? (
+          visiblePosts.map((post) => {
+            const isMe = post.author.id === userId || post.author.id === 'me';
+            const isFollowing = !!(activeFollowing[post.author.id]);
+            return (
+              <article key={post.id} id={`post-${post.id}`} className="chatter-post-card">
+                {/* Header: Author + Follow Button + Tag */}
+                <div className="chatter-post-header">
+                  <div
+                    className="chatter-post-author"
+                    onClick={() => setProfileModalUser(post.author)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {post.author.avatar_url ? (
+                      <img
+                        src={post.author.avatar_url}
+                        alt={post.author.name}
+                        className="chatter-post-avatar"
+                      />
+                    ) : (
+                      <div
+                        className="chatter-post-avatar"
+                        style={{
+                          background: '#2A2A2A',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 700,
+                          color: 'var(--chatter-primary)',
+                          fontSize: 16,
+                        }}
+                      >
+                        {post.author.name[0]}
+                      </div>
+                    )}
+                    <div>
+                      <div className="chatter-post-name" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span>{post.author.name}</span>
+                        <TwitterVerifiedBadge />
+                      </div>
+                      <div className="chatter-post-meta">
+                        @{post.author.username} · {post.timestamp}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {/* Chatter Follow Button (Desktop only on card, mobile follows via Profile Sheet) */}
+                    {!isMe && (
+                      <button
+                        type="button"
+                        className="chatter-post-follow-desktop"
+                        onClick={() => handleToggleFollow(post.author.id)}
+                        style={{
+                          padding: '5px 13px',
+                          borderRadius: 16,
+                          background: isFollowing ? 'transparent' : 'rgba(64, 227, 120, 0.12)',
+                          border: isFollowing ? '1px solid rgba(255, 255, 255, 0.15)' : '1px solid rgba(64, 227, 120, 0.3)',
+                          color: isFollowing ? 'var(--chatter-light-text)' : 'var(--chatter-primary)',
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        {isFollowing ? '✓ Following' : '+ Follow'}
+                      </button>
+                    )}
+
+                    {/* Tag Pill with Click-to-Filter */}
+                    <span
+                      className="chatter-hashtag"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectTag?.(post.tag);
                       }}
+                      style={{ cursor: 'pointer' }}
+                      title={`Filter by ${post.tag}`}
                     >
-                      {post.author.name[0]}
-                    </div>
-                  )}
-                  <div>
-                    <div className="chatter-post-name" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span>{post.author.name}</span>
-                      <TwitterVerifiedBadge />
-                    </div>
-                    <div className="chatter-post-meta">
-                      @{post.author.username} · {post.timestamp}
-                    </div>
+                      {post.tag}
+                    </span>
+
+                    {/* Author Post Options Menu (Edit / Delete) */}
+                    {isMe && (
+                      <div style={{ position: 'relative' }}>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveMenuPostId(activeMenuPostId === post.id ? null : post.id);
+                          }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--chatter-light-text)',
+                            cursor: 'pointer',
+                            padding: '4px 6px',
+                            fontSize: 16,
+                            borderRadius: 8,
+                            lineHeight: 1,
+                          }}
+                          title="Post options"
+                        >
+                          •••
+                        </button>
+
+                        {activeMenuPostId === post.id && (
+                          <div
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                              position: 'absolute',
+                              top: 26,
+                              right: 0,
+                              background: '#1c1c1c',
+                              border: '1px solid rgba(255, 255, 255, 0.1)',
+                              borderRadius: 12,
+                              padding: 4,
+                              zIndex: 50,
+                              minWidth: 125,
+                              boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
+                            }}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => handleStartEdit(post)}
+                              style={{
+                                width: '100%',
+                                textAlign: 'left',
+                                padding: '8px 12px',
+                                background: 'none',
+                                border: 'none',
+                                color: '#fff',
+                                fontSize: 12.5,
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                borderRadius: 8,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6,
+                              }}
+                            >
+                              <span>✏️</span> Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePost(post.id)}
+                              disabled={deletingPostId === post.id}
+                              style={{
+                                width: '100%',
+                                textAlign: 'left',
+                                padding: '8px 12px',
+                                background: 'none',
+                                border: 'none',
+                                color: '#f87171',
+                                fontSize: 12.5,
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                borderRadius: 8,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6,
+                              }}
+                            >
+                              <span>🗑️</span> {deletingPostId === post.id ? 'Deleting…' : 'Delete'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {/* Chatter Follow Button (Desktop only on card, mobile follows via Profile Sheet) */}
-                  {!isMe && (
-                    <button
-                      type="button"
-                      className="chatter-post-follow-desktop"
-                      onClick={() => handleToggleFollow(post.author.id)}
-                      style={{
-                        padding: '5px 13px',
-                        borderRadius: 16,
-                        background: isFollowing ? 'transparent' : 'rgba(64, 227, 120, 0.12)',
-                        border: isFollowing ? '1px solid rgba(255, 255, 255, 0.15)' : '1px solid rgba(64, 227, 120, 0.3)',
-                        color: isFollowing ? 'var(--chatter-light-text)' : 'var(--chatter-primary)',
-                        fontSize: 12,
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                      }}
+                {/* Post Content */}
+                <p className="chatter-post-body">{post.text}</p>
+
+                {/* Media Attachment (Image) */}
+                {post.attachmentUrl && (
+                  <div style={{ marginBottom: 12, borderRadius: 14, overflow: 'hidden', maxHeight: 380, border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <img
+                      src={post.attachmentUrl}
+                      alt="Post attachment"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                    />
+                  </div>
+                )}
+
+                {/* Bottom Actions Bar (Heart, Comment, Share) */}
+                <div className="chatter-post-actions">
+                  <button
+                    type="button"
+                    className={`chatter-post-action-btn ${post.liked ? 'chatter-post-action-btn--liked' : ''}`}
+                    onClick={() => handleLike(post.id)}
+                    aria-label="Like post"
+                  >
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill={post.liked ? 'currentColor' : 'none'}
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
                     >
-                      {isFollowing ? '✓ Following' : '+ Follow'}
-                    </button>
-                  )}
+                      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                    </svg>
+                    <span>{post.likes}</span>
+                  </button>
 
-                  {/* Tag Pill with Click-to-Filter */}
-                  <span
-                    className="chatter-hashtag"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSelectTag?.(post.tag);
-                    }}
-                    style={{ cursor: 'pointer' }}
-                    title={`Filter by ${post.tag}`}
+                  <button
+                    type="button"
+                    className="chatter-post-action-btn"
+                    onClick={() => setActiveCommentsPost(post)}
+                    aria-label="Comment"
                   >
-                    {post.tag}
-                  </span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    </svg>
+                    <span>{post.comments}</span>
+                  </button>
 
-                  {/* Author Post Options Menu (Edit / Delete) */}
-                  {isMe && (
-                    <div style={{ position: 'relative' }}>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveMenuPostId(activeMenuPostId === post.id ? null : post.id);
-                        }}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--chatter-light-text)',
-                          cursor: 'pointer',
-                          padding: '4px 6px',
-                          fontSize: 16,
-                          borderRadius: 8,
-                          lineHeight: 1,
-                        }}
-                        title="Post options"
-                      >
-                        •••
-                      </button>
-
-                      {activeMenuPostId === post.id && (
-                        <div
-                          onClick={(e) => e.stopPropagation()}
-                          style={{
-                            position: 'absolute',
-                            top: 26,
-                            right: 0,
-                            background: '#1c1c1c',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
-                            borderRadius: 12,
-                            padding: 4,
-                            zIndex: 50,
-                            minWidth: 125,
-                            boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
-                          }}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => handleStartEdit(post)}
-                            style={{
-                              width: '100%',
-                              textAlign: 'left',
-                              padding: '8px 12px',
-                              background: 'none',
-                              border: 'none',
-                              color: '#fff',
-                              fontSize: 12.5,
-                              fontWeight: 600,
-                              cursor: 'pointer',
-                              borderRadius: 8,
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 6,
-                            }}
-                          >
-                            <span>✏️</span> Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeletePost(post.id)}
-                            disabled={deletingPostId === post.id}
-                            style={{
-                              width: '100%',
-                              textAlign: 'left',
-                              padding: '8px 12px',
-                              background: 'none',
-                              border: 'none',
-                              color: '#f87171',
-                              fontSize: 12.5,
-                              fontWeight: 600,
-                              cursor: 'pointer',
-                              borderRadius: 8,
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 6,
-                            }}
-                          >
-                            <span>🗑️</span> {deletingPostId === post.id ? 'Deleting…' : 'Delete'}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Post Content */}
-              <p className="chatter-post-body">{post.text}</p>
-
-              {/* Media Attachment (Image) */}
-              {post.attachmentUrl && (
-                <div style={{ marginBottom: 12, borderRadius: 14, overflow: 'hidden', maxHeight: 380, border: '1px solid rgba(255,255,255,0.06)' }}>
-                  <img
-                    src={post.attachmentUrl}
-                    alt="Post attachment"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                  />
-                </div>
-              )}
-
-              {/* Bottom Actions Bar (Heart, Comment, Share) */}
-              <div className="chatter-post-actions">
-                <button
-                  type="button"
-                  className={`chatter-post-action-btn ${post.liked ? 'chatter-post-action-btn--liked' : ''}`}
-                  onClick={() => handleLike(post.id)}
-                  aria-label="Like post"
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill={post.liked ? 'currentColor' : 'none'}
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+                  <button
+                    type="button"
+                    className="chatter-post-action-btn"
+                    onClick={() => handleSharePost(post)}
+                    aria-label="Share"
                   >
-                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                  </svg>
-                  <span>{post.likes}</span>
-                </button>
-
-                <button
-                  type="button"
-                  className="chatter-post-action-btn"
-                  onClick={() => setActiveCommentsPost(post)}
-                  aria-label="Comment"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                  </svg>
-                  <span>{post.comments}</span>
-                </button>
-
-                <button
-                  type="button"
-                  className="chatter-post-action-btn"
-                  onClick={() => handleSharePost(post)}
-                  aria-label="Share"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="18" cy="5" r="3" />
-                    <circle cx="6" cy="12" r="3" />
-                    <circle cx="18" cy="19" r="3" />
-                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-                  </svg>
-                </button>
-              </div>
-            </article>
-          );
-        })}
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="18" cy="5" r="3" />
+                      <circle cx="6" cy="12" r="3" />
+                      <circle cx="18" cy="19" r="3" />
+                      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                    </svg>
+                  </button>
+                </div>
+              </article>
+            );
+          })
+        ) : (
+          <div
+            style={{
+              padding: '60px 20px',
+              textAlign: 'center',
+              color: 'var(--chatter-light-text)',
+            }}
+          >
+            <div style={{ fontSize: 32, marginBottom: 8 }}>🌱</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>No study posts yet</div>
+            <div style={{ fontSize: 13.5, marginTop: 4, color: 'var(--chatter-light-text)' }}>
+              Be the first scholar to share notes, flashcards, or study tips!
+            </div>
+          </div>
+        )}
 
         {/* Sentinel loader for infinite scroll */}
         {hasMore && (
