@@ -11,6 +11,8 @@ const CHAT_CACHE_TTL = 1000 * 60 * 30; // 30 minutes
 
 const GREETING_REGEX = /^(hi|hello|hey|hiya|howdy|sup|yo|good\s*(morning|afternoon|evening|day)|what\'?s\s*up|how\s*are\s*you)[\s!.,?]*$/i;
 const CHITCHAT_IDENTITY_REGEX = /^(who\s*are\s*you|what\s*(are\s*you|can\s*you\s*do|is\s*studycord|is\s*your\s*name))[\s!.,?]*$/i;
+const IMAGE_PROMPT_REGEX = /^\s*(?:can you\s+)?(?:please\s+)?(?:generate|create|draw|paint|illustrate|render|make|produce|show me)\s+(?:an?\s+)?(?:image|picture|drawing|illustration|diagram|photo|visual)\s+(?:of|about|depicting|showing)?\s*(.+)/i;
+const DRAW_PROMPT_REGEX = /^\s*(?:can you\s+)?(?:please\s+)?draw\s+(?:me\s+)?(?:an?\s+)?(.+)/i;
 
 /**
  * Detects whether a student is requesting to learn or be tutored
@@ -110,10 +112,43 @@ export async function POST(req) {
       return NextResponse.json({ answer: reply, success: true, instant: true });
     }
 
-    const userId = session.user.id;
-    const db = await getDatabase();
+    // Instant Visual / Image Generation Router (<20ms latency)
+    const imgMatch = trimmedMessage.match(IMAGE_PROMPT_REGEX);
+    const drawMatch = !imgMatch ? trimmedMessage.match(DRAW_PROMPT_REGEX) : null;
+    if (imgMatch || drawMatch) {
+      const rawSubject = (imgMatch ? imgMatch[1] : drawMatch[1]).replace(/[.?!\s]+$/, '').trim();
+      if (rawSubject.length > 1) {
+        const seed = Math.floor(Math.random() * 899999) + 100000;
+        const encodedPrompt = encodeURIComponent(`${rawSubject} educational illustration diagram detailed clear high quality 4k`);
+        const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true&seed=${seed}`;
 
+        const reply = `Here is the visual diagram you requested for **${rawSubject}**:\n\n![${rawSubject}](${imageUrl})\n\n*Generated with StudyCord Visual AI*\n\n💡 **Next Steps:** You can type *"explain this visual step-by-step"*, ask *"draw this from another angle"*, or ask *"how does this connect to our lesson?"*`;
+
+        if (wantsStream) {
+          const encoder = new TextEncoder();
+          return new Response(
+            new ReadableStream({
+              start(controller) {
+                controller.enqueue(encoder.encode(reply));
+                controller.close();
+              },
+            }),
+            {
+              headers: {
+                'Content-Type': 'text/plain; charset=utf-8',
+                'Transfer-Encoding': 'chunked',
+                'Cache-Control': 'no-cache, no-transform',
+              },
+            }
+          );
+        }
+        return NextResponse.json({ answer: reply, success: true, instant: true });
+      }
+    }
+
+    const userId = session.user.id;
     const isFreeChat = body.mode === 'free' || body.freeChat === true;
+    let db = null;
 
     // 1. Resolve Document Context (Whole document text + semantic vector chunks)
     let doc = null;
@@ -122,6 +157,7 @@ export async function POST(req) {
 
     if (!isFreeChat && documentId) {
       try {
+        db = await getDatabase();
         const safeDocId = safeObjectId(documentId);
         doc = await db.collection('rag_documents').findOne({
           $or: [{ _id: safeDocId }, { id: documentId }, { document_id: documentId }],
@@ -144,9 +180,9 @@ export async function POST(req) {
       }
     }
 
-    // Only fallback to user's latest study document in guided mode
     if (!isFreeChat && !doc && body.mode === 'guided') {
       try {
+        if (!db) db = await getDatabase();
         doc = await db.collection('rag_documents').findOne(
           { user_id: userId },
           { sort: { created_at: -1 } }
@@ -271,7 +307,19 @@ CORE TUTORING PEDAGOGY & ADAPTIVE PACING:
    - Speak naturally like an encouraging, enthusiastic private mentor ("Notice how...", "Think of it like...", "Here's the fun part:").
    - Never sound like a stiff textbook or a robotic search engine. Never say "As an AI language model".
    - Use clean Markdown: bold terms, brief bullet points, and code/math blocks only when relevant.
-   - STRICT PUNCTUATION RULE: Do NOT use unnecessary hyphens or em-dashes ('—' or '--'). Express thoughts cleanly using commas, periods, colons, or parentheses instead.`;
+   - STRICT PUNCTUATION RULE: Do NOT use unnecessary hyphens or em-dashes ('—' or '--'). Express thoughts cleanly using commas, periods, colons, or parentheses instead.
+
+4. CONTINUITY, NEXT STEPS & ACTIONABLE GUIDANCE (CRITICAL):
+   - Never stop a response abruptly without giving the student clear, inspiring next steps!
+   - At the end of EVERY answer, explanation, or problem solution, provide 1 to 2 clear follow-up prompts or options the student can immediately type or ask, for example:
+     💡 **Next Steps:** You can type *"explain step 2 in detail"*, ask *"give me an analogy"*, or type *"test me on this"* to check your understanding.
+   - Make it effortlessly natural for the student to continue the conversation without having to wonder what to say next.
+
+5. IMAGE & DIAGRAM GENERATION:
+   - If the student asks you to generate, draw, illustrate, or create an image or visual diagram of any concept, process, organ, structure, or scene:
+   - You CAN embed images directly using Markdown format:
+     ![Subject Description](https://image.pollinations.ai/prompt/{URL_ENCODED_DETAILED_PROMPT}?width=1024&height=1024&nologo=true)
+   - Always describe what is shown in the image and provide follow-up study guidance beneath it!`;
 
     let userPrompt = '';
     if (formattedHistory) {
@@ -300,6 +348,7 @@ CORE TUTORING PEDAGOGY & ADAPTIVE PACING:
             // Zero MongoDB storage waste: do NOT push messages into MongoDB
             if (sessionId) {
               try {
+                if (!db) db = await getDatabase();
                 const querySessionId = safeObjectId(sessionId);
                 await db.collection('rag_sessions').updateOne(
                   { $or: [{ _id: querySessionId }, { id: sessionId }] },
@@ -372,6 +421,7 @@ CORE TUTORING PEDAGOGY & ADAPTIVE PACING:
     // Zero MongoDB storage waste: do NOT push messages into MongoDB!
     if (sessionId) {
       try {
+        if (!db) db = await getDatabase();
         const querySessionId = safeObjectId(sessionId);
         await db.collection('rag_sessions').updateOne(
           { $or: [{ _id: querySessionId }, { id: sessionId }] },

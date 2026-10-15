@@ -26,15 +26,15 @@ const GEMINI_MODELS = Array.from(
   ])
 );
 
-// Verified active high-performance free models pool on OpenRouter
+// Verified active ultra-low-latency free models pool on OpenRouter
 const OPENROUTER_MODELS = Array.from(
   new Set([
     process.env.OPENROUTER_MODEL || 'openrouter/auto',
     'openrouter/auto',
-    'meta-llama/llama-3.3-70b-instruct:free',
-    'google/gemini-2.0-flash-exp:free',
-    'mistralai/mistral-7b-instruct:free',
     'nvidia/nemotron-3.5-lightning:free',
+    'liquid/lfm-2.5-2.6b:free',
+    'dots-studio/dots-3-note-preview:free',
+    'cohere/north-mini-code:free',
     'openrouter/free',
   ])
 );
@@ -195,7 +195,8 @@ async function callOpenRouter({ prompt, systemPrompt = '', json = false }) {
             model,
             messages,
             temperature: 0.7,
-            max_tokens: 800,
+            max_tokens: 1000,
+            reasoning: { max_tokens: 0 },
           };
 
           if (json) {
@@ -226,7 +227,7 @@ async function callOpenRouter({ prompt, systemPrompt = '', json = false }) {
           }
 
           const data = await res.json();
-          const outputText = data.choices?.[0]?.message?.content || '';
+          const outputText = data.choices?.[0]?.message?.content || data.choices?.[0]?.message?.reasoning || '';
           if (outputText) {
             return outputText;
           }
@@ -276,8 +277,9 @@ async function* streamOpenRouter({ prompt, systemPrompt = '' }) {
             model,
             messages,
             temperature: 0.7,
-            max_tokens: 800,
+            max_tokens: 1000,
             stream: true,
+            reasoning: { max_tokens: 0 },
           }),
         });
 
@@ -309,7 +311,7 @@ async function* streamOpenRouter({ prompt, systemPrompt = '' }) {
             if (trimmed.startsWith('data: ')) {
               try {
                 const json = JSON.parse(trimmed.slice(6));
-                const content = json.choices?.[0]?.delta?.content;
+                const content = json.choices?.[0]?.delta?.content || json.choices?.[0]?.delta?.reasoning;
                 if (content) {
                   streamSucceeded = true;
                   yield content;
@@ -378,9 +380,12 @@ export async function generateContentWithFallback({ prompt, systemPrompt = '', j
           }
         } catch (geminiError) {
           console.warn(`[LLM Scale] Gemini (${model}) notice:`, geminiError.message);
+          if (geminiError.message?.includes('402') || geminiError.message?.includes('credits are depleted') || geminiError.message?.includes('API_KEY_INVALID')) {
+            break; // Immediately fail-over to OpenRouter
+          }
           rotateGeminiKey();
           if (geminiError.message?.includes('429') || geminiError.message?.includes('quota')) {
-            await sleep(200);
+            await sleep(150);
           }
         }
       }
@@ -442,6 +447,9 @@ export async function* generateStreamWithFallback({ prompt, systemPrompt = '' })
           if (hadChunks) return;
         } catch (geminiError) {
           console.warn(`[LLM Stream Scale] Gemini (${model}) notice, trying next model/provider:`, geminiError.message);
+          if (geminiError.message?.includes('402') || geminiError.message?.includes('credits are depleted') || geminiError.message?.includes('API_KEY_INVALID')) {
+            break; // Fail-over immediately to OpenRouter streaming pool
+          }
           rotateGeminiKey();
         }
       }

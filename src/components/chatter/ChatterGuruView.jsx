@@ -70,7 +70,7 @@ export default function ChatterGuruView({
   const [toggleBarHidden, setToggleBarHidden] = useState(false);
   const lastScrollTopRef = useRef(0);
 
-  const MAX_DOCS = 3;
+  const MAX_DOCS = 10;
   const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB file limit
 
   const handleSwitchMode = (mode) => {
@@ -1144,12 +1144,11 @@ export default function ChatterGuruView({
         {uploadedDocs.map((doc) => {
           const isSelected = selectedDocId === doc.doc_id;
           return (
-            <button
+            <div
               key={doc.doc_id}
-              type="button"
               onClick={() => setSelectedDocId(doc.doc_id)}
               style={{
-                padding: '4px 12px',
+                padding: '4px 8px 4px 12px',
                 borderRadius: 14,
                 border: isSelected ? '1.5px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
                 background: isSelected ? 'rgba(64, 227, 120, 0.15)' : 'rgba(255, 255, 255, 0.05)',
@@ -1160,12 +1159,41 @@ export default function ChatterGuruView({
                 whiteSpace: 'nowrap',
                 display: 'flex',
                 alignItems: 'center',
-                gap: 5,
+                gap: 6,
+                transition: 'all 0.15s ease',
               }}
             >
-              <span>📄 {doc.filename}</span>
+              <span style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                📄 {doc.filename}
+              </span>
               {isSelected && <span style={{ fontSize: 12, color: 'var(--chatter-primary)' }}>✓</span>}
-            </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteDoc(doc.doc_id, doc.filename);
+                }}
+                style={{
+                  background: 'rgba(239, 68, 68, 0.18)',
+                  border: '1px solid rgba(239, 68, 68, 0.35)',
+                  color: '#f87171',
+                  borderRadius: '50%',
+                  width: 18,
+                  height: 18,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 10,
+                  cursor: 'pointer',
+                  padding: 0,
+                  marginLeft: 2,
+                  transition: 'background 0.15s, transform 0.15s',
+                }}
+                title={`Remove ${doc.filename}`}
+              >
+                ✕
+              </button>
+            </div>
           );
         })}
         {uploadedDocs.length < MAX_DOCS ? (
@@ -1429,35 +1457,14 @@ export default function ChatterGuruView({
               key={m.id}
               style={{
                 display: 'flex',
-                gap: 10,
+                gap: isUser ? 10 : 0,
                 alignSelf: isUser ? 'flex-end' : 'flex-start',
-                maxWidth: isUser ? '85%' : (m.quizData || m.flashcardsData ? '100%' : '90%'),
-                width: (m.quizData || m.flashcardsData) ? '100%' : undefined,
+                maxWidth: isUser ? '85%' : '100%',
+                width: (m.quizData || m.flashcardsData || !isUser) ? '100%' : undefined,
                 flexDirection: isUser ? 'row-reverse' : 'row',
                 alignItems: 'flex-start',
               }}
             >
-              {/* Bot Avatar */}
-              {!isUser && (
-                <div
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 12,
-                    background: 'rgba(64, 227, 120, 0.15)',
-                    color: 'var(--chatter-primary)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                    boxShadow: '0 0 12px rgba(64, 227, 120, 0.25)',
-                    marginTop: 2,
-                  }}
-                >
-                  <ChatbotIcon size={18} />
-                </div>
-              )}
-
               <div style={{ maxWidth: '100%', minWidth: 0, flex: 1 }}>
                 {/* User Message Header (subtle) */}
                 {isUser && (

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 
 export default function ChatterNotesBar({
   user,
@@ -166,14 +166,116 @@ export default function ChatterNotesBar({
 
   // Modal viewer session: stable snapshot of stories currently being viewed
   const [viewerStories, setViewerStories] = useState([]);
+  const [activeAuthorGroupIndex, setActiveAuthorGroupIndex] = useState(null); // -1 for userNote, 0..N for sortedAuthorGroups
+  const [isStoryPaused, setIsStoryPaused] = useState(false);
+
+  // Advance to next story segment or seamlessly roll to next person's status
+  const handleNextStory = useCallback(() => {
+    setViewerStories((currentStories) => {
+      setActiveStoryIndex((currStoryIdx) => {
+        if (currStoryIdx === null) return null;
+
+        // 1. Advance to next story of the same author
+        if (currStoryIdx < currentStories.length - 1) {
+          setStoryProgress(0);
+          return currStoryIdx + 1;
+        }
+
+        // 2. Current author's stories finished: roll to next author!
+        if (activeAuthorGroupIndex === -1) {
+          // Finished viewing user's own note: advance to first classmate status if available
+          if (sortedAuthorGroups.length > 0) {
+            setActiveAuthorGroupIndex(0);
+            const nextStories = sortedAuthorGroups[0].notes;
+            const unviewedIdx = nextStories.findIndex((n) => !viewedNoteIds.includes(n.id));
+            const startIdx = unviewedIdx >= 0 ? unviewedIdx : 0;
+            // Schedule setting new stories
+            setTimeout(() => {
+              setViewerStories(nextStories);
+              setActiveStoryIndex(startIdx);
+              setStoryProgress(0);
+            }, 0);
+            return null;
+          } else {
+            // No other stories
+            setActiveAuthorGroupIndex(null);
+            setViewerStories([]);
+            return null;
+          }
+        } else if (activeAuthorGroupIndex !== null && activeAuthorGroupIndex < sortedAuthorGroups.length - 1) {
+          const nextAuthorIdx = activeAuthorGroupIndex + 1;
+          const nextGroup = sortedAuthorGroups[nextAuthorIdx];
+          setActiveAuthorGroupIndex(nextAuthorIdx);
+          const nextStories = nextGroup.notes;
+          const unviewedIdx = nextStories.findIndex((n) => !viewedNoteIds.includes(n.id));
+          const startIdx = unviewedIdx >= 0 ? unviewedIdx : 0;
+          setTimeout(() => {
+            setViewerStories(nextStories);
+            setActiveStoryIndex(startIdx);
+            setStoryProgress(0);
+          }, 0);
+          return null;
+        } else {
+          // All authors finished
+          setActiveAuthorGroupIndex(null);
+          setViewerStories([]);
+          return null;
+        }
+      });
+      return currentStories;
+    });
+  }, [activeAuthorGroupIndex, sortedAuthorGroups, viewedNoteIds]);
+
+  // Go back to previous story segment or roll back to previous author
+  const handlePrevStory = useCallback(() => {
+    setActiveStoryIndex((currStoryIdx) => {
+      if (currStoryIdx === null) return null;
+
+      if (currStoryIdx > 0) {
+        setStoryProgress(0);
+        return currStoryIdx - 1;
+      }
+
+      // At index 0: go back to previous author
+      if (activeAuthorGroupIndex > 0) {
+        const prevAuthorIdx = activeAuthorGroupIndex - 1;
+        const prevGroup = sortedAuthorGroups[prevAuthorIdx];
+        setActiveAuthorGroupIndex(prevAuthorIdx);
+        setViewerStories(prevGroup.notes);
+        setStoryProgress(0);
+        return prevGroup.notes.length - 1;
+      } else if (activeAuthorGroupIndex === 0 && userNote) {
+        // Roll back to user's own note
+        const myStory = {
+          id: 'my-note',
+          author: {
+            id: user?.id || 'me',
+            name: profile?.name || 'You',
+            username: profile?.username || 'scholar',
+            avatar_url: profile?.avatar_url,
+          },
+          text: userNote.text,
+          emoji: userNote.emoji,
+          timestamp: userNote.timestamp,
+        };
+        setActiveAuthorGroupIndex(-1);
+        setViewerStories([myStory]);
+        setStoryProgress(0);
+        return 0;
+      }
+
+      return 0;
+    });
+  }, [activeAuthorGroupIndex, sortedAuthorGroups, userNote, user, profile]);
 
   // Open story viewer for a specific author group
-  const handleOpenAuthorStories = (group) => {
+  const handleOpenAuthorStories = (group, index) => {
     const authorStories = group.notes;
-    // Start at the first unviewed story, or index 0 if all viewed
     const firstUnviewedIdx = authorStories.findIndex((n) => !viewedNoteIds.includes(n.id));
     const startIdx = firstUnviewedIdx >= 0 ? firstUnviewedIdx : 0;
+    const groupIdx = typeof index === 'number' ? index : sortedAuthorGroups.findIndex((g) => g.authorId === group.authorId);
 
+    setActiveAuthorGroupIndex(groupIdx >= 0 ? groupIdx : 0);
     setViewerStories(authorStories);
     setActiveStoryIndex(startIdx);
     setStoryProgress(0);
@@ -201,12 +303,13 @@ export default function ChatterNotesBar({
       emoji: userNote.emoji,
       timestamp: userNote.timestamp,
     };
+    setActiveAuthorGroupIndex(-1);
     setViewerStories([myStory]);
     setActiveStoryIndex(0);
     setStoryProgress(0);
   };
 
-  // Story Viewer Timer: strictly per-story tracking without cascading
+  // Story Viewer Timer: auto-advance progress and seamlessly transition across authors
   useEffect(() => {
     if (activeStoryIndex === null || viewerStories.length === 0) {
       setStoryProgress(0);
@@ -218,28 +321,23 @@ export default function ChatterNotesBar({
       markNoteAsViewed(currentStory.id);
     }
 
-    const DURATION_MS = 4000;
+    const DURATION_MS = 4200;
     const INTERVAL_MS = 40;
     const step = 100 / (DURATION_MS / INTERVAL_MS);
 
     const timer = setInterval(() => {
       setStoryProgress((prev) => {
+        if (isStoryPaused) return prev; // Pause story when held down
         if (prev >= 100) {
-          if (activeStoryIndex < viewerStories.length - 1) {
-            setActiveStoryIndex((idx) => idx + 1);
-            return 0;
-          } else {
-            setActiveStoryIndex(null);
-            setViewerStories([]);
-            return 0;
-          }
+          handleNextStory();
+          return 0;
         }
         return prev + step;
       });
     }, INTERVAL_MS);
 
     return () => clearInterval(timer);
-  }, [activeStoryIndex, viewerStories]);
+  }, [activeStoryIndex, viewerStories, isStoryPaused, handleNextStory]);
 
   const handleSaveNote = async (e) => {
     e.preventDefault();
@@ -406,14 +504,14 @@ export default function ChatterNotesBar({
         </div>
 
         {/* ── 2. Classmate Author Stories (Clean bubbles without floating tags) ── */}
-        {sortedAuthorGroups.map((group) => {
+        {sortedAuthorGroups.map((group, groupIdx) => {
           const isViewed = group.isFullyViewed;
           const author = group.author || { name: 'Scholar', avatar_url: '' };
 
           return (
             <div
               key={group.authorId}
-              onClick={() => handleOpenAuthorStories(group)}
+              onClick={() => handleOpenAuthorStories(group, groupIdx)}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -501,6 +599,9 @@ export default function ChatterNotesBar({
       {/* ── 3. Story Viewer Modal (Auto-advancing progress bar) ── */}
       {activeStoryIndex !== null && viewerStories[activeStoryIndex] && (
         <div
+          onPointerDown={() => setIsStoryPaused(true)}
+          onPointerUp={() => setIsStoryPaused(false)}
+          onPointerCancel={() => setIsStoryPaused(false)}
           style={{
             position: 'fixed',
             inset: 0,
@@ -512,6 +613,7 @@ export default function ChatterNotesBar({
             justifyContent: 'space-between',
             padding: '24px 20px',
             animation: 'fadeIn 0.2s ease',
+            userSelect: 'none',
           }}
         >
           {/* Top Story Progress Bars */}
@@ -568,6 +670,7 @@ export default function ChatterNotesBar({
                 onClick={() => {
                   setActiveStoryIndex(null);
                   setViewerStories([]);
+                  setActiveAuthorGroupIndex(null);
                 }}
                 style={{
                   width: 36,
@@ -599,14 +702,9 @@ export default function ChatterNotesBar({
               position: 'relative',
             }}
           >
-            {/* Left Tap Zone (Previous Story) */}
+            {/* Left Tap Zone (Previous Story / Previous Author) */}
             <div
-              onClick={() => {
-                if (activeStoryIndex > 0) {
-                  setActiveStoryIndex((i) => i - 1);
-                  setStoryProgress(0);
-                }
-              }}
+              onClick={handlePrevStory}
               style={{
                 position: 'absolute',
                 top: 0,
@@ -618,17 +716,9 @@ export default function ChatterNotesBar({
               }}
             />
 
-            {/* Right Tap Zone (Next Story) */}
+            {/* Right Tap Zone (Next Story / Next Author) */}
             <div
-              onClick={() => {
-                if (activeStoryIndex < viewerStories.length - 1) {
-                  setActiveStoryIndex((i) => i + 1);
-                  setStoryProgress(0);
-                } else {
-                  setActiveStoryIndex(null);
-                  setViewerStories([]);
-                }
-              }}
+              onClick={handleNextStory}
               style={{
                 position: 'absolute',
                 top: 0,

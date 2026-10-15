@@ -204,6 +204,24 @@ export default function ChatMarkdownMessage({ content }) {
                   </div>
                 );
               },
+              img: ({ node, ...props }) => {
+                void node;
+                return (
+                  <div className="chat-ai-markdown__image-wrap">
+                    <img
+                      loading="lazy"
+                      alt={props.alt || 'Study diagram'}
+                      className="chat-ai-markdown__img"
+                      {...props}
+                    />
+                    {props.alt && (
+                      <span className="chat-ai-markdown__img-caption">
+                        📷 {props.alt}
+                      </span>
+                    )}
+                  </div>
+                );
+              },
             }}
           >
             {segment.content || ''}
