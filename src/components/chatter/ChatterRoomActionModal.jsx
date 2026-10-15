@@ -10,6 +10,7 @@ export default function ChatterRoomActionModal({
   onRoomJoined,
 }) {
   const [roomName, setRoomName] = useState('');
+  const [category, setCategory] = useState('Computer Science');
   const [joinCode, setJoinCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -31,7 +32,7 @@ export default function ChatterRoomActionModal({
       const res = await fetch('/api/servers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: roomName.trim() }),
+        body: JSON.stringify({ name: roomName.trim(), category }),
       });
 
       if (!res.ok) {
@@ -180,6 +181,35 @@ export default function ChatterRoomActionModal({
               />
             </div>
 
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', fontSize: 13.5, fontWeight: 700, color: 'var(--chatter-light-text)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Subject Category
+              </label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                style={{
+                  width: '100%',
+                  background: 'var(--chatter-black)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: 14,
+                  padding: '12px 14px',
+                  color: '#fff',
+                  fontSize: 15,
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                  cursor: 'pointer',
+                }}
+              >
+                <option value="Computer Science">Computer Science</option>
+                <option value="Mathematics">Mathematics</option>
+                <option value="Medicine">Medicine</option>
+                <option value="Biology">Biology</option>
+                <option value="Physics">Physics</option>
+                <option value="Law">Law</option>
+                <option value="General Study">General Study</option>
+              </select>
+            </div>
 
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button

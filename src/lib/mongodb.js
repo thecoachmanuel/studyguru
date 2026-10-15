@@ -1,9 +1,15 @@
 import { MongoClient, ObjectId } from 'mongodb';
+import dns from 'dns';
+
+// Ensure reliable SRV and TXT resolution on Windows/cloud environments to prevent ESERVFAIL
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch {}
 
 const uri = process.env.MONGODB_URI || '';
 const options = {
   maxPoolSize: 10,
-  serverSelectionTimeoutMS: 2000,
+  serverSelectionTimeoutMS: 5000,
 };
 
 // ── In-Memory Resilient Store Fallback ──
@@ -303,9 +309,17 @@ if (!uri) {
  */
 export async function getDatabase(dbName) {
   try {
-    const client = await clientPromise;
+    let client = await clientPromise;
+    if ((!client || client === mockClient) && uri) {
+      try {
+        const retryClient = new MongoClient(uri, options);
+        await retryClient.connect();
+        clientPromise = Promise.resolve(retryClient);
+        client = retryClient;
+      } catch {}
+    }
     if (client && client !== mockClient && typeof client.db === 'function') {
-      return client.db(dbName || process.env.MONGODB_DB || 'studycord');
+      return client.db(dbName || process.env.MONGODB_DB || 'studyguru');
     }
   } catch (err) {
     console.warn('[MongoDB] Database connection fallback:', err.message);

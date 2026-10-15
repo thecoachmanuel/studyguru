@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getDatabase, safeObjectId } from '@/lib/mongodb';
+import { getPusherServer } from '@/lib/pusherServer';
 
 export async function GET(req, { params }) {
   try {
@@ -130,6 +131,11 @@ export async function DELETE(req, { params }) {
     });
     await db.collection('server_members').deleteMany({ server_id: serverId });
     await db.collection('channels').deleteMany({ server_id: serverId });
+
+    try {
+      const pusher = getPusherServer();
+      await pusher.trigger('rooms-global', 'room-deleted', { serverId });
+    } catch {}
 
     return NextResponse.json({ success: true });
   } catch (error) {

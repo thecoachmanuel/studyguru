@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { getPusherClient } from '../../lib/pusherClient';
 
 export default function ChatterRoomsView({
@@ -8,15 +8,22 @@ export default function ChatterRoomsView({
   onCreateServer,
   onJoinServer,
   onJoinVoiceChannel,
+  onRefreshServers,
   isJoinedInVoiceRoom = false,
   activeVoiceChannelName = null,
 }) {
   const [selectedInterest, setSelectedInterest] = useState('All');
+  const [activeFilterTab, setActiveFilterTab] = useState('all'); // 'all' | 'joined'
+  const [communityRooms, setCommunityRooms] = useState([]);
+  const [loadingRooms, setLoadingRooms] = useState(true);
+  const [joiningServerId, setJoiningServerId] = useState(null);
+  const [creatingSpace, setCreatingSpace] = useState(false);
 
   const interests = ['All', 'Computer Science', 'Mathematics', 'Biology', 'Medicine', 'Physics', 'Law'];
 
   // Categorize study servers dynamically
   const getServerCategory = (server) => {
+    if (server.category && server.category !== 'All') return server.category;
     const name = (server.name || '').toLowerCase();
     if (name.includes('math') || name.includes('calc') || name.includes('algebra')) return 'Mathematics';
     if (name.includes('code') || name.includes('cs') || name.includes('comp') || name.includes('algo') || name.includes('prog')) return 'Computer Science';
@@ -27,9 +34,6 @@ export default function ChatterRoomsView({
     return 'Computer Science';
   };
 
-  // Dynamic live audio study spaces from user creations and server voice channels
-  const [customSpaces, setCustomSpaces] = useState([]);
-
   const [copiedServerId, setCopiedServerId] = useState(null);
   const [copiedLinkId, setCopiedLinkId] = useState(null);
   const [prereqModalOpen, setPrereqModalOpen] = useState(false);
@@ -39,9 +43,31 @@ export default function ChatterRoomsView({
   const [newSpaceCategory, setNewSpaceCategory] = useState('Computer Science');
   const [liveVoiceCounts, setLiveVoiceCounts] = useState({});
 
-  // Fetch active voice counts & subscribe to real-time participant changes
+  // 1. Fetch all community study rooms from MongoDB across all users
+  const fetchAllCommunityRooms = useCallback(async () => {
+    try {
+      const res = await fetch('/api/servers?all=true');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setCommunityRooms(data);
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to load community rooms:', err);
+    } finally {
+      setLoadingRooms(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAllCommunityRooms();
+  }, [fetchAllCommunityRooms]);
+
+  // 2. Real-time Pusher Global Rooms Sync & Live Voice Counts
   useEffect(() => {
     let mounted = true;
+
     const fetchCounts = async () => {
       try {
         const res = await fetch('/api/voice/active-counts');
@@ -58,11 +84,14 @@ export default function ChatterRoomsView({
     const interval = setInterval(fetchCounts, 5000);
 
     const pusher = getPusherClient();
-    let channel = null;
+    let voiceChannel = null;
+    let roomsChannel = null;
+
     if (pusher) {
       try {
-        channel = pusher.subscribe('voice-counts-global');
-        channel.bind('voice-counts-updated', ({ channelId, count }) => {
+        // Voice counts channel
+        voiceChannel = pusher.subscribe('voice-counts-global');
+        voiceChannel.bind('voice-counts-updated', ({ channelId, count }) => {
           if (channelId && typeof count === 'number') {
             setLiveVoiceCounts((prev) => ({
               ...prev,
@@ -70,24 +99,59 @@ export default function ChatterRoomsView({
             }));
           }
         });
+
+        // Global study rooms channel for instant multi-device sync
+        roomsChannel = pusher.subscribe('rooms-global');
+        roomsChannel.bind('room-created', (newRoom) => {
+          if (!newRoom?.id) return;
+          setCommunityRooms((prev) => {
+            if (prev.some((r) => r.id === newRoom.id)) return prev;
+            return [newRoom, ...prev];
+          });
+        });
+
+        roomsChannel.bind('room-joined', ({ serverId, memberCount }) => {
+          if (!serverId) return;
+          setCommunityRooms((prev) =>
+            prev.map((r) => (r.id === serverId ? { ...r, member_count: memberCount || (r.member_count || 1) + 1 } : r))
+          );
+        });
+
+        roomsChannel.bind('room-left', ({ serverId, memberCount }) => {
+          if (!serverId) return;
+          setCommunityRooms((prev) =>
+            prev.map((r) => (r.id === serverId ? { ...r, member_count: Math.max(memberCount || 1, 1) } : r))
+          );
+        });
+
+        roomsChannel.bind('room-deleted', ({ serverId }) => {
+          if (!serverId) return;
+          setCommunityRooms((prev) => prev.filter((r) => r.id !== serverId));
+        });
       } catch (err) {
-        console.warn('Pusher voice counts error:', err);
+        console.warn('Pusher rooms sync error:', err);
       }
     }
 
     return () => {
       mounted = false;
       clearInterval(interval);
-      if (pusher && channel) {
+      if (pusher) {
         try {
-          channel.unbind_all();
-          pusher.unsubscribe('voice-counts-global');
+          if (voiceChannel) {
+            voiceChannel.unbind_all();
+            pusher.unsubscribe('voice-counts-global');
+          }
+          if (roomsChannel) {
+            roomsChannel.unbind_all();
+            pusher.unsubscribe('rooms-global');
+          }
         } catch {}
       }
     };
   }, []);
 
-  // Load followers count to check hosting criteria
+  // 3. Load followers count to check hosting criteria
   useEffect(() => {
     fetch('/api/user/profile')
       .then((res) => (res.ok ? res.json() : null))
@@ -132,59 +196,154 @@ export default function ChatterRoomsView({
     }
   };
 
-  const handleCreateSpaceSubmit = (e) => {
+  // 4. Create real persistent audio study space saved in MongoDB & broadcasted to all devices
+  const handleCreateSpaceSubmit = async (e) => {
     e.preventDefault();
-    if (!newSpaceTitle.trim()) return;
+    if (!newSpaceTitle.trim() || creatingSpace) return;
 
-    const newSpace = {
-      id: `space-${Date.now()}`,
-      title: newSpaceTitle.trim(),
-      category: newSpaceCategory,
-      tags: [`#${newSpaceCategory.replace(/\s+/g, '')}`, '#LiveStudy'],
-      listenersCount: 1,
-      speakers: [
-        { name: 'You (Host)', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80' },
-      ],
-    };
+    setCreatingSpace(true);
+    try {
+      const res = await fetch('/api/servers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newSpaceTitle.trim(),
+          category: newSpaceCategory,
+          isAudioSpace: true,
+        }),
+      });
 
-    setCustomSpaces((prev) => [newSpace, ...prev]);
-    setNewSpaceTitle('');
-    setCreateSpaceModalOpen(false);
+      if (res.ok) {
+        const createdRoom = await res.json();
+        setCommunityRooms((prev) => [createdRoom, ...prev.filter((r) => r.id !== createdRoom.id)]);
+        onRefreshServers?.();
+        setNewSpaceTitle('');
+        setCreateSpaceModalOpen(false);
 
-    // Automatically trigger voice channel join for this new space
-    onJoinVoiceChannel?.(newSpace.id, newSpace.id, newSpace.title);
+        // Find voice channel and automatically join creator into the audio space
+        const voiceCh = createdRoom.channels?.find((c) => c.type === 'voice') || createdRoom.channels?.[0];
+        if (voiceCh) {
+          onJoinVoiceChannel?.(createdRoom.id, voiceCh.id, createdRoom.name);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to create audio space:', err);
+    } finally {
+      setCreatingSpace(false);
+    }
   };
 
-  // Dynamic audio spaces from custom creations and real server voice channels
-  const serverVoiceSpaces = servers.flatMap((srv) =>
-    (srv.channels || [])
-      .filter((ch) => ch.type === 'voice')
-      .map((ch) => {
-        const liveCount = liveVoiceCounts[ch.id] ?? 0;
-        return {
-          id: ch.id,
-          serverId: srv.id,
-          title: `${srv.name} – ${ch.name}`,
-          category: getServerCategory(srv),
-          tags: [`#${getServerCategory(srv).replace(/\s+/g, '')}`, '#StudyVoice'],
-          listenersCount: liveCount,
-          isLiveNow: liveCount > 0,
-          speakers: [],
-        };
-      })
-  );
-  const allAudioSpaces = [...customSpaces, ...serverVoiceSpaces];
+  // 5. Seamless 1-tap Join & Enter Study Room
+  const handleJoinAndEnter = async (server, e) => {
+    if (e) e.stopPropagation();
 
-  const filteredSpaces = selectedInterest === 'All'
-    ? allAudioSpaces
-    : allAudioSpaces.filter((s) => s.category === selectedInterest || s.category === 'All');
+    const isAlreadyMember = server.is_member || server.role === 'owner' || server.role === 'member' || servers.some((s) => s.id === server.id);
+    if (isAlreadyMember) {
+      const defaultCh = server.channels?.find((c) => c.type === 'text') || server.channels?.[0];
+      onSelectServer?.(server.id, defaultCh?.id, defaultCh?.name);
+      return;
+    }
 
-  const filteredServers = selectedInterest === 'All'
-    ? servers
-    : servers.filter((s) => getServerCategory(s) === selectedInterest);
+    setJoiningServerId(server.id);
+    try {
+      const res = await fetch('/api/servers/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invite_code: server.invite_code || server.id }),
+      });
+
+      if (res.ok) {
+        const joined = await res.json();
+        const targetServer = joined.server || joined;
+        setCommunityRooms((prev) =>
+          prev.map((r) => (r.id === targetServer.id ? { ...r, is_member: true, role: 'member', member_count: (r.member_count || 1) + 1 } : r))
+        );
+        onRefreshServers?.();
+        const defaultCh = targetServer.channels?.find((c) => c.type === 'text') || targetServer.channels?.[0];
+        onSelectServer?.(targetServer.id, defaultCh?.id, defaultCh?.name);
+      }
+    } catch (err) {
+      console.error('Error joining server:', err);
+    } finally {
+      setJoiningServerId(null);
+    }
+  };
+
+  // 6. Merge community study rooms with user joined servers
+  const combinedRooms = useMemo(() => {
+    const map = new Map();
+
+    // First add all community rooms
+    communityRooms.forEach((r) => {
+      map.set(r.id, { ...r });
+    });
+
+    // Then merge with user's servers prop to ensure membership flags & channels are up to date
+    servers.forEach((s) => {
+      const existing = map.get(s.id);
+      if (existing) {
+        map.set(s.id, {
+          ...existing,
+          ...s,
+          is_member: true,
+          role: s.role || existing.role || 'member',
+          channels: s.channels?.length ? s.channels : existing.channels,
+        });
+      } else {
+        map.set(s.id, {
+          ...s,
+          is_member: true,
+          role: s.role || 'member',
+        });
+      }
+    });
+
+    return Array.from(map.values());
+  }, [communityRooms, servers]);
+
+  // Dynamic audio spaces from real server voice channels
+  const serverVoiceSpaces = useMemo(() => {
+    return combinedRooms.flatMap((srv) =>
+      (srv.channels || [])
+        .filter((ch) => ch.type === 'voice')
+        .map((ch) => {
+          const liveCount = liveVoiceCounts[ch.id] ?? 0;
+          return {
+            id: ch.id,
+            serverId: srv.id,
+            serverName: srv.name,
+            title: srv.is_audio_space ? srv.name : `${srv.name} – ${ch.name}`,
+            category: srv.category || getServerCategory(srv),
+            tags: [`#${(srv.category || getServerCategory(srv)).replace(/\s+/g, '')}`, '#LiveStudy'],
+            listenersCount: liveCount,
+            isLiveNow: liveCount > 0,
+            speakers: [],
+          };
+        })
+    );
+  }, [combinedRooms, liveVoiceCounts]);
+
+  // Filter study rooms based on Tab ('all' vs 'joined') and academic category
+  const filteredServers = useMemo(() => {
+    return combinedRooms.filter((s) => {
+      const isMember = s.is_member || s.role === 'owner' || s.role === 'member' || servers.some((userServer) => userServer.id === s.id);
+      if (activeFilterTab === 'joined' && !isMember) return false;
+      if (selectedInterest !== 'All' && getServerCategory(s) !== selectedInterest) return false;
+      return true;
+    });
+  }, [combinedRooms, activeFilterTab, selectedInterest, servers]);
+
+  const filteredSpaces = useMemo(() => {
+    if (selectedInterest === 'All') return serverVoiceSpaces;
+    return serverVoiceSpaces.filter((s) => s.category === selectedInterest || s.category === 'All');
+  }, [serverVoiceSpaces, selectedInterest]);
+
+  const myJoinedCount = useMemo(() => {
+    return combinedRooms.filter((s) => s.is_member || s.role === 'owner' || s.role === 'member' || servers.some((us) => us.id === s.id)).length;
+  }, [combinedRooms, servers]);
 
   return (
-    <div style={{ paddingBottom: 'calc(84px + env(safe-area-inset-bottom))', width: '100%' }}>
+    <div style={{ paddingBottom: 'calc(84px + env(safe-area-inset-bottom, 0px))', width: '100%' }}>
       {/* ── 1. Study Rooms Section ── */}
       <div style={{ padding: '16px 16px 8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 8 }}>
@@ -193,7 +352,7 @@ export default function ChatterRoomsView({
               Study Rooms
             </h2>
             <span style={{ fontSize: 13.5, background: 'rgba(64, 227, 120, 0.16)', color: 'var(--chatter-primary)', padding: '3px 10px', borderRadius: 12, fontWeight: 700 }}>
-              {servers.length}
+              {combinedRooms.length}
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -220,7 +379,7 @@ export default function ChatterRoomsView({
                 <polyline points="10 17 15 12 10 7" />
                 <line x1="15" y1="12" x2="3" y2="12" />
               </svg>
-              <span>Join Room</span>
+              <span>Join via Code</span>
             </button>
             <button
               type="button"
@@ -246,9 +405,73 @@ export default function ChatterRoomsView({
             </button>
           </div>
         </div>
-        <p style={{ fontSize: 14.5, lineHeight: 1.5, color: 'var(--chatter-light-text)', margin: '0 0 16px 0' }}>
-          Collaborative course groups, textbook revision channels, and shared study materials.
+
+        <p style={{ fontSize: 14.5, lineHeight: 1.5, color: 'var(--chatter-light-text)', margin: '0 0 14px 0' }}>
+          Discover collaborative study rooms across all devices. Join any session or host your own group.
         </p>
+
+        {/* Tab Switcher: All Rooms vs My Rooms */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+          <button
+            type="button"
+            onClick={() => setActiveFilterTab('all')}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 12,
+              background: activeFilterTab === 'all' ? 'rgba(64, 227, 120, 0.18)' : 'rgba(255, 255, 255, 0.06)',
+              border: activeFilterTab === 'all' ? '1px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
+              color: activeFilterTab === 'all' ? 'var(--chatter-primary)' : 'var(--chatter-light-text)',
+              fontSize: 13.5,
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            All Study Rooms ({combinedRooms.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveFilterTab('joined')}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 12,
+              background: activeFilterTab === 'joined' ? 'rgba(64, 227, 120, 0.18)' : 'rgba(255, 255, 255, 0.06)',
+              border: activeFilterTab === 'joined' ? '1px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
+              color: activeFilterTab === 'joined' ? 'var(--chatter-primary)' : 'var(--chatter-light-text)',
+              fontSize: 13.5,
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            My Rooms ({myJoinedCount})
+          </button>
+        </div>
+
+        {/* Academic Subject Pills */}
+        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 10, marginBottom: 14, scrollbarWidth: 'none' }}>
+          {interests.map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => setSelectedInterest(cat)}
+              style={{
+                padding: '6px 14px',
+                borderRadius: 20,
+                background: selectedInterest === cat ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.04)',
+                border: selectedInterest === cat ? '1px solid rgba(255, 255, 255, 0.25)' : '1px solid rgba(255, 255, 255, 0.06)',
+                color: selectedInterest === cat ? '#fff' : 'var(--chatter-light-text)',
+                fontSize: 13,
+                fontWeight: selectedInterest === cat ? 700 : 500,
+                whiteSpace: 'nowrap',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              #{cat}
+            </button>
+          ))}
+        </div>
 
         {filteredServers.length === 0 ? (
           <div
@@ -262,12 +485,21 @@ export default function ChatterRoomsView({
             }}
           >
             <div style={{ fontSize: 28, marginBottom: 8 }}>📚</div>
-            <div style={{ fontSize: 18, fontWeight: 600, color: '#fff' }}>No study rooms under #{selectedInterest}</div>
+            <div style={{ fontSize: 18, fontWeight: 600, color: '#fff' }}>
+              {activeFilterTab === 'joined' ? 'You haven’t joined any rooms yet' : `No study rooms under #${selectedInterest}`}
+            </div>
+            <p style={{ fontSize: 14, color: 'var(--chatter-light-text)', margin: '6px 0 16px 0' }}>
+              {activeFilterTab === 'joined'
+                ? 'Browse all study rooms below to find peers and study groups.'
+                : 'Be the first to create a study group for this topic!'}
+            </p>
             <button
               type="button"
-              onClick={() => setSelectedInterest('All')}
+              onClick={() => {
+                setActiveFilterTab('all');
+                setSelectedInterest('All');
+              }}
               style={{
-                marginTop: 12,
                 padding: '7px 16px',
                 borderRadius: 14,
                 background: 'rgba(255, 255, 255, 0.08)',
@@ -285,17 +517,15 @@ export default function ChatterRoomsView({
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
             {filteredServers.map((server) => {
               const isCurrent = activeServerId === server.id;
-              const channelsCount = server.channels?.length || 0;
               const isCopied = copiedServerId === server.id;
-              const roomCode = server.invite_code || server.id;
+              const isMember = server.is_member || server.role === 'owner' || server.role === 'member' || servers.some((us) => us.id === server.id);
+              const isOwner = server.role === 'owner';
+              const isJoiningThis = joiningServerId === server.id;
 
               return (
                 <div
                   key={server.id}
-                  onClick={() => {
-                    const defaultCh = server.channels?.find((c) => c.type === 'text') || server.channels?.[0];
-                    onSelectServer(server.id, defaultCh?.id, defaultCh?.name);
-                  }}
+                  onClick={() => handleJoinAndEnter(server)}
                   style={{
                     background: 'var(--chatter-sheet)',
                     border: isCurrent ? '1.5px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
@@ -308,7 +538,7 @@ export default function ChatterRoomsView({
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  {/* Line 1: Title of room name at top on a single line */}
+                  {/* Line 1: Room icon, title, active status badge */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
                       {server.icon_url ? (
@@ -336,34 +566,63 @@ export default function ChatterRoomsView({
                           {server.name?.[0]?.toUpperCase() || 'S'}
                         </div>
                       )}
-                      <h4 style={{
-                        fontSize: 19,
-                        fontWeight: 800,
-                        color: '#fff',
-                        margin: 0,
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        letterSpacing: '-0.01em',
-                      }}>
-                        {server.name}
-                      </h4>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <h4 style={{
+                            fontSize: 19,
+                            fontWeight: 800,
+                            color: '#fff',
+                            margin: 0,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            letterSpacing: '-0.01em',
+                          }}>
+                            {server.name}
+                          </h4>
+                          {server.is_audio_space && (
+                            <span style={{ fontSize: 11, background: 'rgba(64, 227, 120, 0.18)', color: 'var(--chatter-primary)', padding: '2px 8px', borderRadius: 10, fontWeight: 800 }}>
+                              LIVE SPACE
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 13, color: 'var(--chatter-hashtag)', fontWeight: 600, marginTop: 2 }}>
+                          #{getServerCategory(server)}
+                        </div>
+                      </div>
                     </div>
-                    {isCurrent && (
-                      <span style={{ fontSize: 13, background: 'rgba(64, 227, 120, 0.16)', color: 'var(--chatter-primary)', padding: '4px 10px', borderRadius: 12, fontWeight: 700, flexShrink: 0 }}>
-                        Active Room
-                      </span>
-                    )}
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                      {isCurrent ? (
+                        <span style={{ fontSize: 12.5, background: 'rgba(64, 227, 120, 0.16)', color: 'var(--chatter-primary)', padding: '4px 10px', borderRadius: 12, fontWeight: 700 }}>
+                          Active Room
+                        </span>
+                      ) : isOwner ? (
+                        <span style={{ fontSize: 12.5, background: 'rgba(64, 227, 120, 0.12)', color: 'var(--chatter-primary)', padding: '4px 10px', borderRadius: 12, fontWeight: 700 }}>
+                          Host
+                        </span>
+                      ) : isMember ? (
+                        <span style={{ fontSize: 12.5, background: 'rgba(255, 255, 255, 0.08)', color: '#d1d1d1', padding: '4px 10px', borderRadius: 12, fontWeight: 600 }}>
+                          Joined
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: 12.5, background: 'rgba(255, 255, 255, 0.05)', color: 'var(--chatter-light-text)', padding: '4px 10px', borderRadius: 12, fontWeight: 600 }}>
+                          Open
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Line 2: Followed by members number below */}
-                  <div style={{ fontSize: 15, color: 'var(--chatter-light-text)', display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 2 }}>
+                  <div style={{ fontSize: 14.5, color: 'var(--chatter-light-text)', display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 2 }}>
                     <span style={{ color: '#fff', fontWeight: 600 }}>{server.member_count || 1} members</span>
                     <span>·</span>
-                    <span style={{ color: 'var(--chatter-primary)', fontWeight: 500 }}>Active study room</span>
+                    <span style={{ color: isMember ? 'var(--chatter-primary)' : 'var(--chatter-light-text)', fontWeight: 500 }}>
+                      {isOwner ? 'Created by you' : isMember ? 'You are a member' : 'Available across all devices'}
+                    </span>
                   </div>
 
-                  {/* Line 3: Next line with links for copy code, copy link, and to enter the room */}
+                  {/* Line 3: Actions row */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', paddingTop: 12, borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
                     {/* Copy Code */}
                     <button
@@ -437,28 +696,37 @@ export default function ChatterRoomsView({
                       )}
                     </button>
 
-                    {/* Enter Room button (styled like Join Space button, without arrow) */}
+                    {/* Enter or Join Room button */}
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const defaultCh = server.channels?.find((c) => c.type === 'text') || server.channels?.[0];
-                        onSelectServer(server.id, defaultCh?.id, defaultCh?.name);
-                      }}
+                      disabled={isJoiningThis}
+                      onClick={(e) => handleJoinAndEnter(server, e)}
                       style={{
                         marginLeft: 'auto',
-                        padding: '9px 18px',
+                        padding: '9px 20px',
                         borderRadius: 20,
-                        background: 'var(--chatter-primary)',
-                        border: 'none',
-                        color: '#0E0E0E',
+                        background: isMember ? 'var(--chatter-primary)' : 'rgba(64, 227, 120, 0.18)',
+                        border: isMember ? 'none' : '1px solid var(--chatter-primary)',
+                        color: isMember ? '#0E0E0E' : 'var(--chatter-primary)',
                         fontSize: 15,
-                        fontWeight: 700,
-                        cursor: 'pointer',
+                        fontWeight: 800,
+                        cursor: isJoiningThis ? 'wait' : 'pointer',
                         transition: 'all 0.15s ease',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
                       }}
                     >
-                      Enter Room
+                      {isJoiningThis ? (
+                        <span>Joining...</span>
+                      ) : isMember ? (
+                        <span>Enter Room</span>
+                      ) : (
+                        <>
+                          <span>+</span>
+                          <span>Join Room</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -504,7 +772,7 @@ export default function ChatterRoomsView({
           </button>
         </div>
         <p style={{ fontSize: 14.5, lineHeight: 1.5, color: 'var(--chatter-light-text)', margin: '0 0 16px 0' }}>
-          Drop-in audio study spaces. Join as a listener or unmute to discuss topics with peers in real time.
+          Real-time drop-in voice discussions synced across all devices and accounts.
         </p>
 
         {filteredSpaces.length === 0 ? (
@@ -578,33 +846,20 @@ export default function ChatterRoomsView({
                 {/* Overlapping Speaker Avatars */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
                   <div className="chatter-speaker-stack">
-                    {(space.speakers || []).map((sp, i) => (
-                      <img
-                        key={i}
-                        src={sp.avatar}
-                        alt={sp.name}
-                        className="chatter-speaker-avatar"
-                        title={sp.name}
-                      />
-                    ))}
-                    <span style={{ fontSize: 13.5, color: 'var(--chatter-light-text)', marginLeft: 10, fontWeight: 500 }}>
-                      {(space.speakers || []).length > 0
-                        ? space.speakers.map((s) => s.name).join(', ') + ' speaking'
-                        : space.isLiveNow
-                          ? `${space.listenersCount} scholar${space.listenersCount > 1 ? 's' : ''} inside`
-                          : 'Drop-in voice room'}
+                    <span style={{ fontSize: 13.5, color: 'var(--chatter-light-text)', fontWeight: 500 }}>
+                      {space.isLiveNow
+                        ? `${space.listenersCount} scholar${space.listenersCount > 1 ? 's' : ''} in discussion`
+                        : 'Drop-in voice room'}
                     </span>
                   </div>
 
                   <button
                     type="button"
                     onClick={() => {
-                      const serverWithVoice = servers.find((s) => s.channels?.some((c) => c.type === 'voice'));
-                      const voiceChan = serverWithVoice?.channels?.find((c) => c.type === 'voice');
                       onJoinVoiceChannel?.(
-                        space.serverId || serverWithVoice?.id || space.id,
-                        voiceChan?.id || space.id,
-                        voiceChan?.name || space.title
+                        space.serverId,
+                        space.id,
+                        space.title
                       );
                     }}
                     style={{
@@ -727,7 +982,6 @@ export default function ChatterRoomsView({
               >
                 Got It
               </button>
-              {/* Optional host bypass for testing / scholar demo */}
               <button
                 type="button"
                 onClick={() => {
@@ -753,10 +1007,10 @@ export default function ChatterRoomsView({
         </div>
       )}
 
-      {/* ── Create Space Modal (When criteria met or hosting) ── */}
+      {/* ── Create Space Modal (Persisted in MongoDB & broadcasted across devices) ── */}
       {createSpaceModalOpen && (
         <div
-          onClick={() => setCreateSpaceModalOpen(false)}
+          onClick={() => !creatingSpace && setCreateSpaceModalOpen(false)}
           style={{
             position: 'fixed',
             inset: 0,
@@ -788,6 +1042,7 @@ export default function ChatterRoomsView({
               <button
                 type="button"
                 onClick={() => setCreateSpaceModalOpen(false)}
+                disabled={creatingSpace}
                 aria-label="Close"
                 style={{
                   background: 'rgba(255, 255, 255, 0.08)',
@@ -820,6 +1075,7 @@ export default function ChatterRoomsView({
                   onChange={(e) => setNewSpaceTitle(e.target.value)}
                   required
                   autoFocus
+                  disabled={creatingSpace}
                   style={{
                     width: '100%',
                     padding: '12px 14px',
@@ -841,6 +1097,7 @@ export default function ChatterRoomsView({
                 <select
                   value={newSpaceCategory}
                   onChange={(e) => setNewSpaceCategory(e.target.value)}
+                  disabled={creatingSpace}
                   style={{
                     width: '100%',
                     padding: '12px 14px',
@@ -867,6 +1124,7 @@ export default function ChatterRoomsView({
               <div style={{ display: 'flex', gap: 10 }}>
                 <button
                   type="button"
+                  disabled={creatingSpace}
                   onClick={() => setCreateSpaceModalOpen(false)}
                   style={{
                     flex: 1,
@@ -884,20 +1142,20 @@ export default function ChatterRoomsView({
                 </button>
                 <button
                   type="submit"
-                  disabled={!newSpaceTitle.trim()}
+                  disabled={!newSpaceTitle.trim() || creatingSpace}
                   style={{
                     flex: 1.4,
                     padding: '13px',
                     borderRadius: 14,
-                    background: newSpaceTitle.trim() ? 'var(--chatter-primary)' : 'rgba(255, 255, 255, 0.1)',
+                    background: newSpaceTitle.trim() && !creatingSpace ? 'var(--chatter-primary)' : 'rgba(255, 255, 255, 0.1)',
                     border: 'none',
-                    color: newSpaceTitle.trim() ? '#0E0E0E' : '#777',
+                    color: newSpaceTitle.trim() && !creatingSpace ? '#0E0E0E' : '#777',
                     fontSize: 15.5,
                     fontWeight: 700,
-                    cursor: newSpaceTitle.trim() ? 'pointer' : 'not-allowed',
+                    cursor: newSpaceTitle.trim() && !creatingSpace ? 'pointer' : 'not-allowed',
                   }}
                 >
-                  Go Live Now 🎙️
+                  {creatingSpace ? 'Launching...' : 'Go Live Now 🎙️'}
                 </button>
               </div>
             </form>

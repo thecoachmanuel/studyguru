@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getDatabase, safeObjectId } from '@/lib/mongodb';
+import { getPusherServer } from '@/lib/pusherServer';
 
 export async function POST(req) {
   try {
@@ -16,7 +17,7 @@ export async function POST(req) {
     }
 
     const code = String(rawCode).trim();
-    const userId = session.user.id;
+    const userId = String(session.user.id);
     const db = await getDatabase();
 
     const server = await db.collection('servers').findOne({
@@ -40,6 +41,7 @@ export async function POST(req) {
     }
 
     // Check if user is already a member
+    const isOwner = String(server.owner_id) === userId;
     const existingMember = await db.collection('server_members').findOne({
       server_id: serverId,
       user_id: userId,
@@ -49,26 +51,36 @@ export async function POST(req) {
       await db.collection('server_members').insertOne({
         server_id: serverId,
         user_id: userId,
-        role: 'member',
+        role: isOwner ? 'owner' : 'member',
         joined_at: new Date(),
       });
     }
 
+    // Count members
+    const memberCount = await db.collection('server_members').countDocuments({
+      $or: [{ server_id: serverId }, { server_id: safeObjectId(serverId) }],
+    });
+
     // Fetch channels
     const channels = await db.collection('channels')
-      .find({ server_id: serverId })
+      .find({
+        $or: [{ server_id: serverId }, { server_id: server.id || serverId }],
+      })
       .sort({ position: 1, created_at: 1 })
       .toArray();
 
     const serverData = {
       id: serverId,
       name: server.name,
+      category: server.category || 'Computer Science',
       icon_url: server.icon_url || null,
       owner_id: server.owner_id,
       invite_code: server.invite_code,
-      role: existingMember ? existingMember.role : 'member',
+      role: isOwner ? 'owner' : (existingMember ? existingMember.role : 'member'),
+      is_member: true,
+      member_count: Math.max(memberCount, 1),
       created_at: server.created_at,
-      channels: channels.map(c => ({
+      channels: channels.map((c) => ({
         id: c._id.toString(),
         server_id: c.server_id,
         name: c.name,
@@ -76,6 +88,25 @@ export async function POST(req) {
         position: c.position || 0,
       })),
     };
+
+    // Broadcast real-time room-joined update to all users across devices
+    try {
+      const pusher = getPusherServer();
+      await pusher.trigger('rooms-global', 'room-joined', {
+        serverId,
+        userId,
+        userName: session.user.name || 'A student',
+        memberCount: Math.max(memberCount, 1),
+      });
+      await pusher.trigger(`server-${serverId}`, 'member-joined', {
+        serverId,
+        userId,
+        userName: session.user.name || 'A student',
+        memberCount: Math.max(memberCount, 1),
+      });
+    } catch (pushErr) {
+      console.warn('Pusher room-joined broadcast error:', pushErr);
+    }
 
     return NextResponse.json({
       ...serverData,

@@ -435,6 +435,49 @@ export default function DashboardPage() {
     }
   }, [status, fetchServers]);
 
+  // Real-time synchronization for study rooms across devices
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+    const pusher = getPusherClient();
+    if (!pusher) return;
+
+    let channel = null;
+    try {
+      channel = pusher.subscribe('rooms-global');
+      channel.bind('room-created', () => {
+        fetchServers();
+      });
+      channel.bind('room-joined', (data) => {
+        if (data?.userId === user?.id) {
+          fetchServers();
+        }
+      });
+      channel.bind('room-left', (data) => {
+        if (data?.userId === user?.id) {
+          fetchServers();
+        }
+      });
+      channel.bind('room-deleted', ({ serverId }) => {
+        setServers((prev) => prev.filter((s) => s.id !== serverId));
+        if (activeServerId === serverId) {
+          setActiveServerId(null);
+          setActiveChannelId(null);
+        }
+      });
+    } catch (err) {
+      console.warn('Pusher rooms-global error:', err);
+    }
+
+    return () => {
+      if (pusher && channel) {
+        try {
+          channel.unbind_all();
+          pusher.unsubscribe('rooms-global');
+        } catch {}
+      }
+    };
+  }, [status, user?.id, fetchServers, activeServerId]);
+
   // ──────────────────────────────────────────────
   // 2. Fetch Channels for Active Server
   // ──────────────────────────────────────────────
@@ -1251,9 +1294,13 @@ export default function DashboardPage() {
               <ChatterRoomsView
                 servers={servers}
                 activeServerId={activeServerId}
-                onSelectServer={(sId, cId, cName) => {
+                onRefreshServers={fetchServers}
+                onSelectServer={async (sId, cId, cName) => {
                   handleSelectServer(sId);
-                  const selectedServer = servers.find((s) => s.id === sId);
+                  let selectedServer = servers.find((s) => s.id === sId);
+                  if (!selectedServer) {
+                    await fetchServers();
+                  }
                   const roomName = selectedServer?.name || cName || 'Study Room';
                   if (cId) {
                     setActiveChannelId(cId);
