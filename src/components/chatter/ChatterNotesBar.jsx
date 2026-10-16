@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 
 export default function ChatterNotesBar({
   user,
@@ -8,6 +9,11 @@ export default function ChatterNotesBar({
   followingMap = {},
   onOpenLiveSpaces,
 }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const [userNote, setUserNote] = useState(null);
   const [notes, setNotes] = useState([
     {
@@ -597,25 +603,28 @@ export default function ChatterNotesBar({
       </div>
 
       {/* ── 3. Story Viewer Modal (Auto-advancing progress bar) ── */}
-      {activeStoryIndex !== null && viewerStories[activeStoryIndex] && (
-        <div
-          onPointerDown={() => setIsStoryPaused(true)}
-          onPointerUp={() => setIsStoryPaused(false)}
-          onPointerCancel={() => setIsStoryPaused(false)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.94)',
-            backdropFilter: 'blur(16px)',
-            zIndex: 9999,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            padding: '24px 20px',
-            animation: 'fadeIn 0.2s ease',
-            userSelect: 'none',
-          }}
-        >
+      {activeStoryIndex !== null && viewerStories[activeStoryIndex] && (() => {
+        const storyViewerModal = (
+          <div
+            className="chatter-story-viewer-overlay modal-overlay--highest"
+            onPointerDown={() => setIsStoryPaused(true)}
+            onPointerUp={() => setIsStoryPaused(false)}
+            onPointerCancel={() => setIsStoryPaused(false)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0, 0, 0, 0.94)',
+              backdropFilter: 'blur(16px)',
+              zIndex: 999999,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              padding: '24px 20px',
+              animation: 'fadeIn 0.2s ease',
+              userSelect: 'none',
+              transform: 'translateZ(0)',
+            }}
+          >
           {/* Top Story Progress Bars */}
           <div>
             <div style={{ display: 'flex', gap: 5, marginBottom: 16 }}>
@@ -760,24 +769,32 @@ export default function ChatterNotesBar({
             Tap left to go back · Tap right to skip · Auto-advancing
           </div>
         </div>
-      )}
+      );
+      if (mounted && typeof document !== 'undefined') {
+        return createPortal(storyViewerModal, document.body);
+      }
+      return storyViewerModal;
+    })()}
 
       {/* ── 4. Create / Update Note Modal ── */}
-      {createNoteModalOpen && (
-        <div
-          onClick={() => setCreateNoteModalOpen(false)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.75)',
-            backdropFilter: 'blur(8px)',
-            zIndex: 999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 16,
-          }}
-        >
+      {createNoteModalOpen && (() => {
+        const createNoteModal = (
+          <div
+            className="modal-overlay modal-overlay--highest"
+            onClick={() => setCreateNoteModalOpen(false)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0, 0, 0, 0.75)',
+              backdropFilter: 'blur(8px)',
+              zIndex: 999999,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 16,
+              transform: 'translateZ(0)',
+            }}
+          >
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
@@ -887,7 +904,12 @@ export default function ChatterNotesBar({
             </form>
           </div>
         </div>
-      )}
+      );
+      if (mounted && typeof document !== 'undefined') {
+        return createPortal(createNoteModal, document.body);
+      }
+      return createNoteModal;
+    })()}
     </div>
   );
 }

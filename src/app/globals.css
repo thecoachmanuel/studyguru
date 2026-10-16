@@ -9669,10 +9669,13 @@ body {
 
 @media (max-width: 768px) {
   .chatter-guru-compose {
-    padding: 8px 14px 10px !important;
-    margin-bottom: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 8px 14px max(12px, calc(8px + env(safe-area-inset-bottom, 0px))) !important;
+    margin-bottom: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
   }
 }
+
 
 /* Chatter Comments Bottom Sheet Slide Up Animation */
 @keyframes chatterSheetSlideUp {
@@ -9692,6 +9695,8 @@ body {
   height: 100%;
   overflow-y: auto;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
+  position: relative;
+  -webkit-overflow-scrolling: touch;
 }
 
 @media (min-width: 769px) {
@@ -9962,15 +9967,9 @@ input, textarea, [contenteditable="true"], .chat-markdown, .chatter-post-card {
   padding-right: max(16px, env(safe-area-inset-right, 0px)) !important;
 }
 
-/* Eliminate double safe-area gap when brand header and tabs are stacked */
-.chatter-mobile-brand-header + .chatter-topbar {
-  min-height: 44px !important;
-  height: 44px !important;
-  padding-top: 0 !important;
-}
-
-/* 4. Top Navigation Sticky Protections (Timeline style) */
+/* Top Navigation Sticky Protections (Timeline style for Feed, Chats, Profile, Study Rooms) */
 .chatter-topbar {
+  position: -webkit-sticky !important;
   position: sticky !important;
   top: 0 !important;
   z-index: 100 !important;
@@ -9979,6 +9978,40 @@ input, textarea, [contenteditable="true"], .chat-markdown, .chatter-post-card {
   backdrop-filter: blur(20px) !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
+
+@media (max-width: 768px) {
+  /* Standalone topbars (Profile, Chats, Study Rooms) get safe-area inset top padding */
+  .chatter-topbar {
+    padding-top: env(safe-area-inset-top, 0px) !important;
+    height: calc(48px + env(safe-area-inset-top, 0px)) !important;
+    min-height: calc(48px + env(safe-area-inset-top, 0px)) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* When brand header is present (Feed), brand header is above tabs and topbar tabs stick immediately flush below or at top */
+  .chatter-mobile-brand-header + .chatter-topbar {
+    min-height: 46px !important;
+    height: 46px !important;
+    padding-top: 0 !important;
+    top: 0 !important;
+    position: -webkit-sticky !important;
+    position: sticky !important;
+    z-index: 100 !important;
+  }
+}
+
+/* Highest priority overlay for user status & story modal viewers: renders above ALL navigation */
+.modal-overlay--highest,
+.chatter-story-viewer-overlay {
+  z-index: 999999 !important;
+  position: fixed !important;
+  inset: 0 !important;
+  -webkit-transform: translateZ(0) !important;
+  transform: translateZ(0) !important;
+}
+
 
 /* 5. Mobile Tab Navigation: Strictly pinned to the bottom of the viewport */
 .chatter-tabbar {

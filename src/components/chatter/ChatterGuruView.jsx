@@ -79,6 +79,42 @@ export default function ChatterGuruView({
     aiModeRef.current = aiMode;
   }, [aiMode]);
 
+  // Mobile virtual keyboard & visual viewport synchronization
+  const [viewportHeight, setViewportHeight] = useState(null);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleViewportChange = () => {
+      if (window.visualViewport) {
+        const vv = window.visualViewport;
+        const keyboardHeight = window.innerHeight - vv.height;
+        const kbActive = keyboardHeight > 80;
+        setIsKeyboardOpen(kbActive);
+        setViewportHeight(vv.height);
+      }
+    };
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleViewportChange);
+      window.visualViewport.addEventListener('scroll', handleViewportChange);
+      handleViewportChange();
+    } else {
+      window.addEventListener('resize', handleViewportChange);
+    }
+
+    return () => {
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', handleViewportChange);
+        window.visualViewport.removeEventListener('scroll', handleViewportChange);
+      } else {
+        window.removeEventListener('resize', handleViewportChange);
+      }
+    };
+  }, []);
+
+
   // Dynamic updater targeting the active mode's chat space
   const setMessages = (updater) => {
     if (aiModeRef.current === 'free') {
@@ -1129,7 +1165,8 @@ export default function ChatterGuruView({
       style={{
         display: 'flex',
         flexDirection: 'column',
-        height: '100%',
+        height: viewportHeight ? `${viewportHeight}px` : '100%',
+        maxHeight: viewportHeight ? `${viewportHeight}px` : '100%',
         width: '100%',
         maxWidth: '100%',
         color: '#fff',
@@ -1923,7 +1960,9 @@ export default function ChatterGuruView({
       <div
         className="chatter-guru-compose"
         style={{
-          padding: '8px max(14px, env(safe-area-inset-right, 0px)) max(10px, calc(8px + env(safe-area-inset-bottom, 0px))) max(14px, env(safe-area-inset-left, 0px))',
+          padding: isKeyboardOpen
+            ? '8px max(14px, env(safe-area-inset-right, 0px)) 8px max(14px, env(safe-area-inset-left, 0px))'
+            : '8px max(14px, env(safe-area-inset-right, 0px)) max(12px, calc(8px + env(safe-area-inset-bottom, 0px))) max(14px, env(safe-area-inset-left, 0px))',
           background: 'var(--chatter-sheet)',
           borderTop: '1px solid rgba(255, 255, 255, 0.08)',
           flexShrink: 0,
@@ -1997,6 +2036,12 @@ export default function ChatterGuruView({
           <input
             ref={inputRef}
             type="text"
+            onFocus={() => {
+              setTimeout(() => {
+                inputRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+              }, 120);
+            }}
             placeholder={
               aiMode === 'free'
                 ? 'Ask AI Guru anything across any subject...'

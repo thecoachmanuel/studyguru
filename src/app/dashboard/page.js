@@ -1373,7 +1373,8 @@ export default function DashboardPage() {
         style={{
           display: chatterTab === 'guru' ? 'flex' : 'none',
           flex: 1,
-          height: '100dvh',
+          height: '100%',
+          maxHeight: '100dvh',
           width: '100%',
         }}
       >

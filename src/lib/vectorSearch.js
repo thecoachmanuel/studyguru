@@ -4,21 +4,26 @@ import { GoogleGenAI } from '@google/genai';
 const geminiApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
 const ai = geminiApiKey ? new GoogleGenAI({ apiKey: geminiApiKey }) : null;
 
+let embedCircuitBrokenUntil = 0;
+
 /**
- * Generate embedding vector for a query string
+ * Generate embedding vector for a query string with rapid failover
  * @param {string} text
  * @returns {Promise<number[]>}
  */
 export async function embedQuery(text) {
-  if (!ai) return [];
+  if (!ai || Date.now() < embedCircuitBrokenUntil) return [];
   try {
-    const res = await ai.models.embedContent({
-      model: 'text-embedding-004',
-      contents: text,
-    });
+    const res = await Promise.race([
+      ai.models.embedContent({
+        model: 'text-embedding-004',
+        contents: text,
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Embedding timeout')), 1000)),
+    ]);
     return res?.embedding?.values || [];
   } catch (error) {
-    console.error('Error generating query embedding:', error);
+    embedCircuitBrokenUntil = Date.now() + 10 * 60 * 1000;
     return [];
   }
 }

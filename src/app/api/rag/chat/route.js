@@ -155,7 +155,14 @@ export async function POST(req) {
     let fullDocumentText = '';
     let docTitle = '';
 
-    if (!isFreeChat && documentId) {
+    const clientDocTitle = !isFreeChat ? (body.documentTitle || body.filename || body.docTitle || '') : '';
+    const clientDocText = !isFreeChat ? (body.documentText || body.docText || body.fileText || '') : '';
+
+    if (clientDocText && clientDocText.length > 20) {
+      // Instant path: Use client-provided document text directly for sub-millisecond setup
+      fullDocumentText = clientDocText.trim();
+      docTitle = clientDocTitle || 'Study Material';
+    } else if (!isFreeChat && documentId) {
       try {
         db = await getDatabase();
         const safeDocId = safeObjectId(documentId);
@@ -178,44 +185,31 @@ export async function POST(req) {
       } catch (docErr) {
         console.warn('Document lookup notice in chat:', docErr.message);
       }
-    }
 
-    if (!isFreeChat && !doc && body.mode === 'guided') {
+      if (doc) {
+        docTitle = doc.original_filename || doc.title || clientDocTitle || 'Study Material';
+        if (doc.extracted_text && typeof doc.extracted_text === 'string') {
+          fullDocumentText = doc.extracted_text.trim();
+        }
+      }
+    } else if (!isFreeChat && body.mode === 'guided') {
       try {
         if (!db) db = await getDatabase();
         doc = await db.collection('rag_documents').findOne(
           { user_id: userId },
           { sort: { created_at: -1 } }
         );
+        if (doc) {
+          docTitle = doc.original_filename || doc.title || clientDocTitle || 'Study Material';
+          if (doc.extracted_text && typeof doc.extracted_text === 'string') {
+            fullDocumentText = doc.extracted_text.trim();
+          }
+        }
       } catch {}
-    }
-
-    const clientDocTitle = !isFreeChat ? (body.documentTitle || body.filename || body.docTitle || '') : '';
-    const clientDocText = !isFreeChat ? (body.documentText || body.docText || body.fileText || '') : '';
-
-    if (doc) {
-      docTitle = doc.original_filename || doc.title || clientDocTitle || 'Study Material';
-      if (doc.extracted_text && typeof doc.extracted_text === 'string') {
-        fullDocumentText = doc.extracted_text.trim();
-      }
-    } else if (clientDocTitle || clientDocText) {
-      docTitle = clientDocTitle || 'Study Material';
-      fullDocumentText = clientDocText.trim();
     }
 
     if (!docTitle && clientDocTitle) {
       docTitle = clientDocTitle;
-    }
-
-    const isDocPlaceholder = !fullDocumentText || fullDocumentText.length < 60 || fullDocumentText.startsWith('Academic study material:');
-    if ((isDocPlaceholder || !fullDocumentText) && clientDocText && clientDocText.length > 20) {
-      fullDocumentText = clientDocText.trim();
-      if (doc?._id) {
-        db.collection('rag_documents').updateOne(
-          { _id: doc._id },
-          { $set: { extracted_text: fullDocumentText, updated_at: new Date() } }
-        ).catch(() => {});
-      }
     }
 
 function extractFastRelevantPassages(text, query, maxChars = 3500) {

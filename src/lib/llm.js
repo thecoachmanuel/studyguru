@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import { cleanEmDashes, cleanAiResponse } from './cleanText';
+import { cleanEmDashes, cleanAiResponse } from './cleanText.js';
 
 // ── 1. Robust Multi-Key Pool Support for Gemini & OpenRouter ──
 function parseKeyPool(...envNames) {
@@ -16,27 +16,40 @@ function parseKeyPool(...envNames) {
 
 const geminiKeys = parseKeyPool('GEMINI_API_KEYS', 'GEMINI_API_KEY', 'GOOGLE_API_KEY');
 const openrouterKeys = parseKeyPool('OPENROUTER_API_KEYS', 'OPENROUTER_API_KEY');
-// Configured models with automatic multi-tier failover (fastest ultra-low latency models first)
+// Provider circuit breaker state: if a provider runs out of credits or has auth/not-found issues,
+// cool off for 10 minutes so users don't suffer 6-8 seconds of failed round-trip timeouts.
+let geminiCircuitBrokenUntil = 0;
+
+export function isGeminiCircuitOpen() {
+  return Date.now() < geminiCircuitBrokenUntil;
+}
+
+export function tripGeminiCircuit(reason = '') {
+  console.warn(`[LLM Fast Path] Tripping Gemini circuit breaker (${reason}). Routing directly to high-speed OpenRouter pool.`);
+  geminiCircuitBrokenUntil = Date.now() + 10 * 60 * 1000;
+}
+
+// Configured models with automatic multi-tier failover (valid modern models)
 const GEMINI_MODELS = Array.from(
   new Set([
-    process.env.GEMINI_MODEL || 'gemini-2.0-flash',
-    'gemini-2.0-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-1.5-flash',
-  ])
+    process.env.GEMINI_MODEL,
+    'gemini-2.5-flash-lite',
+    'gemini-3.8-flash',
+    'gemini-3.5-flash',
+    'gemini-flash-latest',
+  ].filter(Boolean))
 );
 
-// Verified active ultra-low-latency free models pool on OpenRouter
+// Verified active ultra-low-latency free models pool on OpenRouter (ultra-fast TTFT first)
 const OPENROUTER_MODELS = Array.from(
   new Set([
-    process.env.OPENROUTER_MODEL || 'openrouter/auto',
-    'openrouter/auto',
-    'nvidia/nemotron-3.5-lightning:free',
+    process.env.OPENROUTER_MODEL,
     'liquid/lfm-2.5-2.6b:free',
+    'nvidia/nemotron-3.5-lightning:free',
+    'openrouter/auto',
     'dots-studio/dots-3-note-preview:free',
     'cohere/north-mini-code:free',
-    'openrouter/free',
-  ])
+  ].filter(Boolean))
 );
 
 // Key pointer index for rotating round-robin across key pools
@@ -351,8 +364,8 @@ export async function generateContentWithFallback({ prompt, systemPrompt = '', j
   }
 
   // 1. Try Primary: Google Gemini with multi-key and multi-model rotation
-  if (geminiKeys.length > 0) {
-    for (let attempt = 0; attempt < Math.max(geminiKeys.length, 1); attempt++) {
+  if (geminiKeys.length > 0 && Date.now() >= geminiCircuitBrokenUntil) {
+    geminiContentLoop: for (let attempt = 0; attempt < Math.max(geminiKeys.length, 1); attempt++) {
       const aiClient = getActiveGeminiClient();
       if (!aiClient) break;
 
@@ -384,12 +397,21 @@ export async function generateContentWithFallback({ prompt, systemPrompt = '', j
           }
         } catch (geminiError) {
           console.warn(`[LLM Scale] Gemini (${model}) notice:`, geminiError.message);
-          if (geminiError.message?.includes('402') || geminiError.message?.includes('credits are depleted') || geminiError.message?.includes('API_KEY_INVALID')) {
-            break; // Immediately fail-over to OpenRouter
+          const msg = geminiError.message || '';
+          if (
+            msg.includes('402') ||
+            msg.includes('credits are depleted') ||
+            msg.includes('404') ||
+            msg.includes('API_KEY_INVALID') ||
+            msg.includes('Not Found') ||
+            msg.includes('no longer available')
+          ) {
+            tripGeminiCircuit(msg.slice(0, 75));
+            break geminiContentLoop; // Fail-over IMMEDIATELY to OpenRouter without retrying dead models
           }
           rotateGeminiKey();
-          if (geminiError.message?.includes('429') || geminiError.message?.includes('quota')) {
-            await sleep(150);
+          if (msg.includes('429') || msg.includes('quota')) {
+            await sleep(100);
           }
         }
       }
@@ -423,8 +445,8 @@ export async function generateContentWithFallback({ prompt, systemPrompt = '', j
  */
 export async function* generateStreamWithFallback({ prompt, systemPrompt = '' }) {
   // 1. Try Primary: Google Gemini Streaming with multi-model failover
-  if (geminiKeys.length > 0) {
-    for (let attempt = 0; attempt < Math.max(geminiKeys.length, 1); attempt++) {
+  if (geminiKeys.length > 0 && Date.now() >= geminiCircuitBrokenUntil) {
+    geminiStreamLoop: for (let attempt = 0; attempt < Math.max(geminiKeys.length, 1); attempt++) {
       const aiClient = getActiveGeminiClient();
       if (!aiClient) break;
 
@@ -459,8 +481,17 @@ export async function* generateStreamWithFallback({ prompt, systemPrompt = '' })
           if (hadChunks) return;
         } catch (geminiError) {
           console.warn(`[LLM Stream Scale] Gemini (${model}) notice, trying next model/provider:`, geminiError.message);
-          if (geminiError.message?.includes('402') || geminiError.message?.includes('credits are depleted') || geminiError.message?.includes('API_KEY_INVALID')) {
-            break; // Fail-over immediately to OpenRouter streaming pool
+          const msg = geminiError.message || '';
+          if (
+            msg.includes('402') ||
+            msg.includes('credits are depleted') ||
+            msg.includes('404') ||
+            msg.includes('API_KEY_INVALID') ||
+            msg.includes('Not Found') ||
+            msg.includes('no longer available')
+          ) {
+            tripGeminiCircuit(msg.slice(0, 75));
+            break geminiStreamLoop; // Fail-over IMMEDIATELY to OpenRouter streaming pool
           }
           rotateGeminiKey();
         }

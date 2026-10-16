@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { apiRequest } from '@/lib/api';
 
 const STATUS_PRESETS = [
@@ -13,6 +14,11 @@ const STATUS_PRESETS = [
 ];
 
 export default function UserStatusModal({ currentStatus, onClose, onStatusUpdated }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const [selectedState, setSelectedState] = useState(currentStatus?.state || 'online');
   const [customText, setCustomText] = useState(currentStatus?.text || '');
   const [selectedEmoji, setSelectedEmoji] = useState(currentStatus?.emoji || '🟢');
@@ -75,8 +81,17 @@ export default function UserStatusModal({ currentStatus, onClose, onStatusUpdate
     }
   };
 
-  return (
-    <div className="modal-overlay" onClick={onClose}>
+  const modalContent = (
+    <div
+      className="modal-overlay modal-overlay--highest"
+      onClick={onClose}
+      style={{
+        zIndex: 999999,
+        position: 'fixed',
+        inset: 0,
+        transform: 'translateZ(0)',
+      }}
+    >
       <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '440px' }}>
         <h3 className="modal-card__title">Set Study Status</h3>
         <p className="modal-card__desc">
@@ -156,4 +171,10 @@ export default function UserStatusModal({ currentStatus, onClose, onStatusUpdate
       </div>
     </div>
   );
+
+  if (mounted && typeof document !== 'undefined') {
+    return createPortal(modalContent, document.body);
+  }
+
+  return modalContent;
 }
