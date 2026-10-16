@@ -15,56 +15,8 @@ export default function ChatterNotesBar({
   }, []);
 
   const [userNote, setUserNote] = useState(null);
-  const [notes, setNotes] = useState([
-    {
-      id: 'note-sarah',
-      author: {
-        id: 'u-sarah',
-        name: 'Sarah Chen',
-        username: 'schen_ai',
-        avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&auto=format&fit=crop&q=80',
-      },
-      text: 'Reviewing vector line integrals & Stokes Theorem 📐',
-      emoji: '📐',
-      timestamp: '35m ago',
-    },
-    {
-      id: 'note-alex',
-      author: {
-        id: 'u-alex',
-        name: 'Alex Rivera',
-        username: 'arivera_cs',
-        avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
-      },
-      text: 'Flashcards on Self-Attention & Transformer Q, K, V matrices 🧠',
-      emoji: '🧠',
-      timestamp: '1h ago',
-    },
-    {
-      id: 'note-jordan',
-      author: {
-        id: 'u-jordan',
-        name: 'Jordan Lee',
-        username: 'jlee_stats',
-        avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
-      },
-      text: 'Applied statistics: Markov Chains & stationary dist 📊',
-      emoji: '📊',
-      timestamp: '2h ago',
-    },
-    {
-      id: 'note-maya',
-      author: {
-        id: 'u-maya',
-        name: 'Maya Patel',
-        username: 'mpatel_math',
-        avatar_url: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&auto=format&fit=crop&q=80',
-      },
-      text: 'Abstract algebra: Ring isomorphisms and ideal kernels 🔬',
-      emoji: '🔬',
-      timestamp: '3h ago',
-    },
-  ]);
+  const [loadingNotes, setLoadingNotes] = useState(true);
+  const [notes, setNotes] = useState([]);
 
   const [activeStoryIndex, setActiveStoryIndex] = useState(null);
   const [storyProgress, setStoryProgress] = useState(0);
@@ -152,9 +104,12 @@ export default function ChatterNotesBar({
 
   // Load user's saved status note and real community note statuses on mount
   useEffect(() => {
+    let isMounted = true;
+    setLoadingNotes(true);
     fetch('/api/user/status?feed=true')
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
+        if (!isMounted) return;
         if (data?.status?.text) {
           setUserNote({
             id: 'my-note',
@@ -162,12 +117,25 @@ export default function ChatterNotesBar({
             emoji: data.status.emoji || '📚',
             timestamp: 'Today',
           });
+        } else {
+          setUserNote(null);
         }
-        if (Array.isArray(data?.notes) && data.notes.length > 0) {
+        if (Array.isArray(data?.notes)) {
           setNotes(data.notes);
+        } else {
+          setNotes([]);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (isMounted) setNotes([]);
+      })
+      .finally(() => {
+        if (isMounted) setLoadingNotes(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Modal viewer session: stable snapshot of stories currently being viewed
@@ -509,8 +477,51 @@ export default function ChatterNotesBar({
           </span>
         </div>
 
+        {/* Skeleton loading state while notes load from live DB */}
+        {loadingNotes && (
+          <>
+            {[1, 2, 3, 4].map((i) => (
+              <div
+                key={`note-skel-${i}`}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  flexShrink: 0,
+                  width: 72,
+                  paddingTop: 28,
+                  pointerEvents: 'none',
+                }}
+              >
+                <div
+                  style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: '50%',
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    border: '2px solid rgba(255, 255, 255, 0.05)',
+                    animation: 'chatterPulse 1.4s ease-in-out infinite',
+                    animationDelay: `${i * 0.15}s`,
+                  }}
+                />
+                <div
+                  style={{
+                    width: 44,
+                    height: 10,
+                    borderRadius: 5,
+                    background: 'rgba(255, 255, 255, 0.06)',
+                    marginTop: 8,
+                    animation: 'chatterPulse 1.4s ease-in-out infinite',
+                    animationDelay: `${i * 0.15}s`,
+                  }}
+                />
+              </div>
+            ))}
+          </>
+        )}
+
         {/* ── 2. Classmate Author Stories (Clean bubbles without floating tags) ── */}
-        {sortedAuthorGroups.map((group, groupIdx) => {
+        {!loadingNotes && sortedAuthorGroups.map((group, groupIdx) => {
           const isViewed = group.isFullyViewed;
           const author = group.author || { name: 'Scholar', avatar_url: '' };
 

@@ -127,6 +127,18 @@ export default function ChatterGuruView({
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const [copiedMsgId, setCopiedMsgId] = useState(null);
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editingText, setEditingText] = useState('');
+  const abortControllerRef = useRef(null);
+  const activeReaderRef = useRef(null);
+
+  const handleStopGeneration = () => {
+    try {
+      abortControllerRef.current?.abort();
+      activeReaderRef.current?.cancel();
+    } catch {}
+    setLoading(false);
+  };
   const [isModeBarVisible, setIsModeBarVisible] = useState(true);
   const lastScrollYRef = useRef(0);
 
@@ -884,10 +896,28 @@ export default function ChatterGuruView({
     }
   };
 
-  // Chat message sending with dynamic intent parser and real-time text streaming
-  const handleSend = async (textToSend) => {
+  const handleSaveAndResend = (messageId) => {
+    const text = editingText.trim();
+    if (!text) return;
+    setEditingMessageId(null);
+    setEditingText('');
+    handleSend(text, messageId);
+  };
+
+  // Chat message sending with dynamic intent parser, abort support, and in-place replacement
+  const handleSend = async (textToSend, replaceUserMsgId = null) => {
     const text = (textToSend || inputText).trim();
     if (!text || loading) return;
+
+    // Stop any in-flight generation
+    try {
+      abortControllerRef.current?.abort();
+      activeReaderRef.current?.cancel();
+    } catch {}
+
+    const isFreeChat = aiModeRef.current === 'free';
+    const sendMode = isFreeChat ? 'free' : 'guided';
+    let targetAiMsgId = `g-${Date.now()}`;
 
     // 1. Detect dynamic requests for Flashcards
     const isFlashcardRequest =
@@ -917,11 +947,11 @@ export default function ChatterGuruView({
 
       if (specificTopic) {
         lastFlashcardTopicRef.current = specificTopic;
-        handleGenerateFlashcards(null, null, targetCount, specificTopic, text);
+        handleGenerateFlashcards(null, null, targetCount, specificTopic, text, replaceUserMsgId ? targetAiMsgId : null);
       } else {
         const existingTopic = lastFlashcardTopicRef.current;
         if (existingTopic && !mentionsDocExplicitly) {
-          handleGenerateFlashcards(null, null, targetCount, existingTopic, text);
+          handleGenerateFlashcards(null, null, targetCount, existingTopic, text, replaceUserMsgId ? targetAiMsgId : null);
         } else {
           const activeDoc = useDoc ? (uploadedDocs.find((d) => (d.doc_id || d.id) === selectedDocId) || uploadedDocs[0]) : null;
           handleGenerateFlashcards(
@@ -929,7 +959,8 @@ export default function ChatterGuruView({
             activeDoc?.filename || null,
             targetCount,
             activeDoc ? activeDoc.filename : 'Core Subject Definitions & Facts',
-            text
+            text,
+            replaceUserMsgId ? targetAiMsgId : null
           );
         }
       }
@@ -943,17 +974,17 @@ export default function ChatterGuruView({
 
       if (specificTopic) {
         lastQuizTopicRef.current = specificTopic;
-        handleGenerateMCQ(null, null, null, targetCount, specificTopic, text);
+        handleGenerateMCQ(null, null, replaceUserMsgId ? targetAiMsgId : null, targetCount, specificTopic, text);
       } else {
         const existingTopic = lastQuizTopicRef.current;
         if (existingTopic && !mentionsDocExplicitly) {
-          handleGenerateMCQ(null, null, null, targetCount, existingTopic, text);
+          handleGenerateMCQ(null, null, replaceUserMsgId ? targetAiMsgId : null, targetCount, existingTopic, text);
         } else {
           const activeDoc = useDoc ? (uploadedDocs.find((d) => (d.doc_id || d.id) === selectedDocId) || uploadedDocs[0]) : null;
           handleGenerateMCQ(
             activeDoc?.doc_id || activeDoc?.id || null,
             activeDoc?.filename || null,
-            null,
+            replaceUserMsgId ? targetAiMsgId : null,
             targetCount,
             activeDoc ? activeDoc.filename : 'Core Academic Concepts',
             text
@@ -963,25 +994,67 @@ export default function ChatterGuruView({
       return;
     }
 
-    const isFreeChat = aiModeRef.current === 'free';
-    const sendMode = isFreeChat ? 'free' : 'guided';
-
-    const userMsg = {
-      id: `u-${Date.now()}`,
-      role: 'user',
-      chatMode: sendMode,
-      content: text,
-      timestamp: 'Now',
-    };
-
-    const aiMsgId = `g-${Date.now()}`;
-    if (sendMode === 'free') {
-      setFreeMessages((prev) => [...prev, userMsg]);
+    // Handle user message insertion or replacement
+    let historyToSlice = [];
+    if (replaceUserMsgId) {
+      const targetMessages = sendMode === 'free' ? freeMessages : guidedMessages;
+      const uIndex = targetMessages.findIndex((m) => m.id === replaceUserMsgId);
+      if (uIndex !== -1) {
+        const nextMsg = targetMessages[uIndex + 1];
+        if (nextMsg && nextMsg.role === 'assistant') {
+          targetAiMsgId = nextMsg.id;
+        }
+        historyToSlice = targetMessages.slice(0, uIndex);
+        const updateReplace = (prev) => {
+          const idx = prev.findIndex((m) => m.id === replaceUserMsgId);
+          if (idx === -1) return prev;
+          const copy = [...prev];
+          copy[idx] = { ...copy[idx], content: text };
+          if (copy[idx + 1] && copy[idx + 1].role === 'assistant') {
+            copy[idx + 1] = {
+              ...copy[idx + 1],
+              content: '',
+              quizData: null,
+              flashcardsData: null,
+              timestamp: 'Just now',
+            };
+          } else {
+            copy.splice(idx + 1, 0, {
+              id: targetAiMsgId,
+              role: 'assistant',
+              chatMode: sendMode,
+              content: '',
+              timestamp: 'Just now',
+            });
+          }
+          return copy;
+        };
+        if (sendMode === 'free') {
+          setFreeMessages(updateReplace);
+        } else {
+          setGuidedMessages(updateReplace);
+        }
+      }
     } else {
-      setGuidedMessages((prev) => [...prev, userMsg]);
+      const userMsg = {
+        id: `u-${Date.now()}`,
+        role: 'user',
+        chatMode: sendMode,
+        content: text,
+        timestamp: 'Now',
+      };
+      if (sendMode === 'free') {
+        setFreeMessages((prev) => [...prev, userMsg]);
+      } else {
+        setGuidedMessages((prev) => [...prev, userMsg]);
+      }
     }
+
     setInputText('');
     setLoading(true);
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     try {
       const activeDoc = isFreeChat ? null : (uploadedDocs.find((d) => (d.doc_id || d.id) === selectedDocId) || (selectedDocId === null ? uploadedDocs[0] : null));
@@ -989,7 +1062,8 @@ export default function ChatterGuruView({
       const docTitle = isFreeChat ? '' : (activeDoc?.filename || activeDoc?.title || '');
       const docIdToSend = isFreeChat ? null : (selectedDocId || activeDoc?.doc_id || activeDoc?.id || null);
 
-      const targetSpaceHistory = (sendMode === 'free' ? freeMessages : guidedMessages)
+      const baseHistory = historyToSlice.length > 0 ? historyToSlice : (sendMode === 'free' ? freeMessages : guidedMessages);
+      const targetSpaceHistory = baseHistory
         .filter((m) => (m.chatMode ? m.chatMode === sendMode : true) && m.role && m.content && !m.quizData && !m.flashcardsData);
 
       const res = await fetch('/api/rag/chat', {
@@ -998,6 +1072,7 @@ export default function ChatterGuruView({
           'Content-Type': 'application/json',
           'Accept': 'text/event-stream, application/json',
         },
+        signal: controller.signal,
         body: JSON.stringify({
           message: text,
           stream: true,
@@ -1015,24 +1090,25 @@ export default function ChatterGuruView({
 
       if (res.body) {
         const reader = res.body.getReader();
+        activeReaderRef.current = reader;
         const decoder = new TextDecoder();
         let accumulated = '';
 
         while (true) {
+          if (controller.signal.aborted) break;
           const { done, value } = await reader.read();
           if (done) break;
           const chunk = decoder.decode(value, { stream: true });
           accumulated += chunk;
-          setLoading(false);
           const updateActiveStream = (prev) => {
-            const exists = prev.some((m) => m.id === aiMsgId);
+            const exists = prev.some((m) => m.id === targetAiMsgId);
             if (exists) {
-              return prev.map((m) => (m.id === aiMsgId ? { ...m, content: accumulated } : m));
+              return prev.map((m) => (m.id === targetAiMsgId ? { ...m, content: accumulated } : m));
             }
             return [
               ...prev,
               {
-                id: aiMsgId,
+                id: targetAiMsgId,
                 role: 'assistant',
                 chatMode: sendMode,
                 content: accumulated,
@@ -1047,37 +1123,45 @@ export default function ChatterGuruView({
           }
         }
 
-        if (!accumulated.trim()) {
+        if (!accumulated.trim() && !controller.signal.aborted) {
           throw new Error('Empty stream response');
         }
       } else {
         const data = await res.json();
-        setLoading(false);
         const replyMsg = {
-          id: aiMsgId,
+          id: targetAiMsgId,
           role: 'assistant',
           chatMode: sendMode,
           content: data.reply || data.answer || 'Tutoring session active. Ask any specific question!',
           timestamp: 'Just now',
         };
+        const updateNonStream = (prev) => {
+          const exists = prev.some((m) => m.id === targetAiMsgId);
+          if (exists) {
+            return prev.map((m) => (m.id === targetAiMsgId ? replyMsg : m));
+          }
+          return [...prev, replyMsg];
+        };
         if (sendMode === 'free') {
-          setFreeMessages((prev) => [...prev, replyMsg]);
+          setFreeMessages(updateNonStream);
         } else {
-          setGuidedMessages((prev) => [...prev, replyMsg]);
+          setGuidedMessages(updateNonStream);
         }
       }
-    } catch {
+    } catch (err) {
+      if (err?.name === 'AbortError' || controller.signal.aborted) {
+        return;
+      }
       const fallbackContent = `Here is the study breakdown for **"${text}"**:\n\n1. **Core Concept**: Break the problem down into first principles and define given parameters.\n2. **Key Theorems / Equations**: Check that all boundary conditions and invariants hold.\n3. **Active Practice**: Try explaining the solution steps aloud to test your mastery!`;
-      setLoading(false);
       const updateFallback = (prev) => {
-        const exists = prev.some((m) => m.id === aiMsgId);
+        const exists = prev.some((m) => m.id === targetAiMsgId);
         if (exists) {
-          return prev.map((m) => (m.id === aiMsgId ? { ...m, content: fallbackContent } : m));
+          return prev.map((m) => (m.id === targetAiMsgId ? { ...m, content: fallbackContent } : m));
         }
         return [
           ...prev,
           {
-            id: aiMsgId,
+            id: targetAiMsgId,
             role: 'assistant',
             chatMode: sendMode,
             content: fallbackContent,
@@ -1091,6 +1175,7 @@ export default function ChatterGuruView({
         setGuidedMessages(updateFallback);
       }
     } finally {
+      activeReaderRef.current = null;
       setLoading(false);
     }
   };
@@ -1744,14 +1829,55 @@ export default function ChatterGuruView({
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 6,
+                      gap: 8,
                       marginBottom: 4,
                       justifyContent: 'flex-end',
                     }}
                   >
-                    <span style={{ fontSize: 12.5, color: 'var(--chatter-light-text)' }}>
+                    <span style={{ fontSize: 12, color: 'var(--chatter-light-text)' }}>
                       {m.timestamp || 'Just now'}
                     </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (editingMessageId === m.id) {
+                          setEditingMessageId(null);
+                          setEditingText('');
+                        } else {
+                          setEditingMessageId(m.id);
+                          setEditingText(m.content || '');
+                        }
+                      }}
+                      title="Edit prompt and regenerate response"
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.06)',
+                        border: '1px solid rgba(255, 255, 255, 0.12)',
+                        color: 'var(--chatter-light-text)',
+                        cursor: 'pointer',
+                        padding: '2px 8px',
+                        borderRadius: 8,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.color = '#fff';
+                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.color = 'var(--chatter-light-text)';
+                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)';
+                      }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
+                      <span>Edit</span>
+                    </button>
                   </div>
                 )}
 
@@ -1774,7 +1900,80 @@ export default function ChatterGuruView({
                     wordBreak: 'break-word',
                   }}
                 >
-                  {isUser ? (
+                  {isUser && editingMessageId === m.id ? (
+                    <div style={{ width: '100%', minWidth: 260 }}>
+                      <textarea
+                        value={editingText}
+                        onChange={(e) => setEditingText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            if (editingText.trim()) {
+                              handleSaveAndResend(m.id);
+                            }
+                          } else if (e.key === 'Escape') {
+                            setEditingMessageId(null);
+                            setEditingText('');
+                          }
+                        }}
+                        rows={3}
+                        style={{
+                          width: '100%',
+                          background: 'rgba(0, 0, 0, 0.28)',
+                          border: '1.5px solid rgba(0, 0, 0, 0.45)',
+                          borderRadius: 10,
+                          padding: '8px 10px',
+                          color: '#0E0E0E',
+                          fontWeight: 600,
+                          fontSize: 15,
+                          lineHeight: 1.45,
+                          fontFamily: 'inherit',
+                          resize: 'vertical',
+                          outline: 'none',
+                          boxSizing: 'border-box',
+                        }}
+                        autoFocus
+                      />
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingMessageId(null);
+                            setEditingText('');
+                          }}
+                          style={{
+                            padding: '6px 13px',
+                            borderRadius: 10,
+                            background: 'rgba(0, 0, 0, 0.15)',
+                            border: 'none',
+                            color: '#0E0E0E',
+                            fontSize: 12.5,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!editingText.trim() || loading}
+                          onClick={() => handleSaveAndResend(m.id)}
+                          style={{
+                            padding: '6px 14px',
+                            borderRadius: 10,
+                            background: '#0E0E0E',
+                            border: 'none',
+                            color: 'var(--chatter-primary)',
+                            fontSize: 12.5,
+                            fontWeight: 700,
+                            cursor: editingText.trim() && !loading ? 'pointer' : 'not-allowed',
+                          }}
+                        >
+                          Send & Replace
+                        </button>
+                      </div>
+                    </div>
+                  ) : isUser ? (
                     m.content
                   ) : (
                     <ChatMarkdownMessage content={m.content} />
@@ -2061,29 +2260,64 @@ export default function ChatterGuruView({
             }}
           />
 
-          <button
-            type="submit"
-            disabled={!inputText.trim() || loading}
-            style={{
-              width: 38,
-              height: 38,
-              borderRadius: '50%',
-              background: 'var(--chatter-primary)',
-              border: 'none',
-              color: '#0E0E0E',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: inputText.trim() ? 'pointer' : 'not-allowed',
-              opacity: inputText.trim() ? 1 : 0.5,
-              transition: 'all 0.15s ease',
-            }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13" />
-              <polygon points="22 2 15 22 11 13 2 9 22 2" />
-            </svg>
-          </button>
+          {loading ? (
+            <button
+              type="button"
+              onClick={handleStopGeneration}
+              title="Stop generating response"
+              aria-label="Stop generation"
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: '50%',
+                background: '#EF4444',
+                border: 'none',
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                animation: 'chatterStopPulse 1.2s ease-in-out infinite',
+                boxShadow: '0 0 14px rgba(239, 68, 68, 0.6)',
+                transition: 'all 0.15s ease',
+                flexShrink: 0,
+              }}
+            >
+              <div
+                style={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: 2.5,
+                  background: '#FFFFFF',
+                }}
+              />
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={!inputText.trim()}
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: '50%',
+                background: 'var(--chatter-primary)',
+                border: 'none',
+                color: '#0E0E0E',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: inputText.trim() ? 'pointer' : 'not-allowed',
+                opacity: inputText.trim() ? 1 : 0.5,
+                transition: 'all 0.15s ease',
+                flexShrink: 0,
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13" />
+                <polygon points="22 2 15 22 11 13 2 9 22 2" />
+              </svg>
+            </button>
+          )}
         </form>
       </div>
     </div>
