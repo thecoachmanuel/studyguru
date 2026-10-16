@@ -1753,19 +1753,106 @@ export function useVoiceSession(userId, profile = null) {
       }
 
       setParticipants((prev) => {
+        // Build a mute-state map from previous React state (highest fidelity source)
         const prevMuteMap = new Map();
         prev.forEach((p) => {
           const id = String(p.user_id || p.userId);
           if (p.is_muted !== undefined) prevMuteMap.set(id, p.is_muted);
         });
 
+        // When LiveKit is active, use LiveKit's authoritative real-time participant list.
+        // This prevents the desktop-sees-1 / mobile-sees-2 discrepancy caused by DB
+        // polling latency, and stops the speakers<->listeners flickering.
         if (livekitRoomRef.current) {
+          // Override mute states with LiveKit's live isMicrophoneEnabled values
           livekitRoomRef.current.remoteParticipants.forEach((rp) => {
             const rpId = String(rp.identity);
             prevMuteMap.set(rpId, !rp.isMicrophoneEnabled);
           });
+
+          // Build a profile enrichment map from DB results (names, avatars)
+          const dbProfileMap = new Map();
+          activeRemote.forEach((p) => {
+            const pId = String(p.user_id || p.userId);
+            dbProfileMap.set(pId, p);
+          });
+
+          const localEntry = {
+            id: `vp-${joinedChannelId}-${userId}`,
+            channel_id: joinedChannelId,
+            server_id: joinedServerId,
+            user_id: userId,
+            is_muted: isLocalMutedRef.current,
+            joined_at: new Date().toISOString(),
+            last_seen: new Date().toISOString(),
+            profiles: {
+              username: profile?.username || 'You',
+              full_name: profile?.full_name || 'You',
+              avatar_url: profile?.avatar_url || null,
+            },
+          };
+
+          // Build participant list from LiveKit's real-time remote participants map.
+          // Use DB profile data (names/avatars) to enrich, but trust LiveKit for presence.
+          const livekitRemotes = [];
+          livekitRoomRef.current.remoteParticipants.forEach((rp) => {
+            const pId = String(rp.identity);
+            if (pId === String(userId)) return; // skip self
+            let meta = {};
+            try { if (rp.metadata) meta = JSON.parse(rp.metadata); } catch {}
+            const dbEntry = dbProfileMap.get(pId);
+            const resolvedName =
+              rp.name ||
+              meta.name ||
+              dbEntry?.profiles?.full_name ||
+              dbEntry?.profiles?.username ||
+              dbEntry?.name ||
+              'Study Partner';
+            const resolvedAvatar =
+              meta.image ||
+              dbEntry?.profiles?.avatar_url ||
+              dbEntry?.avatar_url ||
+              null;
+            livekitRemotes.push({
+              id: `vp-${joinedChannelId}-${pId}`,
+              channel_id: joinedChannelId,
+              server_id: joinedServerId,
+              user_id: pId,
+              is_muted: !rp.isMicrophoneEnabled,
+              joined_at: dbEntry?.joined_at || new Date().toISOString(),
+              last_seen: new Date().toISOString(),
+              name: resolvedName,
+              user_name: resolvedName,
+              profiles: {
+                id: pId,
+                username: rp.name || meta.name || dbEntry?.profiles?.username || 'Study Partner',
+                full_name: resolvedName,
+                name: resolvedName,
+                avatar_url: resolvedAvatar,
+              },
+            });
+          });
+
+          // Also include any DB participants not yet reflected in LiveKit
+          // (e.g. joined just before LiveKit connection was established)
+          const livekitIds = new Set(livekitRemotes.map((p) => p.user_id));
+          activeRemote
+            .filter((p) => {
+              const pId = String(p.user_id || p.userId);
+              return pId !== String(userId) && !livekitIds.has(pId);
+            })
+            .forEach((p) => {
+              const pId = String(p.user_id || p.userId);
+              livekitRemotes.push({
+                ...p,
+                is_muted: prevMuteMap.has(pId) ? prevMuteMap.get(pId) : (p.is_muted ?? true),
+              });
+            });
+
+          return [localEntry, ...livekitRemotes];
         }
 
+        // WebRTC fallback path: use DB list with mute state preservation
         const localEntry = {
           id: `vp-${joinedChannelId}-${userId}`,
           channel_id: joinedChannelId,
@@ -2059,23 +2146,95 @@ export function useVoiceSession(userId, profile = null) {
             detachAudioAnalyser(pUserId);
           });
 
+          // Pre-warm microphone permission BEFORE connect so mobile browsers
+          // (Safari/Chrome) have audio context unlocked via the user gesture that
+          // triggered handleJoin. This is the primary fix for mobile not being heard.
+          let prewarmStream = null;
+          try {
+            prewarmStream = await navigator.mediaDevices.getUserMedia({
+              audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true,
+              },
+            });
+            console.log('[LiveKit] Microphone pre-warmed successfully');
+          } catch (prewarmErr) {
+            console.warn('[LiveKit] Mic pre-warm failed (will retry after connect):', prewarmErr?.message);
+          }
+
           await room.connect(tokenData.url, tokenData.token);
 
-          // Enable microphone on LiveKit
+          // Unlock audio context immediately after connect (critical for iOS Safari)
+          try { await room.startAudio(); } catch {}
+          unlockAudioDesktopAndMobile();
+
+          // Stop pre-warm stream tracks — LiveKit will capture the mic itself
+          if (prewarmStream) {
+            prewarmStream.getTracks().forEach((t) => t.stop());
+          }
+
+          // Enable microphone on LiveKit with retry logic for mobile
+          const enableMicWithRetry = async (retries = 3, delayMs = 800) => {
+            for (let attempt = 1; attempt <= retries; attempt++) {
+              try {
+                await room.localParticipant.setMicrophoneEnabled(!isLocalMutedRef.current);
+                // Verify the mic track was actually published
+                const micPub = room.localParticipant.getTrackPublication(Track.Source.Microphone);
+                if (micPub?.track?.mediaStreamTrack) {
+                  console.log(`[LiveKit] Microphone enabled on attempt ${attempt}`);
+                  return micPub.track.mediaStreamTrack;
+                }
+                // Track not published yet, wait and retry
+                if (attempt < retries) {
+                  await new Promise((r) => setTimeout(r, delayMs));
+                }
+              } catch (err) {
+                console.warn(`[LiveKit] Mic enable attempt ${attempt} failed:`, err?.message);
+                if (attempt < retries) {
+                  await new Promise((r) => setTimeout(r, delayMs));
+                } else {
+                  throw err;
+                }
+              }
+            }
+            return null;
+          };
+
           try {
-            await room.localParticipant.setMicrophoneEnabled(!isLocalMutedRef.current);
+            const micTrack = await enableMicWithRetry();
             setMicConnected(true);
-            const micTrack = room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track?.mediaStreamTrack;
             if (micTrack) {
               const localAudioStream = new MediaStream([micTrack]);
               localStreamRef.current = localAudioStream;
               attachAudioAnalyser(currentUserIdRef.current, localAudioStream);
             }
           } catch (micErr) {
-            console.warn('[LiveKit] Could not enable microphone:', micErr);
+            console.warn('[LiveKit] Could not enable microphone after retries:', micErr);
             setIsLocalMuted(true);
             isLocalMutedRef.current = true;
           }
+
+          // Listen for local mic track published (fires async on mobile after permission granted)
+          room.on(RoomEvent.LocalTrackPublished, (publication) => {
+            if (publication?.kind === Track.Kind.Audio) {
+              const micTrack = publication?.track?.mediaStreamTrack;
+              setMicConnected(true);
+              if (micTrack && !localStreamRef.current) {
+                const localAudioStream = new MediaStream([micTrack]);
+                localStreamRef.current = localAudioStream;
+                attachAudioAnalyser(currentUserIdRef.current, localAudioStream);
+              }
+              console.log('[LiveKit] Local mic track published (async confirm)');
+            }
+          });
+
+          room.on(RoomEvent.LocalTrackUnpublished, (publication) => {
+            if (publication?.kind === Track.Kind.Audio) {
+              console.warn('[LiveKit] Local mic track unpublished');
+              setMicConnected(false);
+            }
+          });
 
           livekitRoomRef.current = room;
           isLiveKitActiveRef.current = true;
