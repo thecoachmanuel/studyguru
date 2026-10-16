@@ -26,12 +26,12 @@ export default function Seo({ title, description, path = '/', structuredData = n
     setMeta('meta[name="twitter:description"]', 'content', description);
     setMeta('meta[name="twitter:image"]', 'content', SOCIAL_IMAGE);
 
-    const previousSchema = document.getElementById('studyguru-page-schema');
+    const previousSchema = document.getElementById('studycord-page-schema');
     previousSchema?.remove();
     if (!structuredData) return undefined;
 
     const schema = document.createElement('script');
-    schema.id = 'studyguru-page-schema';
+    schema.id = 'studycord-page-schema';
     schema.type = 'application/ld+json';
     schema.textContent = JSON.stringify(structuredData);
     document.head.appendChild(schema);

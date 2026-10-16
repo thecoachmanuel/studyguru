@@ -29,7 +29,7 @@ export async function GET(req, { params }) {
             name: 'Adewale Olaitan',
             full_name: 'Adewale Olaitan',
             avatar_url: null,
-            email: 'adewale@studyguru.me',
+            email: 'adewale@studycord.me',
           },
         },
         {
@@ -38,11 +38,11 @@ export async function GET(req, { params }) {
           joined_at: new Date(Date.now() - 86400000 * 20).toISOString(),
           profiles: {
             id: 'user-tutor',
-            username: 'studyguru_tutor',
-            name: 'StudyGuru AI Tutor',
-            full_name: 'StudyGuru AI Tutor',
+            username: 'studycord_tutor',
+            name: 'StudyCord AI Tutor',
+            full_name: 'StudyCord AI Tutor',
             avatar_url: null,
-            email: 'tutor@studyguru.me',
+            email: 'tutor@studycord.me',
           },
         },
         {
@@ -68,7 +68,7 @@ export async function GET(req, { params }) {
             name: 'Alex Chen',
             full_name: 'Alex Chen',
             avatar_url: null,
-            email: 'alex@studyguru.me',
+            email: 'alex@studycord.me',
           },
         },
       ]);

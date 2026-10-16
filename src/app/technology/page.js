@@ -4,16 +4,16 @@ import Link from 'next/link';
 import PublicLayout, { PublicHero, PublicSection } from '@/components/PublicLayout';
 
 const SEO = {
-  title: 'StudyGuru Technology – Next.js, MongoDB Atlas, Cloudflare R2, Pusher and WebRTC',
-  description: 'Understand the unified StudyGuru architecture: Next.js App Router, MongoDB Atlas, Cloudflare R2, Pusher Channels, NextAuth, WebRTC, Gemini embeddings, and RAG.',
+  title: 'StudyCord Technology – Next.js, MongoDB Atlas, Cloudflare R2, Pusher and WebRTC',
+  description: 'Understand the unified StudyCord architecture: Next.js App Router, MongoDB Atlas, Cloudflare R2, Pusher Channels, NextAuth, WebRTC, Gemini embeddings, and RAG.',
   path: '/technology',
   structuredData: {
     '@context': 'https://schema.org',
     '@type': 'TechArticle',
     '@id': 'https://www.studyguru.me/technology#article',
     url: 'https://www.studyguru.me/technology',
-    headline: 'How StudyGuru is built',
-    description: 'An implementation-level overview of the StudyGuru unified full-stack collaboration and AI architecture.',
+    headline: 'How StudyCord is built',
+    description: 'An implementation-level overview of the StudyCord unified full-stack collaboration and AI architecture.',
     about: { '@id': 'https://www.studyguru.me/#softwareapplication' },
     author: { '@id': 'https://www.studyguru.me/#organization' },
     publisher: { '@id': 'https://www.studyguru.me/#organization' },
@@ -37,11 +37,11 @@ export default function TechnologyPage() {
       <PublicHero
         eyebrow="Technology"
         title="A unified collaboration platform with modern cloud architecture"
-        lead="StudyGuru unifies browser UI, authenticated serverless services, durable MongoDB Atlas storage, live peer media, instant Pusher pub/sub, and browser-orchestrated document AI into a cohesive full-stack platform."
+        lead="StudyCord unifies browser UI, authenticated serverless services, durable MongoDB Atlas storage, live peer media, instant Pusher pub/sub, and browser-orchestrated document AI into a cohesive full-stack platform."
       />
 
       <PublicSection eyebrow="Architecture" title="How requests, data, and media move">
-        <div className="public-architecture" role="img" aria-label="StudyGuru architecture: unified Next.js App Router communicates with MongoDB Atlas, Pusher Channels, and Cloudflare R2, while WebRTC carries peer media">
+        <div className="public-architecture" role="img" aria-label="StudyCord architecture: unified Next.js App Router communicates with MongoDB Atlas, Pusher Channels, and Cloudflare R2, while WebRTC carries peer media">
           <div><strong>Next.js Full-Stack</strong><span>App Router, Serverless API Routes, React 19 UI</span></div>
           <span aria-hidden="true">↕</span>
           <div><strong>MongoDB Atlas</strong><span>User data, servers, channels, messages, vector search</span></div>
@@ -76,7 +76,7 @@ export default function TechnologyPage() {
           <article>
             <h3>Modern Next.js App Router</h3>
             <p>
-              StudyGuru consolidates the user interface and backend logic into a single high-performance
+              StudyCord consolidates the user interface and backend logic into a single high-performance
               Next.js application. Route handlers serve REST and streaming SSE endpoints, while React 19
               powers the responsive multi-panel workspace, server channels, voice stage, and AI tutor modal.
             </p>
@@ -172,9 +172,9 @@ export default function TechnologyPage() {
 
       <PublicSection eyebrow="Project leadership" title="Built and maintained by the founding developer">
         <p>
-          StudyGuru was founded and developed by Adewale Olaitan, who continues to maintain and improve the project.
+          StudyCord was founded and developed by Adewale Olaitan, who continues to maintain and improve the project.
         </p>
-        <p><Link href="/team">Meet the StudyGuru team</Link>.</p>
+        <p><Link href="/team">Meet the StudyCord team</Link>.</p>
       </PublicSection>
     </PublicLayout>
   );

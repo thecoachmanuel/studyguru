@@ -329,12 +329,12 @@ export default function LoginPage() {
               color: '#bbb',
             }}
           >
-            <span>⚡ Demo: <strong>demo@studyguru.me</strong></span>
+            <span>⚡ Demo: <strong>demo@studycord.me</strong></span>
             <button
               type="button"
               onClick={() => {
-                setEmail('demo@studyguru.me');
-                setPassword('StudyGuru2026!');
+                setEmail('demo@studycord.me');
+                setPassword('StudyCord2026!');
               }}
               style={{
                 padding: '3px 8px',

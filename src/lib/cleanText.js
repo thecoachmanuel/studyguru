@@ -1,5 +1,5 @@
 /**
- * Utility functions for text cleaning and markdown post-processing in StudyGuru.
+ * Utility functions for text cleaning and markdown post-processing in StudyCord.
  */
 
 /**

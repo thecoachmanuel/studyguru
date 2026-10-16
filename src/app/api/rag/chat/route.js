@@ -294,7 +294,7 @@ function extractFastRelevantPassages(text, query, maxChars = 15000) {
     const isGuidedMode = !isFreeChat && (body.mode === 'guided' || Boolean(docTitle));
     const hasActiveDoc = !isFreeChat && Boolean(docTitle && (fullDocumentText || contextChunks.length > 0));
 
-    const systemPrompt = `You are StudyGuru AI (AI Guru), a brilliant, empathetic, and encouraging Personal Academic Tutor on StudyCord.
+    const systemPrompt = `You are StudyCord AI (AI Guru), a brilliant, empathetic, and encouraging Personal Academic Tutor on StudyCord.
 Your mission is to guide the student through their academic questions using an interactive, adaptive, conversational tutoring approach.
 
 ${isFreeChat ? `FREE CHAT MODE (UNRESTRICTED ACADEMIC TUTOR):

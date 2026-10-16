@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 
 /**
- * AuthCharacters — Animated study owl mascot for StudyGuru auth pages.
+ * AuthCharacters — Animated study owl mascot for StudyCord auth pages.
  *
  * Props:
  *   charState: 'idle' | 'email' | 'password-hidden' | 'password-visible'

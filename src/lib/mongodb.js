@@ -222,7 +222,7 @@ class MemoryDatabase {
       {
         _id: server1Id,
         id: server1Id,
-        name: 'StudyGuru Hub',
+        name: 'StudyCord Hub',
         icon_url: null,
         owner_id: demoUserId,
         invite_code: 'GURU2026',

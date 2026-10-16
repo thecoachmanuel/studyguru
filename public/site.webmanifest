@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "StudyGuru — AI Student Collaboration Platform",
-  "short_name": "StudyGuru",
+  "name": "StudyCord — AI Student Collaboration Platform",
+  "short_name": "StudyCord",
   "description": "Real-time AI-powered student collaboration platform with voice channels, study documents, interactive quizzes, and AI Study Guru.",
   "start_url": "/dashboard",
   "scope": "/",
@@ -37,7 +37,7 @@
     {
       "name": "Dashboard",
       "short_name": "Dashboard",
-      "description": "Open your StudyGuru servers and channels",
+      "description": "Open your StudyCord servers and channels",
       "url": "/dashboard",
       "icons": [{ "src": "/android-chrome-192x192.png", "sizes": "192x192" }]
     },

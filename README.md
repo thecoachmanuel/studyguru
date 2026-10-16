@@ -1,18 +1,18 @@
-# StudyGuru (Next.js App Router)
+# StudyCord (Next.js App Router)
 
-Welcome to **StudyGuru Next**, the modern Next.js 15 implementation of the [StudyGuru](https://www.studyguru.me/) student collaboration platform.
+Welcome to **StudyCord Next**, the modern Next.js 15 implementation of the [StudyCord](https://www.studyguru.me/) student collaboration platform.
 
-StudyGuru integrates real-time channel communication, voice/video WebRTC rooms, shared study resources, semantic document search with pgvector, and grounded AI study tools into a unified, high-performance workspace.
+StudyCord integrates real-time channel communication, voice/video WebRTC rooms, shared study resources, semantic document search with pgvector, and grounded AI study tools into a unified, high-performance workspace.
 
 ---
 
 ## 🎨 Theme & Design System
 
-StudyGuru Next features a crafted dual-theme design system engineered with **Vanilla CSS** tokens and responsive micro-interactions:
+StudyCord Next features a crafted dual-theme design system engineered with **Vanilla CSS** tokens and responsive micro-interactions:
 
 - **Cogni-Aligned Color Palette**: Harmonized with vibrant royal brand blue (`#1D4ED8`), clean slate backgrounds (`#F8FAFC`), elevated surfaces (`#FFFFFF` / `#F1F5F9`), and warm amber accents (`#F59E0B`), providing an engaging visual synergy across the platform.
-- **StudyGuru Brand Emblem**: Features the redesigned Guru Wisdom & Intellect head mark with an enlightened radiant knowledge star and core, paired with modern typography in Plus Jakarta Sans and Inter.
-- **Cogni-Inspired Auth Experience**: Sleek two-column split authentication screen on desktop featuring a centered, distraction-free form on the left (Google OAuth, clean email/password inputs) and a rich royal-blue branded panel on the right with ambient orbs, the StudyGuru Wisdom emblem, and streamlined product highlights. Fully collapsible and mobile-responsive on smaller screens.
+- **StudyCord Brand Emblem**: Features the redesigned Guru Wisdom & Intellect head mark with an enlightened radiant knowledge star and core, paired with modern typography in Plus Jakarta Sans and Inter.
+- **Cogni-Inspired Auth Experience**: Sleek two-column split authentication screen on desktop featuring a centered, distraction-free form on the left (Google OAuth, clean email/password inputs) and a rich royal-blue branded panel on the right with ambient orbs, the StudyCord Wisdom emblem, and streamlined product highlights. Fully collapsible and mobile-responsive on smaller screens.
 - **Light Mode by Default**: Light Mode is the default primary aesthetic across all public and authenticated routes, featuring clean slate surfaces, crisp typography, and refined border contrast.
 - **Dark Mode Support**: Users can toggle between Light and Dark mode at any time. Dark Mode delivers deep slate tones (`#0F172A`, `#1E293B`) designed for late-night study sessions.
 - **Instant Persistence & No FOUC**: The user's active theme selection is stored in `localStorage` under `'studycord-theme'`. An inline initialization script in `<head>` applies the `data-theme` attribute synchronously before page render to eliminate any Flash of Unstyled Content (FOUC).

@@ -92,7 +92,7 @@ function VideoStream({
 export default function VoicePanel({
   channelId,
   channelName = 'Study Room',
-  serverName = 'StudyGuru Hub',
+  serverName = 'StudyCord Hub',
   activeServerId,
   userId,
   profile,

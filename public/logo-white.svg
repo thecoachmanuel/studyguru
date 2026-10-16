@@ -13,7 +13,7 @@
       <circle cx="241" cy="219" r="7" fill="#1D4ED8" />
     </g>
 
-    <!-- StudyGuru Wordmark -->
+    <!-- StudyCord Wordmark -->
     <text
       x="160"
       y="105"
@@ -23,7 +23,7 @@
       letter-spacing="-2px"
       fill="#FFFFFF"
     >
-      Study<tspan fill="#93C5FD">Guru</tspan>
+      Study<tspan fill="#93C5FD">Cord</tspan>
     </text>
   </g>
 </svg>

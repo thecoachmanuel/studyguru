@@ -21,7 +21,7 @@ export async function GET(req, { params }) {
     if (!db) {
       return NextResponse.json({
         id: serverId,
-        name: 'StudyGuru Hub',
+        name: 'StudyCord Hub',
         description: 'Collaborative AI study group',
         invite_code: 'GURU2026',
         owner_id: session.user.id,

@@ -28,7 +28,7 @@ export async function GET(req) {
       return NextResponse.json([
         {
           id: 'server-demo-1',
-          name: 'StudyGuru Hub',
+          name: 'StudyCord Hub',
           icon_url: null,
           owner_id: userId,
           invite_code: 'GURU2026',

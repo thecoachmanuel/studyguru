@@ -11,16 +11,16 @@ export const viewport = {
 };
 
 export const metadata = {
-  title: 'StudyGuru – AI-Powered Student Collaboration Platform',
+  title: 'StudyCord – AI-Powered Student Collaboration Platform',
   description:
-    'StudyGuru is an AI-powered student collaboration platform with real-time messaging, voice, video, document sharing, semantic search, and an AI Study Assistant.',
+    'StudyCord is an AI-powered student collaboration platform with real-time messaging, voice, document sharing, semantic search, and an AI Study Assistant.',
   keywords:
-    'StudyGuru, StudyCord, AI study platform, student collaboration platform, study groups, semantic search for students, AI study assistant',
+    'StudyCord, AI study platform, student collaboration platform, study groups, semantic search for students, AI study assistant',
   manifest: '/site.webmanifest',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'StudyGuru',
+    title: 'StudyCord',
   },
   icons: {
     icon: [
@@ -42,8 +42,8 @@ export default function RootLayout({ children }) {
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="StudyGuru" />
-        <meta name="application-name" content="StudyGuru" />
+        <meta name="apple-mobile-web-app-title" content="StudyCord" />
+        <meta name="application-name" content="StudyCord" />
         <link rel="manifest" href="/site.webmanifest" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <script

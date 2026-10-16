@@ -1,5 +1,5 @@
-// StudyGuru High-Performance Service Worker for PWA (Android, iOS, Desktop)
-const CACHE_NAME = 'studyguru-pwa-v1';
+// StudyCord High-Performance Service Worker for PWA (Android, iOS, Desktop)
+const CACHE_NAME = 'studycord-pwa-v2';
 const STATIC_ASSETS = [
   '/',
   '/site.webmanifest',

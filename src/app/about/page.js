@@ -4,16 +4,16 @@ import Link from 'next/link';
 import PublicLayout, { PublicHero, PublicSection } from '@/components/PublicLayout';
 
 const SEO = {
-  title: 'About StudyGuru – Built for Collaborative Learning',
-  description: 'Learn why StudyGuru was built, the problems it solves for students and educators, and the founding developer behind the platform.',
+  title: 'About StudyCord – Built for Collaborative Learning',
+  description: 'Learn why StudyCord was built, the problems it solves for students and educators, and the founding developer behind the platform.',
   path: '/about',
   structuredData: {
     '@context': 'https://schema.org',
     '@type': 'AboutPage',
     '@id': 'https://www.studyguru.me/about#aboutpage',
     url: 'https://www.studyguru.me/about',
-    name: 'About StudyGuru',
-    description: 'The story, mission, values, and founding developer behind StudyGuru.',
+    name: 'About StudyCord',
+    description: 'The story, mission, values, and founding developer behind StudyCord.',
     about: { '@id': 'https://www.studyguru.me/#softwareapplication' },
     isPartOf: { '@id': 'https://www.studyguru.me/#website' },
   },
@@ -23,9 +23,9 @@ export default function AboutPage() {
   return (
     <PublicLayout seo={SEO}>
       <PublicHero
-        eyebrow="About StudyGuru"
+        eyebrow="About StudyCord"
         title="A shared place to communicate, find knowledge, and study"
-        lead="StudyGuru is an AI-powered student collaboration platform that brings group communication, shared materials, semantic search, and focused AI study tools into one workspace."
+        lead="StudyCord is an AI-powered student collaboration platform that brings group communication, shared materials, semantic search, and focused AI study tools into one workspace."
       >
         <div className="public-hero__actions">
           <Link className="public-button public-button--primary" href="/signup">Create an account</Link>
@@ -40,7 +40,7 @@ export default function AboutPage() {
           time locating material instead of working with it.
         </p>
         <p>
-          StudyGuru was built to reduce that fragmentation. A server gives a group a stable home
+          StudyCord was built to reduce that fragmentation. A server gives a group a stable home
           for text and voice channels, shared documents, live calls, semantic resource discovery,
           and personal study sessions grounded in uploaded material.
         </p>
@@ -88,18 +88,18 @@ export default function AboutPage() {
 
       <PublicSection eyebrow="Founding developer" title="Meet the creator">
         <p>
-          StudyGuru was founded and developed by Adewale Olaitan. As founding developer,
-          Adewale designed and built StudyGuru as an AI-powered student collaboration platform
+          StudyCord was founded and developed by Adewale Olaitan. As founding developer,
+          Adewale designed and built StudyCord as an AI-powered student collaboration platform
           and continues to maintain and improve the project.
         </p>
-        <p><Link href="/team">Learn more about the StudyGuru team</Link>.</p>
+        <p><Link href="/team">Learn more about the StudyCord team</Link>.</p>
       </PublicSection>
 
-      <PublicSection eyebrow="Development" title="StudyGuru timeline">
+      <PublicSection eyebrow="Development" title="StudyCord timeline">
         <ol className="public-timeline">
           <li>
             <span>Foundation</span>
-            <div><h3>Collaborative workspace</h3><p>StudyGuru began with authentication, profiles, servers, channels, messaging, shared files, and realtime updates.</p></div>
+            <div><h3>Collaborative workspace</h3><p>StudyCord began with authentication, profiles, servers, channels, messaging, shared files, and realtime updates.</p></div>
           </li>
           <li>
             <span>Communication</span>
@@ -115,14 +115,14 @@ export default function AboutPage() {
           </li>
           <li>
             <span>Production</span>
-            <div><h3>A stable public deployment</h3><p>StudyGuru moved to its production home at www.studyguru.me with deployment, security, accessibility, and discoverability work.</p></div>
+            <div><h3>A stable public deployment</h3><p>StudyCord moved to its production home at www.studyguru.me with deployment, security, accessibility, and discoverability work.</p></div>
           </li>
         </ol>
       </PublicSection>
 
       <PublicSection eyebrow="Project status" title="Under active development">
         <p>
-          StudyGuru is under active development, and its features and documentation evolve over
+          StudyCord is under active development, and its features and documentation evolve over
           time. For current information, prefer the official website over
           third-party descriptions.
         </p>

@@ -3,15 +3,15 @@
 import PublicLayout, { PublicHero, PublicSection } from '@/components/PublicLayout';
 
 const SEO = {
-  title: 'StudyGuru Privacy Policy',
-  description: 'Read how StudyGuru handles account information, messages, uploaded documents, live media, browser storage, AI services, and user choices.',
+  title: 'StudyCord Privacy Policy',
+  description: 'Read how StudyCord handles account information, messages, uploaded documents, live media, browser storage, AI services, and user choices.',
   path: '/privacy',
   structuredData: {
     '@context': 'https://schema.org',
     '@type': 'WebPage',
     '@id': 'https://www.studyguru.me/privacy#webpage',
     url: 'https://www.studyguru.me/privacy',
-    name: 'StudyGuru Privacy Policy',
+    name: 'StudyCord Privacy Policy',
     dateModified: '2026-08-28',
     isPartOf: { '@id': 'https://www.studyguru.me/#website' },
   },
@@ -23,7 +23,7 @@ export default function PrivacyPage() {
       <PublicHero
         eyebrow="Legal"
         title="Privacy Policy"
-        lead="This policy explains the information StudyGuru processes to provide accounts, collaboration, file sharing, live communication, search, and AI-assisted study features."
+        lead="This policy explains the information StudyCord processes to provide accounts, collaboration, file sharing, live communication, search, and AI-assisted study features."
       >
         <p className="public-hero__updated">Effective and last updated: August 28, 2026</p>
       </PublicHero>
@@ -31,15 +31,15 @@ export default function PrivacyPage() {
       <div className="public-legal">
         <PublicSection title="1. Scope">
           <p>
-            This Privacy Policy applies to the StudyGuru web application at www.studyguru.me and
-            the services used to operate it. StudyGuru is a collaborative educational software
+            This Privacy Policy applies to the StudyCord web application at www.studyguru.me and
+            the services used to operate it. StudyCord is a collaborative educational software
             project, not an educational institution or emergency communication service.
           </p>
         </PublicSection>
 
         <PublicSection title="2. Account and authentication information">
           <p>
-            StudyGuru uses NextAuth and MongoDB for account creation, email sign-in, password recovery,
+            StudyCord uses NextAuth and MongoDB for account creation, email sign-in, password recovery,
             session management, and optional Google OAuth. Secure server-side routes process identifiers needed
             for authentication, such as your user ID and email address. If you use Google sign-in,
             Google processes the OAuth exchange under their respective policies.
@@ -49,7 +49,7 @@ export default function PrivacyPage() {
 
         <PublicSection title="3. Profile, server, and collaboration data">
           <p>
-            StudyGuru stores information you provide or create, including profile details, server
+            StudyCord stores information you provide or create, including profile details, server
             membership, roles, channel metadata, messages, attachments, pins, bans, resource
             ratings, and related timestamps. This information supports the collaboration features
             you request and the access controls associated with your account and servers.
@@ -86,20 +86,20 @@ export default function PrivacyPage() {
 
         <PublicSection title="6. Voice, video, and screen sharing">
           <p>
-            StudyGuru requests microphone, camera, or display access only when you use the related
+            StudyCord requests microphone, camera, or display access only when you use the related
             controls and your browser grants permission. WebRTC sends live media to call peers
             directly when possible or through a TURN relay when necessary. Signaling and presence
             records support call setup and participant discovery.
           </p>
           <p>
-            StudyGuru does not implement voice or video recording. Screen sharing may include
+            StudyCord does not implement voice or video recording. Screen sharing may include
             system audio only when you select that option and the browser supports it.
           </p>
         </PublicSection>
 
         <PublicSection title="7. Browser storage, cookies, and analytics">
           <p>
-            StudyGuru uses browser storage for authenticated session handling and local study chat
+            StudyCord uses browser storage for authenticated session handling and local study chat
             history. The application does not currently include a dedicated first-party analytics
             product. Infrastructure providers may process standard technical logs, IP addresses,
             device information, and request metadata for security, reliability, and operation.
@@ -112,7 +112,7 @@ export default function PrivacyPage() {
         </PublicSection>
 
         <PublicSection title="8. Service providers">
-          <p>StudyGuru currently relies on services that may process limited data for specific functions:</p>
+          <p>StudyCord currently relies on services that may process limited data for specific functions:</p>
           <ul>
             <li><strong>MongoDB & Pusher:</strong> database storage, user models, and real-time messaging events.</li>
             <li><strong>Google:</strong> optional OAuth and configured embedding services.</li>
@@ -124,21 +124,21 @@ export default function PrivacyPage() {
 
         <PublicSection title="9. Access, correction, and deletion">
           <p>
-            You can update available profile and server information through StudyGuru. Depending on
+            You can update available profile and server information through StudyCord. Depending on
             your role, you can delete your messages, leave servers, remove study content, or use
             server management controls. Some historical records may remain when required for shared
             resource integrity, moderation, security, backups, or legal obligations.
           </p>
           <p>
             For a privacy request that cannot be completed in the interface, contact the project
-            through StudyGuru support. Do not
+            through StudyCord support. Do not
             post passwords, tokens, private documents, or other sensitive information in messages.
           </p>
         </PublicSection>
 
         <PublicSection title="10. Security and changes">
           <p>
-            StudyGuru uses authenticated requests, server membership checks, role permissions, Row
+            StudyCord uses authenticated requests, server membership checks, role permissions, Row
             Level Security, backend-controlled paths, and scoped service operations. No internet
             service can guarantee absolute security, so use appropriate judgment when sharing data.
           </p>

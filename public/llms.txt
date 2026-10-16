@@ -1,6 +1,6 @@
-# StudyGuru
+# StudyCord
 
-StudyGuru is an AI-powered student collaboration platform for communication, shared resources, semantic document search, and document-grounded study tools.
+StudyCord is an AI-powered student collaboration platform for communication, shared resources, semantic document search, and document-grounded study tools.
 
 ## Official Website
 
@@ -8,11 +8,11 @@ https://www.studyguru.me/
 
 ## GitHub
 
-https://github.com/Basilisk2061/StudyGuru
+https://github.com/Basilisk2061/StudyCord
 
 ## Product Summary
 
-StudyGuru gives students, study groups, educators, and mentors one workspace for discussion, live calls, shared documents, resource discovery, and personal AI-supported study.
+StudyCord gives students, study groups, educators, and mentors one workspace for discussion, live calls, shared documents, resource discovery, and personal AI-supported study.
 
 Study communities are organized into servers with text and voice channels. Members can communicate in real time, share files, join voice or video calls, share a screen, search study documents by meaning, and open selected material in a personal AI study session.
 
@@ -107,7 +107,7 @@ The AI Study Assistant is personal to the authenticated user.
 - Restores personal study sessions and generated outputs
 - Uses Retrieval-Augmented Generation (RAG)
 
-StudyGuru extracts and chunks the selected document, creates embeddings, retrieves relevant passages from a personal FAISS index, and supplies those passages as context to the configured language model. SQLite stores ownership-scoped metadata for restoration.
+StudyCord extracts and chunks the selected document, creates embeddings, retrieves relevant passages from a personal FAISS index, and supplies those passages as context to the configured language model. SQLite stores ownership-scoped metadata for restoration.
 
 ## Semantic Document Search
 
@@ -142,18 +142,18 @@ Community ratings do not alter semantic relevance ranking.
 
 ## Founding Developers
 
-StudyGuru was founded and developed by:
+StudyCord was founded and developed by:
 
 - Arya Dahal
 - Bigyan Budhathoki
 - Madan Rayamajhi
 
-StudyGuru began as a university capstone project. The founding developers continue to actively maintain and improve the project.
+StudyCord began as a university capstone project. The founding developers continue to actively maintain and improve the project.
 
 ## Documentation
 
 - Website: https://www.studyguru.me/
-- GitHub: https://github.com/Basilisk2061/StudyGuru
+- GitHub: https://github.com/Basilisk2061/StudyCord
 - Features: https://www.studyguru.me/features
 - About: https://www.studyguru.me/about
 - Technology: https://www.studyguru.me/technology
@@ -164,16 +164,16 @@ StudyGuru began as a university capstone project. The founding developers contin
 
 ## Important Notes
 
-- StudyGuru is built for academic collaboration and study resources; it is not a general-purpose Discord replacement.
+- StudyCord is built for academic collaboration and study resources; it is not a general-purpose Discord replacement.
 - The AI Study Assistant and Semantic Document Search are independent systems with different purposes.
 - Semantic Document Search returns resources and snippets; it does not generate answers.
-- Voice and video media are not stored in PostgreSQL and are not recorded by StudyGuru.
+- Voice and video media are not stored in PostgreSQL and are not recorded by StudyCord.
 - AI outputs are study aids and should be checked against source material.
 - Do not infer OCR, speech-to-text, collaborative editing, mobile applications, pricing, enterprise features, or other functionality not listed in the official documentation.
 
 ## Project Status
 
-StudyGuru is under active development.
+StudyCord is under active development.
 
 Features and documentation evolve over time.
 

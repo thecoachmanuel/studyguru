@@ -284,7 +284,7 @@ export default function RightPanel({
       });
       if (finalDocText && typeof window !== 'undefined') {
         try {
-          window.sessionStorage.setItem(`studyguru_doc_text_${docId}`, finalDocText);
+          window.sessionStorage.setItem(`studycord_doc_text_${docId}`, finalDocText);
         } catch {}
       }
       setDeviceSessionCookie({
@@ -642,7 +642,7 @@ export default function RightPanel({
       let restoredDocText = session.extracted_text || session.document?.extracted_text || session.text || '';
       if (!restoredDocText && typeof window !== 'undefined') {
         try {
-          restoredDocText = window.sessionStorage.getItem(`studyguru_doc_text_${session.document_id}`) || '';
+          restoredDocText = window.sessionStorage.getItem(`studycord_doc_text_${session.document_id}`) || window.sessionStorage.getItem(`studyguru_doc_text_${session.document_id}`) || '';
         } catch {}
       }
       setUploadedDoc({

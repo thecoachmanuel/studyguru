@@ -12,7 +12,7 @@ const FEATURES = [
   {
     title: 'Semantic Document Search',
     summary: 'Find shared material by meaning instead of relying only on filenames or exact keywords.',
-    detail: 'StudyGuru indexes supported server resources with PostgreSQL pgvector and HNSW, then returns semantically relevant documents and snippets. It does not generate answers, remains independent from the AI Study Assistant, and keeps community ratings separate from relevance ranking.',
+    detail: 'StudyCord indexes supported server resources with PostgreSQL pgvector and HNSW, then returns semantically relevant documents and snippets. It does not generate answers, remains independent from the AI Study Assistant, and keeps community ratings separate from relevance ranking.',
   },
   {
     title: 'Real-time Messaging',
@@ -22,7 +22,7 @@ const FEATURES = [
   {
     title: 'Voice Channels',
     summary: 'Join a study room without creating a separate meeting.',
-    detail: 'Presence, microphone controls, peer discovery, and WebRTC signaling are connected to StudyGuru voice channels. Heartbeats help the interface identify active participants.',
+    detail: 'Presence, microphone controls, peer discovery, and WebRTC signaling are connected to StudyCord voice channels. Heartbeats help the interface identify active participants.',
   },
   {
     title: 'Video Calls',
@@ -57,16 +57,16 @@ const FEATURES = [
 ];
 
 const SEO = {
-  title: 'StudyGuru Features – AI Study, Search and Collaboration',
-  description: 'Explore StudyGuru features including messaging, voice and video channels, document sharing, semantic search, and a RAG-powered AI Study Assistant.',
+  title: 'StudyCord Features – AI Study, Search and Collaboration',
+  description: 'Explore StudyCord features including messaging, voice and video channels, document sharing, semantic search, and a RAG-powered AI Study Assistant.',
   path: '/features',
   structuredData: {
     '@context': 'https://schema.org',
     '@type': 'CollectionPage',
     '@id': 'https://www.studyguru.me/features#features',
     url: 'https://www.studyguru.me/features',
-    name: 'StudyGuru Features',
-    description: 'Communication, resource discovery, and AI-supported learning features in StudyGuru.',
+    name: 'StudyCord Features',
+    description: 'Communication, resource discovery, and AI-supported learning features in StudyCord.',
     isPartOf: { '@id': 'https://www.studyguru.me/#website' },
     mainEntity: {
       '@type': 'ItemList',
@@ -84,9 +84,9 @@ export default function FeaturesPage() {
   return (
     <PublicLayout seo={SEO}>
       <PublicHero
-        eyebrow="StudyGuru features"
+        eyebrow="StudyCord features"
         title="One workspace for group communication and focused study"
-        lead="StudyGuru combines the everyday tools a study group needs with resource-aware search and AI assistance grounded in the material students choose."
+        lead="StudyCord combines the everyday tools a study group needs with resource-aware search and AI assistance grounded in the material students choose."
       >
         <div className="public-hero__actions">
           <Link className="public-button public-button--primary" href="/signup">Get started</Link>

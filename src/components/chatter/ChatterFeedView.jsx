@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import ChatterNotesBar from './ChatterNotesBar';
 import ChatterUserProfileModal from './ChatterUserProfileModal';
 import ChatterCommentsSheet from './ChatterCommentsSheet';
@@ -199,6 +200,213 @@ export default function ChatterFeedView({
   const [editTag, setEditTag] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingPostId, setDeletingPostId] = useState(null);
+
+  // --- Pull-To-Refresh on Feeds Page ---
+  const [mounted, setMounted] = useState(false);
+  const feedRootRef = useRef(null);
+  const scrollContainerRef = useRef(null);
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isPulling, setIsPulling] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const startTouchRef = useRef({ y: 0, x: 0 });
+  const isPullCandidateRef = useRef(false);
+  const isPullingRef = useRef(false);
+  const pullDistanceRef = useRef(0);
+  const isRefreshingRef = useRef(false);
+  const hasVibratedRef = useRef(false);
+  const mouseStartRef = useRef(null);
+  const hasModalOpenRef = useRef(false);
+
+  const hasModalOpen = Boolean(createModalOpen || profileModalUser || activeCommentsPost || editingPost);
+  useEffect(() => {
+    hasModalOpenRef.current = hasModalOpen;
+  }, [hasModalOpen]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    pullDistanceRef.current = pullDistance;
+  }, [pullDistance]);
+
+  useEffect(() => {
+    isPullingRef.current = isPulling;
+  }, [isPulling]);
+
+  useEffect(() => {
+    isRefreshingRef.current = isRefreshing;
+  }, [isRefreshing]);
+
+  useEffect(() => {
+    const scrollContainer = feedRootRef.current?.closest('.chatter-main-column') || window;
+    scrollContainerRef.current = scrollContainer;
+
+    const getScrollTop = () => {
+      if (scrollContainer === window) return window.scrollY || 0;
+      return scrollContainer.scrollTop || 0;
+    };
+
+    // --- Touch Gestures (Mobile / Tablets / PWA) ---
+    const handleTouchStart = (e) => {
+      if (isRefreshingRef.current || hasModalOpenRef.current) return;
+      if (e.touches.length !== 1) return;
+      if (getScrollTop() > 3) return;
+
+      const target = e.target;
+      if (target.closest('input, textarea, select, button, a, [contenteditable="true"]')) {
+        return;
+      }
+
+      startTouchRef.current = {
+        y: e.touches[0].clientY,
+        x: e.touches[0].clientX,
+      };
+      isPullCandidateRef.current = true;
+      hasVibratedRef.current = false;
+    };
+
+    const handleTouchMove = (e) => {
+      if (!isPullCandidateRef.current || isRefreshingRef.current || hasModalOpenRef.current) return;
+      if (e.touches.length !== 1) return;
+
+      const touch = e.touches[0];
+      const diffY = touch.clientY - startTouchRef.current.y;
+      const diffX = Math.abs(touch.clientX - startTouchRef.current.x);
+
+      // Downward swipe detected at top of feed
+      if (diffY > 6 && diffY > diffX * 1.15 && getScrollTop() <= 3) {
+        if (!isPullingRef.current) {
+          isPullingRef.current = true;
+          setIsPulling(true);
+        }
+
+        if (e.cancelable) {
+          e.preventDefault();
+        }
+
+        const damped = Math.min(85, diffY * 0.45);
+        setPullDistance(damped);
+
+        if (damped >= 58 && !hasVibratedRef.current) {
+          hasVibratedRef.current = true;
+          if (typeof navigator !== 'undefined' && navigator.vibrate) {
+            try { navigator.vibrate(15); } catch {}
+          }
+        } else if (damped < 58) {
+          hasVibratedRef.current = false;
+        }
+      } else if (diffY <= 0 && isPullingRef.current) {
+        setPullDistance(0);
+        isPullingRef.current = false;
+        setIsPulling(false);
+      }
+    };
+
+    const handleTouchEnd = () => {
+      if (!isPullCandidateRef.current && !isPullingRef.current) return;
+
+      if (isPullingRef.current && pullDistanceRef.current >= 58) {
+        isRefreshingRef.current = true;
+        setIsRefreshing(true);
+        setPullDistance(52);
+
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+          try { navigator.vibrate(25); } catch {}
+        }
+
+        try {
+          sessionStorage.removeItem('chatter_cached_feed');
+        } catch {}
+
+        setTimeout(() => {
+          window.location.reload();
+        }, 350);
+      } else {
+        setPullDistance(0);
+        setIsPulling(false);
+      }
+
+      isPullCandidateRef.current = false;
+      isPullingRef.current = false;
+      hasVibratedRef.current = false;
+    };
+
+    // --- Mouse Drag Support (Desktop & DevTools testing) ---
+    const handleMouseDown = (e) => {
+      if (isRefreshingRef.current || hasModalOpenRef.current || e.button !== 0) return;
+      if (getScrollTop() > 3) return;
+      const target = e.target;
+      if (target.closest('input, textarea, select, button, a, [contenteditable="true"], .chatter-post-card')) {
+        return;
+      }
+
+      mouseStartRef.current = { y: e.clientY, x: e.clientX };
+    };
+
+    const handleMouseMove = (e) => {
+      if (!mouseStartRef.current || isRefreshingRef.current || hasModalOpenRef.current) return;
+      const diffY = e.clientY - mouseStartRef.current.y;
+      const diffX = Math.abs(e.clientX - mouseStartRef.current.x);
+
+      if (diffY > 15 && diffY > diffX * 1.2 && getScrollTop() <= 3) {
+        if (!isPullingRef.current) {
+          isPullingRef.current = true;
+          setIsPulling(true);
+        }
+        const damped = Math.min(85, diffY * 0.45);
+        setPullDistance(damped);
+      } else if (diffY <= 0 && isPullingRef.current) {
+        setPullDistance(0);
+        isPullingRef.current = false;
+        setIsPulling(false);
+      }
+    };
+
+    const handleMouseUp = () => {
+      if (mouseStartRef.current) {
+        if (isPullingRef.current && pullDistanceRef.current >= 58) {
+          isRefreshingRef.current = true;
+          setIsRefreshing(true);
+          setPullDistance(52);
+          try {
+            sessionStorage.removeItem('chatter_cached_feed');
+          } catch {}
+          setTimeout(() => {
+            window.location.reload();
+          }, 350);
+        } else {
+          setPullDistance(0);
+          setIsPulling(false);
+        }
+      }
+      mouseStartRef.current = null;
+      isPullingRef.current = false;
+    };
+
+    const targetEl = scrollContainer === window ? document : scrollContainer;
+
+    targetEl.addEventListener('touchstart', handleTouchStart, { passive: true });
+    targetEl.addEventListener('touchmove', handleTouchMove, { passive: false });
+    targetEl.addEventListener('touchend', handleTouchEnd, { passive: true });
+    targetEl.addEventListener('touchcancel', handleTouchEnd, { passive: true });
+
+    targetEl.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      targetEl.removeEventListener('touchstart', handleTouchStart);
+      targetEl.removeEventListener('touchmove', handleTouchMove);
+      targetEl.removeEventListener('touchend', handleTouchEnd);
+      targetEl.removeEventListener('touchcancel', handleTouchEnd);
+
+      targetEl.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
 
   // Infinite Scroll Pagination (10 posts per batch)
   const [visibleCount, setVisibleCount] = useState(10);
@@ -622,10 +830,98 @@ export default function ChatterFeedView({
     setCreateModalOpen(false);
   };
 
+  const indicatorNode = (
+    <div
+      className="chatter-pull-refresh-indicator"
+      aria-hidden="true"
+      style={{
+        position: 'absolute',
+        top: isRefreshing
+          ? 'calc(18px + env(safe-area-inset-top, 0px))'
+          : `calc(${Math.min(pullDistance - 18, 28)}px + env(safe-area-inset-top, 0px))`,
+        left: '50%',
+        transform: `translateX(-50%) scale(${isRefreshing ? 1 : Math.min(0.65 + (pullDistance / 58) * 0.35, 1.05)})`,
+        opacity: isRefreshing ? 1 : Math.min(pullDistance / 24, 1),
+        pointerEvents: 'none',
+        zIndex: 99999,
+        display: pullDistance > 0 || isRefreshing ? 'flex' : 'none',
+        alignItems: 'center',
+        gap: 8,
+        padding: '8px 16px',
+        borderRadius: 24,
+        background: 'rgba(14, 14, 14, 0.94)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        border: '1.5px solid rgba(64, 227, 120, 0.4)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.7), 0 0 16px rgba(64, 227, 120, 0.25)',
+        transition: isPulling ? 'none' : 'all 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+      }}
+    >
+      {isRefreshing ? (
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="var(--chatter-primary)"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{ animation: 'chatterSpin 0.75s linear infinite' }}
+        >
+          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+        </svg>
+      ) : (
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="var(--chatter-primary)"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{
+            transform: `rotate(${pullDistance >= 58 ? 180 : (pullDistance / 58) * 180}deg)`,
+            transition: 'transform 0.15s ease',
+          }}
+        >
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <polyline points="19 12 12 19 5 12" />
+        </svg>
+      )}
+      <span
+        style={{
+          fontSize: 13,
+          fontWeight: 750,
+          color: '#FFFFFF',
+          letterSpacing: '-0.01em',
+          fontFamily: 'inherit',
+        }}
+      >
+        {isRefreshing
+          ? 'Refreshing…'
+          : pullDistance >= 58
+          ? 'Release to refresh'
+          : 'Pull to refresh'}
+      </span>
+    </div>
+  );
+
   return (
     <div
-      style={{ paddingBottom: 'calc(84px + env(safe-area-inset-bottom, 0px))', width: '100%', position: 'relative' }}
+      ref={feedRootRef}
+      style={{
+        paddingBottom: 'calc(84px + env(safe-area-inset-bottom, 0px))',
+        width: '100%',
+        position: 'relative',
+        transform: pullDistance > 0 ? `translateY(${pullDistance * 0.32}px)` : 'none',
+        transition: isPulling ? 'none' : 'transform 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+      }}
     >
+      {mounted && scrollContainerRef.current
+        ? createPortal(indicatorNode, scrollContainerRef.current)
+        : indicatorNode}
       {/* Share Toast Banner */}
       {shareToast && (
         <div

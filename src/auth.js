@@ -59,7 +59,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (isDemoEmail && isDemoPassword) {
           return {
             id: '65f01234567890abcdef1234',
-            email: 'demo@studyguru.me',
+            email: email === 'demo@studyguru.me' ? 'demo@studyguru.me' : 'demo@studycord.me',
             name: 'Demo Student',
             image: null,
           };
@@ -88,7 +88,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           if (isDemoEmail) {
             return {
               id: '65f01234567890abcdef1234',
-              email: 'demo@studyguru.me',
+              email: email === 'demo@studyguru.me' ? 'demo@studyguru.me' : 'demo@studycord.me',
               name: 'Demo Student',
               image: null,
             };
