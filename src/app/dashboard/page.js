@@ -24,6 +24,8 @@ import DirectMessagesModal from '@/components/DirectMessagesModal';
 import UserStatusModal from '@/components/UserStatusModal';
 import ChatterChatRoom from '@/components/chatter/ChatterChatRoom';
 import ChatterAudioSpaceModal from '@/components/chatter/ChatterAudioSpaceModal';
+import ChatterFloatingCallBar from '@/components/chatter/ChatterFloatingCallBar';
+import ChatterNotificationsModal from '@/components/chatter/ChatterNotificationsModal';
 import ChatterUserProfileModal from '@/components/chatter/ChatterUserProfileModal';
 import ChatterSearchModal from '@/components/chatter/ChatterSearchModal';
 import ChatterNewDMSheet from '@/components/chatter/ChatterNewDMSheet';
@@ -232,6 +234,29 @@ export default function DashboardPage() {
   const [filterTag, setFilterTag] = useState(null);
   const [activePartnerUser, setActivePartnerUser] = useState(null);
   const [feedTab, setFeedTab] = useState('forYou');
+  const [notificationsModalOpen, setNotificationsModalOpen] = useState(false);
+  const [activeLiveSpaces, setActiveLiveSpaces] = useState([]);
+  const [notificationsList, setNotificationsList] = useState([]);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
+
+  const fetchNotificationsData = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const res = await fetch('/api/notifications');
+      if (res.ok) {
+        const data = await res.json();
+        setActiveLiveSpaces(data.activeSpaces || []);
+        setNotificationsList(data.notifications || []);
+        setUnreadNotificationsCount(data.unreadCount || 0);
+      }
+    } catch {}
+  }, [user?.id]);
+
+  useEffect(() => {
+    fetchNotificationsData();
+    const interval = setInterval(fetchNotificationsData, 8000);
+    return () => clearInterval(interval);
+  }, [fetchNotificationsData]);
 
   // Shared following state synchronized across Feed, Profile Modal, and Profile View
   const [followingMap, setFollowingMap] = useState({});
@@ -941,6 +966,7 @@ export default function DashboardPage() {
     if (!pusher) return;
 
     let globalChan = null;
+    let voiceChan = null;
     try {
       globalChan = pusher.subscribe('rooms-global');
       const handleGlobalSpaceJoined = (payload) => {
@@ -948,17 +974,26 @@ export default function DashboardPage() {
         const participantName = payload.username || 'A scholar';
         const spaceName = payload.channelName || 'Live Space';
         showToast(`🎙️ ${participantName} joined ${spaceName}`);
+        fetchNotificationsData();
       };
       globalChan.bind('space-joined', handleGlobalSpaceJoined);
 
+      voiceChan = pusher.subscribe('voice-counts-global');
+      const handleGlobalVoiceCounts = () => {
+        fetchNotificationsData();
+      };
+      voiceChan.bind('voice-counts-updated', handleGlobalVoiceCounts);
+
       return () => {
         try {
-          globalChan.unbind('space-joined', handleGlobalSpaceJoined);
+          globalChan?.unbind('space-joined', handleGlobalSpaceJoined);
           pusher.unsubscribe('rooms-global');
+          voiceChan?.unbind('voice-counts-updated', handleGlobalVoiceCounts);
+          pusher.unsubscribe('voice-counts-global');
         } catch {}
       };
     } catch {}
-  }, [user?.id, showToast]);
+  }, [user?.id, showToast, fetchNotificationsData]);
 
   // ──────────────────────────────────────────────
   // 6. Channel Actions
@@ -1236,9 +1271,10 @@ export default function DashboardPage() {
         }}
         profile={profile}
         unreadChatsCount={Object.values(unreadCounts).reduce((a, b) => a + b, 0)}
-        isJoinedInVoiceRoom={isJoinedInVoiceRoom}
+        isJoinedInVoiceRoom={Boolean(voiceSession?.joinedChannelId)}
         activeVoiceChannelName={activeVoiceChannelName}
         onLeaveVoice={leaveVoiceSession}
+        onOpenVoice={() => setAudioSpaceModalOpen(true)}
         onOpenSettings={() => setSettingsOpen(true)}
         onLogout={handleLogout}
       />
@@ -1250,7 +1286,8 @@ export default function DashboardPage() {
           <div className="chatter-main-column">
             <div className="chatter-center-container">
               <ChatterTopBar
-                onOpenNotifications={() => showToast('No new notifications')}
+                onOpenNotifications={() => setNotificationsModalOpen(true)}
+                unreadNotificationsCount={unreadNotificationsCount}
                 onOpenSearch={() => setSearchModalOpen(true)}
                 onOpenLiveSpaces={() => setChatterTab('rooms')}
                 onRandomTopic={() => setChatterTab('rooms')}
@@ -1295,7 +1332,8 @@ export default function DashboardPage() {
           <div className={`chatter-main-column ${activeChannelId && !activePartnerUser ? 'chatter-chats-list-pane--with-active' : ''}`}>
             <div className="chatter-center-container">
               <ChatterTopBar
-                onOpenNotifications={() => showToast('No new notifications')}
+                onOpenNotifications={() => setNotificationsModalOpen(true)}
+                unreadNotificationsCount={unreadNotificationsCount}
                 onOpenSearch={() => setSearchModalOpen(true)}
                 onOpenLiveSpaces={() => setChatterTab('rooms')}
                 onRandomTopic={() => setChatterTab('rooms')}
@@ -1417,7 +1455,8 @@ export default function DashboardPage() {
           <div className="chatter-main-column">
             <div className="chatter-center-container">
               <ChatterTopBar
-                onOpenNotifications={() => showToast('No new notifications')}
+                onOpenNotifications={() => setNotificationsModalOpen(true)}
+                unreadNotificationsCount={unreadNotificationsCount}
                 onOpenSearch={() => setSearchModalOpen(true)}
                 onOpenLiveSpaces={() => setChatterTab('rooms')}
                 onRandomTopic={() => setChatterTab('rooms')}
@@ -1460,7 +1499,8 @@ export default function DashboardPage() {
           {/* Left conversations list pane */}
           <div className={`chatter-chats-list-pane ${activeChannelId ? 'chatter-chats-list-pane--with-active' : ''}`}>
             <ChatterTopBar
-              onOpenNotifications={() => showToast('No new notifications')}
+              onOpenNotifications={() => setNotificationsModalOpen(true)}
+              unreadNotificationsCount={unreadNotificationsCount}
               onOpenSearch={() => setSearchModalOpen(true)}
               onOpenLiveSpaces={() => setChatterTab('rooms')}
               onRandomTopic={() => setChatterTab('rooms')}
@@ -1565,8 +1605,8 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ── Chatter Audio & Video Space Modal ── */}
-      {(audioSpaceModalOpen || isJoinedInVoiceRoom) && (
+      {/* ── Chatter Audio & Video Space Modal (Full Screen Stage) ── */}
+      {audioSpaceModalOpen && (
         <ChatterAudioSpaceModal
           voiceSession={voiceSession}
           channelName={activeVoiceChannelName || activeChannelName}
@@ -1579,6 +1619,17 @@ export default function DashboardPage() {
           onClose={() => setAudioSpaceModalOpen(false)}
           userId={user?.id}
           profile={profile}
+        />
+      )}
+
+      {/* ── Persistent Floating Call Bar (Docked when active & modal is minimized) ── */}
+      {Boolean(voiceSession?.joinedChannelId) && !audioSpaceModalOpen && (
+        <ChatterFloatingCallBar
+          voiceSession={voiceSession}
+          channelName={activeVoiceChannelName || activeChannelName}
+          serverName={activeServerName}
+          onExpand={() => setAudioSpaceModalOpen(true)}
+          onLeave={() => leaveVoiceSession?.()}
         />
       )}
 
@@ -1775,7 +1826,34 @@ export default function DashboardPage() {
         </div>
       )}
 
-
+      {/* ── Chatter Notifications & Live Spaces Modal ── */}
+      <ChatterNotificationsModal
+        isOpen={notificationsModalOpen}
+        onClose={() => setNotificationsModalOpen(false)}
+        activeSpaces={activeLiveSpaces}
+        notifications={notificationsList}
+        unreadCount={unreadNotificationsCount}
+        onJoinSpace={(sId, cId, cName) => {
+          if (sId) handleSelectServer(sId);
+          setActiveChannelId(cId);
+          setActiveChannelName(cName);
+          setActiveChannelType('voice');
+          setAudioSpaceModalOpen(true);
+          voiceSession?.handleJoin?.(cId, cName, sId);
+        }}
+        onMarkAllRead={async () => {
+          try {
+            await fetch('/api/notifications', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'mark-all-read' }),
+            });
+            setNotificationsList((prev) => prev.map((n) => ({ ...n, read: true })));
+            setUnreadNotificationsCount(activeLiveSpaces.length);
+          } catch {}
+        }}
+        onRefresh={fetchNotificationsData}
+      />
     </div>
   );
 }

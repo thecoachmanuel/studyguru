@@ -20,7 +20,18 @@ export default function ChatterRoomsView({
   const [joiningServerId, setJoiningServerId] = useState(null);
   const [creatingSpace, setCreatingSpace] = useState(false);
 
-  const interests = ['All', 'Computer Science', 'Mathematics', 'Biology', 'Medicine', 'Physics', 'Law'];
+  // Dynamically compute all interests including custom categories created by users
+  const interests = useMemo(() => {
+    const base = ['All', 'Computer Science', 'Mathematics', 'Biology', 'Medicine', 'Physics', 'Law', 'General Study'];
+    const custom = new Set();
+    [...communityRooms, ...servers].forEach((s) => {
+      const cat = s?.category?.trim();
+      if (cat && cat !== 'All' && !base.includes(cat)) {
+        custom.add(cat);
+      }
+    });
+    return [...base, ...Array.from(custom)];
+  }, [communityRooms, servers]);
 
   // Categorize study servers dynamically
   const getServerCategory = (server) => {
@@ -32,7 +43,7 @@ export default function ChatterRoomsView({
     if (name.includes('chem')) return 'Biology';
     if (name.includes('phys')) return 'Physics';
     if (name.includes('law')) return 'Law';
-    return 'Computer Science';
+    return server.category || 'General Study';
   };
 
   const [copiedServerId, setCopiedServerId] = useState(null);

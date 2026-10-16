@@ -103,6 +103,38 @@ export async function addOrUpdateParticipant({ channelId, serverId, user, isMute
           caller: participant.profiles,
           speakers: activeSpeakers,
         });
+
+        // Persist notification for server members so they see ongoing session when offline/away
+        try {
+          const db = await getDatabase();
+          const srv = await db.collection('servers').findOne({
+            $or: [{ _id: serverId }, { id: serverId }]
+          });
+          const memberIds = (srv?.member_ids || srv?.members || [])
+            .map((m) => (typeof m === 'object' ? String(m.user_id || m.id) : String(m)))
+            .filter((mId) => mId && mId !== userId);
+
+          if (memberIds.length > 0) {
+            const notifs = memberIds.map((mId) => ({
+              recipient_id: mId,
+              type: 'space-started',
+              title: '🎙️ Live Study Space Started',
+              message: `${participant.profiles?.full_name || participant.name || 'A classmate'} started a live space in ${srv?.name || 'your study room'}`,
+              actor: participant.profiles,
+              data: {
+                channelId,
+                serverId,
+                serverName: srv?.name || 'Study Room',
+                category: srv?.category || 'Study',
+              },
+              read: false,
+              createdAt: new Date().toISOString(),
+            }));
+            await db.collection('notifications').insertMany(notifs);
+          }
+        } catch (notifErr) {
+          console.debug('Space started notif error:', notifErr?.message);
+        }
       }
     }
     await pusher.trigger('voice-counts-global', 'voice-counts-updated', {

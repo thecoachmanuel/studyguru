@@ -17,7 +17,7 @@ function parseKeyPool(...envNames) {
 const geminiKeys = parseKeyPool('GEMINI_API_KEYS', 'GEMINI_API_KEY', 'GOOGLE_API_KEY');
 const openrouterKeys = parseKeyPool('OPENROUTER_API_KEYS', 'OPENROUTER_API_KEY');
 // Provider circuit breaker state: if a provider runs out of credits or has auth/not-found issues,
-// cool off for 10 minutes so users don't suffer 6-8 seconds of failed round-trip timeouts.
+// cool off for 24 hours so users don't suffer 6-8 seconds of failed round-trip timeouts on depleted keys.
 let geminiCircuitBrokenUntil = 0;
 
 export function isGeminiCircuitOpen() {
@@ -26,7 +26,12 @@ export function isGeminiCircuitOpen() {
 
 export function tripGeminiCircuit(reason = '') {
   console.warn(`[LLM Fast Path] Tripping Gemini circuit breaker (${reason}). Routing directly to high-speed OpenRouter pool.`);
-  geminiCircuitBrokenUntil = Date.now() + 10 * 60 * 1000;
+  geminiCircuitBrokenUntil = Date.now() + 24 * 60 * 60 * 1000;
+}
+
+// Auto-trip circuit immediately if key has depleted credits
+if (geminiKeys.some((k) => k.startsWith('AQ.'))) {
+  tripGeminiCircuit('prepayment credits depleted');
 }
 
 // Configured models with automatic multi-tier failover (valid modern models)
@@ -40,15 +45,17 @@ const GEMINI_MODELS = Array.from(
   ].filter(Boolean))
 );
 
-// Verified active ultra-low-latency free models pool on OpenRouter (ultra-fast TTFT first)
+// Verified active ultra-low-latency free models pool on OpenRouter (ultra-fast sub-second TTFT first)
 const OPENROUTER_MODELS = Array.from(
   new Set([
     process.env.OPENROUTER_MODEL,
-    'google/gemini-2.0-flash-lite:free',
-    'meta-llama/llama-3.3-70b-instruct:free',
-    'meta-llama/llama-3.1-8b-instruct:free',
-    'mistralai/mistral-7b-instruct:free',
+    'cohere/north-mini-code:free',
+    'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+    'nvidia/nemotron-3.5-super-vl:free',
+    'liquid/lfm-2.5-2.6b:free',
+    'openrouter/free',
     'openrouter/auto',
+    'google/gemma-4-26b-a4b-it:free',
   ].filter(Boolean))
 );
 
@@ -225,6 +232,7 @@ async function callOpenRouter({ prompt, systemPrompt = '', json = false }) {
               'X-Title': 'StudyCord',
             },
             body: JSON.stringify(body),
+            signal: AbortSignal.timeout(4000),
           });
 
           if (res.status === 429) {
@@ -294,6 +302,7 @@ async function* streamOpenRouter({ prompt, systemPrompt = '' }) {
             stream: true,
             reasoning: { max_tokens: 0 },
           }),
+          signal: AbortSignal.timeout(4000),
         });
 
         if (res.status === 429) {

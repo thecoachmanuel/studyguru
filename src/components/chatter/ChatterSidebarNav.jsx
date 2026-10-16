@@ -8,6 +8,7 @@ export default function ChatterSidebarNav({
   activeVoiceChannelName = null,
   isJoinedInVoiceRoom = false,
   onLeaveVoice,
+  onOpenVoice,
   onOpenSettings,
   onLogout,
 }) {
@@ -115,14 +116,18 @@ export default function ChatterSidebarNav({
         {/* Active Audio Space indicator if connected */}
         {isJoinedInVoiceRoom && (
           <div
+            onClick={onOpenVoice}
+            title="Click to return to active study space"
             style={{
               background: 'var(--chatter-audiospace)',
-              border: '1px solid rgba(64, 227, 120, 0.3)',
+              border: '1px solid rgba(64, 227, 120, 0.35)',
               borderRadius: 12,
               padding: '10px 12px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
+              cursor: onOpenVoice ? 'pointer' : 'default',
+              transition: 'border-color 0.15s ease',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
@@ -138,7 +143,10 @@ export default function ChatterSidebarNav({
             </div>
             <button
               type="button"
-              onClick={onLeaveVoice}
+              onClick={(e) => {
+                e.stopPropagation();
+                onLeaveVoice?.();
+              }}
               title="Leave Room"
               style={{
                 background: 'rgba(255, 57, 57, 0.15)',
