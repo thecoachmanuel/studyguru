@@ -5,7 +5,7 @@ import { getPusherClient } from '../lib/pusherClient';
 const AUTOPLAY_WARNING = 'Your browser blocked automatic media playback. Click the page, then try again.';
 const PLAYBACK_RETRY_EVENTS = ['pointerdown', 'click', 'keydown', 'touchstart'];
 
-const unlockAudioOnMobile = () => {
+export const unlockAudioDesktopAndMobile = () => {
   if (typeof window === 'undefined') return;
   try {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -16,9 +16,34 @@ const unlockAudioOnMobile = () => {
       if (window.__studycord_audio_ctx.state === 'suspended') {
         window.__studycord_audio_ctx.resume().catch(() => {});
       }
+      try {
+        const buffer = window.__studycord_audio_ctx.createBuffer(1, 1, 22050);
+        const source = window.__studycord_audio_ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(window.__studycord_audio_ctx.destination);
+        source.start(0);
+      } catch {}
     }
+
+    // Play all mounted remote-audio elements
+    const remoteAudios = document.querySelectorAll('audio[id^="remote-audio-"]');
+    remoteAudios.forEach((el) => {
+      if (el && el.srcObject) {
+        el.muted = false;
+        el.volume = 1.0;
+        el.play().catch(() => {});
+      }
+    });
   } catch {}
 };
+
+const unlockAudioOnMobile = unlockAudioDesktopAndMobile;
+if (typeof window !== 'undefined') {
+  window.__unlockStudyCordAudio = unlockAudioDesktopAndMobile;
+  ['click', 'pointerdown', 'keydown'].forEach((evt) => {
+    window.addEventListener(evt, unlockAudioDesktopAndMobile, { once: false, passive: true });
+  });
+}
 
 export function useVoiceSession(userId, profile = null) {
   const [joinedChannelId, setJoinedChannelId] = useState(null);
@@ -496,13 +521,19 @@ export function useVoiceSession(userId, profile = null) {
       [otherUserId]: 'connecting',
     }));
 
-    if (localStreamRef.current) {
+    const localAudioTracks = localStreamRef.current ? localStreamRef.current.getAudioTracks() : [];
+    if (localAudioTracks.length > 0) {
       console.log(`[WebRTC] Adding local audio tracks to peer connection for ${otherUserId}`);
-      localStreamRef.current.getAudioTracks().forEach((track) => {
+      localAudioTracks.forEach((track) => {
         pc.addTrack(track, localStreamRef.current);
       });
     } else {
-      console.warn(`[WebRTC] localStreamRef.current is empty when building connection for ${otherUserId}`);
+      console.log(`[WebRTC] No local audio track available for ${otherUserId}, creating recvonly audio transceiver`);
+      try {
+        pc.addTransceiver('audio', { direction: 'recvonly' });
+      } catch (err) {
+        console.warn('[WebRTC] addTransceiver audio error:', err);
+      }
     }
 
     // Reserve one video sender in the initial negotiation. Screen share takes
@@ -670,14 +701,19 @@ export function useVoiceSession(userId, profile = null) {
           audioElement.autoplay = true;
           audioElement.playsInline = true;
           audioElement.muted = false;
+          audioElement.volume = 1.0;
           audioElement.setAttribute('playsinline', 'true');
           audioElement.setAttribute('webkit-playsinline', 'true');
           audioElement.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;opacity:0.01;pointer-events:none;';
           document.body.appendChild(audioElement);
         }
-        audioElement.srcObject = remoteStream;
+        // Provide pure audio stream to prevent desktop media decode stalls
+        const audioOnlyStream = (event.streams && event.streams[0]) ? event.streams[0] : new MediaStream([event.track]);
+        audioElement.srcObject = audioOnlyStream;
+        audioElement.volume = 1.0;
+        audioElement.muted = false;
         playRemoteMedia(audioElement);
-        unlockAudioOnMobile();
+        unlockAudioDesktopAndMobile();
       }
 
       // Clone MediaStream with current tracks to trigger React state reactivity and component re-render
@@ -1512,7 +1548,14 @@ export function useVoiceSession(userId, profile = null) {
     isLocalMutedRef.current = false;
 
     try {
-      await initLocalAudio(false);
+      try {
+        await initLocalAudio(false);
+      } catch (micErr) {
+        console.warn('[WebRTC] Microphone unavailable, joining as listener:', micErr);
+        setIsLocalMuted(true);
+        isLocalMutedRef.current = true;
+        setMicConnected(true);
+      }
 
       // Fetch TURN / STUN credentials
       try {
@@ -1538,7 +1581,7 @@ export function useVoiceSession(userId, profile = null) {
         channel_id: channelId,
         server_id: serverId,
         user_id: userId,
-        is_muted: false,
+        is_muted: isLocalMutedRef.current,
         joined_at: new Date().toISOString(),
         last_seen: new Date().toISOString(),
         name: profile?.full_name || profile?.name || 'You',
@@ -1563,7 +1606,7 @@ export function useVoiceSession(userId, profile = null) {
           body: JSON.stringify({
             action: 'join',
             serverId,
-            isMuted: false,
+            isMuted: isLocalMutedRef.current,
             userName: profile?.full_name || profile?.name || profile?.username,
             username: profile?.username,
             avatar_url: profile?.avatar_url,
@@ -1830,6 +1873,28 @@ export function useVoiceSession(userId, profile = null) {
           window.dispatchEvent(new CustomEvent('studycord_hand_raise_updated', {
             detail: { userId: user_id, name: user_name, raised: Boolean(raised) },
           }));
+          if (raised && String(user_id) !== String(userId)) {
+            window.dispatchEvent(new CustomEvent('studycord_toast', {
+              detail: `✋ ${user_name || 'A classmate'} raised hand to speak`,
+            }));
+          }
+        }
+      });
+
+      chan.bind('promoted-to-speaker', ({ targetUserId, promotedByName }) => {
+        if (String(targetUserId) === String(userId)) {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(
+              new CustomEvent('studycord_promoted_to_speaker', {
+                detail: { promotedByName },
+              })
+            );
+            window.dispatchEvent(
+              new CustomEvent('studycord_toast', {
+                detail: `🎙️ ${promotedByName || 'The host'} invited you to speak!`,
+              })
+            );
+          }
         }
       });
 
@@ -1863,17 +1928,17 @@ export function useVoiceSession(userId, profile = null) {
 
   // ---------- WebRTC Call initialization & tracking ----------
   useEffect(() => {
-    if (!joinedChannelId || !micConnected) {
-      cleanupAllCalls('no-channel-or-mic-disconnected');
+    if (!joinedChannelId) {
+      cleanupAllCalls('no-channel-joined');
       return;
     }
 
     const startConnections = async () => {
-      const remoteParticipants = participants.filter((p) => p.user_id !== userId);
+      const remoteParticipants = participants.filter((p) => String(p.user_id || p.userId) !== String(userId));
       console.log(`[WebRTC] Evaluating connections for ${remoteParticipants.length} remote participant(s)`);
 
       for (const p of remoteParticipants) {
-        const otherUserId = p.user_id;
+        const otherUserId = String(p.user_id || p.userId);
 
         // Skip if connection already exists and is in a non-terminal state.
         // 'disconnected' is handled by the reconnect timer inside oniceconnectionstatechange,
@@ -1918,7 +1983,7 @@ export function useVoiceSession(userId, profile = null) {
         }
 
         // Deterministic offer rule: smaller userId sends offer, with 1.5s initiator fallback timer to prevent deadlock
-        if (userId < otherUserId) {
+        if (String(userId) < String(otherUserId)) {
           console.log(`[WebRTC] Sending offer to ${otherUserId} (we are initiator)`);
           createPeerConnection(otherUserId);
           try {
@@ -2005,6 +2070,21 @@ export function useVoiceSession(userId, profile = null) {
     }
   }, [handleStartScreenShare, handleStopScreenShare]);
 
+  const promoteToSpeaker = useCallback(async (targetUserId) => {
+    if (!joinedChannelId || !targetUserId) return;
+    try {
+      await apiRequest(`/api/channels/${joinedChannelId}/voice`, {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'promote-speaker',
+          targetUserId: String(targetUserId),
+        }),
+      });
+    } catch (e) {
+      console.warn('Failed to promote to speaker:', e);
+    }
+  }, [joinedChannelId]);
+
   return {
     joinedChannelId,
     joinedChannelName,
@@ -2024,6 +2104,8 @@ export function useVoiceSession(userId, profile = null) {
     toggleMic,
     toggleCamera,
     toggleScreenShare,
+    promoteToSpeaker,
+    unlockAudio: unlockAudioDesktopAndMobile,
     connectionStatuses,
     turnWarning,
     cameraEnabled,

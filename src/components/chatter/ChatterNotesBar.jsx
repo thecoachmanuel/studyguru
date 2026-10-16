@@ -374,7 +374,7 @@ export default function ChatterNotesBar({
   };
 
   return (
-    <div style={{ padding: '10px 14px 12px', borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
+    <div style={{ padding: '10px 14px 12px', borderBottom: '1px solid rgba(255, 255, 255, 0.06)', background: 'var(--chatter-black)', position: 'relative', zIndex: 1 }}>
       <div
         style={{
           display: 'flex',

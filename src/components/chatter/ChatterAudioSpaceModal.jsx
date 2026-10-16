@@ -15,6 +15,8 @@ export default function ChatterAudioSpaceModal({
   const [raisedHandsMap, setRaisedHandsMap] = useState({});
   const [leaveNotification, setLeaveNotification] = useState('');
   const [joinNotification, setJoinNotification] = useState('');
+  const [handRaiseNotification, setHandRaiseNotification] = useState(null);
+  const [promotedNotification, setPromotedNotification] = useState(null);
   const [isScreenMaximized, setIsScreenMaximized] = useState(false);
 
   useEffect(() => {
@@ -38,17 +40,32 @@ export default function ChatterAudioSpaceModal({
           ...prev,
           [String(e.detail.userId)]: Boolean(e.detail.raised),
         }));
+        if (e.detail.raised) {
+          setHandRaiseNotification({
+            userId: String(e.detail.userId),
+            name: e.detail.name || 'A classmate',
+          });
+          const timer = setTimeout(() => setHandRaiseNotification(null), 7000);
+          return () => clearTimeout(timer);
+        }
       }
+    };
+    const handlePromoted = (e) => {
+      setPromotedNotification(e?.detail?.promotedByName || 'The host');
+      const timer = setTimeout(() => setPromotedNotification(null), 8000);
+      return () => clearTimeout(timer);
     };
 
     window.addEventListener('studycord_voice_user_left', handleUserLeft);
     window.addEventListener('studycord_voice_user_joined', handleUserJoined);
     window.addEventListener('studycord_hand_raise_updated', handleHandRaise);
+    window.addEventListener('studycord_promoted_to_speaker', handlePromoted);
 
     return () => {
       window.removeEventListener('studycord_voice_user_left', handleUserLeft);
       window.removeEventListener('studycord_voice_user_joined', handleUserJoined);
       window.removeEventListener('studycord_hand_raise_updated', handleHandRaise);
+      window.removeEventListener('studycord_promoted_to_speaker', handlePromoted);
     };
   }, []);
 
@@ -99,6 +116,7 @@ export default function ChatterAudioSpaceModal({
   // Deduplicate participants rigorously by unique normalized string ID
   const participantsMap = new Map();
   const effectiveOwnerId = roomOwnerId ? String(roomOwnerId).trim() : null;
+  const isHostMe = effectiveOwnerId ? String(userId || '').trim() === effectiveOwnerId : false;
 
   for (const p of participants) {
     if (!p) continue;
@@ -214,6 +232,7 @@ export default function ChatterAudioSpaceModal({
 
   return (
     <div
+      onClick={() => voiceSession?.unlockAudio?.()}
       style={{
         position: 'fixed',
         inset: 0,
@@ -336,8 +355,46 @@ export default function ChatterAudioSpaceModal({
           boxSizing: 'border-box',
         }}
       >
+        {/* Desktop 1-Click Audio Enable Banner if browser autoplay is blocked */}
+        {autoplayWarning && (
+          <div
+            onClick={() => voiceSession?.unlockAudio?.()}
+            style={{
+              padding: '12px 18px',
+              borderRadius: 14,
+              background: 'rgba(64, 227, 120, 0.2)',
+              border: '1.5px solid var(--chatter-primary)',
+              color: '#fff',
+              fontSize: 14,
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 16,
+              cursor: 'pointer',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 18 }}>🔊</span>
+              <span>Audio blocked by browser. <strong>Click here to enable sound</strong>.</span>
+            </div>
+            <span
+              style={{
+                background: 'var(--chatter-primary)',
+                color: '#0E0E0E',
+                padding: '5px 12px',
+                borderRadius: 12,
+                fontSize: 12.5,
+                fontWeight: 800,
+              }}
+            >
+              Unmute Room
+            </span>
+          </div>
+        )}
+
         {/* Floating Error Banner */}
-        {(screenShareError || error || autoplayWarning) && (
+        {(screenShareError || error) && (
           <div
             style={{
               padding: '10px 16px',
@@ -354,7 +411,7 @@ export default function ChatterAudioSpaceModal({
               gap: 10,
             }}
           >
-            <span>{screenShareError || error || autoplayWarning}</span>
+            <span>{screenShareError || error}</span>
             <button
               type="button"
               onClick={() => {
@@ -372,6 +429,123 @@ export default function ChatterAudioSpaceModal({
             >
               ✕
             </button>
+          </div>
+        )}
+
+        {/* Floating Host Invited You to Speak Banner */}
+        {promotedNotification && (
+          <div
+            style={{
+              padding: '12px 18px',
+              borderRadius: 14,
+              background: 'linear-gradient(135deg, rgba(64, 227, 120, 0.25), rgba(59, 130, 246, 0.25))',
+              border: '1.5px solid var(--chatter-primary)',
+              color: '#fff',
+              fontSize: 14,
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 16,
+              gap: 12,
+              animation: 'fadeIn 0.2s ease',
+              boxShadow: '0 4px 20px rgba(64, 227, 120, 0.3)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 18 }}>🎙️</span>
+              <span><strong>{promotedNotification}</strong> invited you to speak!</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {isMuted && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onToggleMic();
+                    setPromotedNotification(null);
+                  }}
+                  style={{
+                    background: 'var(--chatter-primary)',
+                    border: 'none',
+                    color: '#0E0E0E',
+                    padding: '6px 14px',
+                    borderRadius: 12,
+                    fontSize: 13,
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Unmute Mic
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setPromotedNotification(null)}
+                style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: 14, cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Floating Hand Raise Notification with Host Action */}
+        {handRaiseNotification && (
+          <div
+            style={{
+              padding: '11px 18px',
+              borderRadius: 14,
+              background: 'rgba(234, 179, 8, 0.18)',
+              border: '1.5px solid rgba(234, 179, 8, 0.5)',
+              color: '#FACC15',
+              fontSize: 14,
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 16,
+              gap: 10,
+              animation: 'fadeIn 0.2s ease',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 18 }}>✋</span>
+              <span><strong>{handRaiseNotification.name}</strong> raised hand to speak</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {isHostMe && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    voiceSession?.promoteToSpeaker?.(handRaiseNotification.userId);
+                    setHandRaiseNotification(null);
+                  }}
+                  style={{
+                    background: '#FACC15',
+                    border: 'none',
+                    color: '#0E0E0E',
+                    padding: '5px 12px',
+                    borderRadius: 12,
+                    fontSize: 12.5,
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
+                >
+                  <span>🎙️</span>
+                  <span>Invite to Speak</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setHandRaiseNotification(null)}
+                style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: 14, cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
           </div>
         )}
 
@@ -791,6 +965,33 @@ export default function ChatterAudioSpaceModal({
                       >
                         👑 Host
                       </span>
+                    )}
+
+                    {/* Host action: Push/Invite to Speak */}
+                    {isHostMe && !isMe && (
+                      <button
+                        type="button"
+                        onClick={() => voiceSession?.promoteToSpeaker?.(listener.userId)}
+                        style={{
+                          marginTop: 6,
+                          background: 'rgba(64, 227, 120, 0.16)',
+                          border: '1px solid var(--chatter-primary)',
+                          color: 'var(--chatter-primary)',
+                          padding: '3px 8px',
+                          borderRadius: 12,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 3,
+                          transition: 'all 0.15s ease',
+                        }}
+                        title={`Invite ${listener.name} to speak`}
+                      >
+                        <span>🎙️</span>
+                        <span>Invite</span>
+                      </button>
                     )}
                   </div>
                 );

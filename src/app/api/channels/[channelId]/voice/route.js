@@ -134,6 +134,25 @@ export async function POST(req, { params }) {
       return NextResponse.json({ success: true });
     }
 
+    if (action === 'promote-speaker') {
+      const targetUserId = body.targetUserId ? String(body.targetUserId) : null;
+      if (targetUserId) {
+        try {
+          const { getPusherServer } = await import('@/lib/pusherServer');
+          const pusher = getPusherServer();
+          await pusher.trigger(`voice-channel-${channelId}`, 'promoted-to-speaker', {
+            targetUserId,
+            promotedBy: session.user.id,
+            promotedByName: resolvedName,
+          });
+        } catch (pErr) {
+          console.warn('Error broadcasting promote-speaker:', pErr.message);
+        }
+        return NextResponse.json({ success: true });
+      }
+      return NextResponse.json({ error: 'targetUserId required' }, { status: 400 });
+    }
+
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
   } catch (error) {
     console.error('Error in POST /api/channels/[channelId]/voice:', error);

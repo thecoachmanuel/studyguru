@@ -1548,8 +1548,8 @@ export default function DashboardPage() {
       )}
 
       {/* ── Mobile 5-Tab Navigation Bar (Exact Chatter App TabBarScreen) ── */}
-      {/* Hide bottom navigation when inside active chat room or when StudyCord AI (AI Guru) is open to occupy fullscreen */}
-      {!(chatterTab === 'chats' && activeChannelId) && !(chatterTab === 'rooms' && activeChannelId) && chatterTab !== 'guru' && (
+      {/* Hide bottom navigation only when inside active channel chat room */}
+      {!(chatterTab === 'chats' && activeChannelId) && !(chatterTab === 'rooms' && activeChannelId) && (
         <ChatterBottomNav
           activeTab={chatterTab}
           onSelectTab={(tab) => {

@@ -9669,7 +9669,8 @@ body {
 
 @media (max-width: 768px) {
   .chatter-guru-compose {
-    padding: 8px 14px max(8px, env(safe-area-inset-bottom, 8px)) !important;
+    padding: 8px 14px 10px !important;
+    margin-bottom: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
 
@@ -9973,11 +9974,15 @@ body {
   padding-top: 0 !important;
 }
 
-/* 4. Bottom Navigation & Home Indicator Protections */
+/* 4. Top Navigation Sticky Protections (Timeline style) */
 .chatter-topbar {
   position: sticky !important;
   top: 0 !important;
-  z-index: 60 !important;
+  z-index: 100 !important;
+  background: rgba(14, 14, 14, 0.98) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  backdrop-filter: blur(20px) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
 .chatter-tabbar {
