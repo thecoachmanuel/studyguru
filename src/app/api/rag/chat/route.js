@@ -295,9 +295,18 @@ function extractFastRelevantPassages(text, query, maxChars = 22000) {
     // 5. Personal Tutor System Prompt (Grounded in doc if present, versatile academic wisdom overall)
     const isGuidedMode = !isFreeChat && (body.mode === 'guided' || Boolean(docTitle));
     const hasActiveDoc = !isFreeChat && Boolean(docTitle && (fullDocumentText || contextChunks.length > 0));
+    const isVoiceMode = Boolean(body.voiceMode);
 
     const systemPrompt = `You are StudyCord AI (AI Guru), a brilliant, empathetic, and encouraging Personal Academic Tutor on StudyCord.
 Your mission is to guide the student through their academic questions using an interactive, adaptive, conversational tutoring approach.
+${isVoiceMode ? `
+VOICE CALL SPOKEN TUTORING DIRECTIVE (CRITICAL FOR LIVE SPEECH):
+• You are speaking LIVE with the student in a real-time hands-free voice call.
+• Keep your spoken response natural, conversational, and direct (1 to 3 spoken sentences, ideally 30 to 60 words).
+• DO NOT output markdown headers, code blocks, bullet points, asterisks, URLs, or formatting symbols that sound awkward when read aloud by text-to-speech.
+• Speak warmly and clearly like a friendly private tutor on the phone ("Great question!", "Think of it like...", "Here's the key takeaway...").
+• End with a brief spoken check-in or next-step question (e.g. "Does that make sense?", "Want me to break that down further?", "Ready for a quick quiz question?").
+` : ''}
 
 ${isFreeChat ? `FREE CHAT MODE (UNRESTRICTED ACADEMIC TUTOR):
 • You are operating in FREE CHAT MODE. Do NOT read, search, cite, or assume any uploaded document or notes.

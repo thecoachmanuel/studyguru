@@ -6,6 +6,7 @@ import ChatbotIcon from '@/components/ChatbotIcon';
 import ChatMarkdownMessage from '@/components/ChatMarkdownMessage';
 import { TwitterVerifiedBadge } from './ChatterFeedView';
 import { parseDocumentLocally } from '@/lib/clientDocumentParser';
+import ChatterGuruVoiceModal from './ChatterGuruVoiceModal';
 
 const WORD_TO_NUMBER = {
   one: 1, two: 2, three: 3, four: 4, five: 5,
@@ -198,6 +199,26 @@ export default function ChatterGuruView({
   const [copiedMsgId, setCopiedMsgId] = useState(null);
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editingText, setEditingText] = useState('');
+  const [voiceModalOpen, setVoiceModalOpen] = useState(false);
+  const [speakingMsgId, setSpeakingMsgId] = useState(null);
+
+  const handleToggleSpeech = (msgId, text) => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+    if (speakingMsgId === msgId) {
+      window.speechSynthesis.cancel();
+      setSpeakingMsgId(null);
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const clean = (text || '').replace(/[*#`_~>\[\]\(\)]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!clean) return;
+    const utterance = new SpeechSynthesisUtterance(clean);
+    utterance.onend = () => setSpeakingMsgId(null);
+    utterance.onerror = () => setSpeakingMsgId(null);
+    setSpeakingMsgId(msgId);
+    window.speechSynthesis.speak(utterance);
+  };
+
   const abortControllerRef = useRef(null);
   const activeReaderRef = useRef(null);
 
@@ -1609,6 +1630,36 @@ export default function ChatterGuruView({
 
           <button
             type="button"
+            onClick={() => setVoiceModalOpen(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '6px 13px',
+              borderRadius: 16,
+              background: 'linear-gradient(135deg, rgba(64, 227, 120, 0.18) 0%, rgba(30, 180, 80, 0.10) 100%)',
+              border: '1px solid rgba(64, 227, 120, 0.45)',
+              color: 'var(--chatter-primary)',
+              fontSize: 13.5,
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.18s ease',
+              boxShadow: '0 2px 8px rgba(64, 227, 120, 0.12)',
+            }}
+            title="Interactive Hands-Free Voice Chat with AI Guru"
+            aria-label="Voice Chat"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+              <line x1="12" y1="19" x2="12" y2="23" />
+              <line x1="8" y1="23" x2="16" y2="23" />
+            </svg>
+            <span>Voice</span>
+          </button>
+
+          <button
+            type="button"
             onClick={handleClearSession}
             style={{
               padding: '6px 12px',
@@ -2285,6 +2336,46 @@ export default function ChatterGuruView({
                     >
                       <button
                         type="button"
+                        onClick={() => handleToggleSpeech(m.id, m.content)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          padding: '5px 11px',
+                          borderRadius: 8,
+                          background: speakingMsgId === m.id ? 'rgba(64, 227, 120, 0.2)' : 'rgba(255, 255, 255, 0.06)',
+                          border: '1px solid',
+                          borderColor: speakingMsgId === m.id ? 'rgba(64, 227, 120, 0.5)' : 'rgba(255, 255, 255, 0.08)',
+                          color: speakingMsgId === m.id ? '#40E378' : '#A0A0A0',
+                          fontSize: 12.5,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          transition: 'all 0.18s ease',
+                        }}
+                        title={speakingMsgId === m.id ? 'Stop listening' : 'Listen to response'}
+                        aria-label="Listen to response"
+                      >
+                        {speakingMsgId === m.id ? (
+                          <>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <rect x="6" y="4" width="4" height="16" />
+                              <rect x="14" y="4" width="4" height="16" />
+                            </svg>
+                            <span>Pause</span>
+                          </>
+                        ) : (
+                          <>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                              <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+                            </svg>
+                            <span>Listen</span>
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => handleCopyMessage(m.id, m.content)}
                         style={{
                           display: 'inline-flex',
@@ -2546,6 +2637,34 @@ export default function ChatterGuruView({
                 }}
               />
             </button>
+          ) : !inputText.trim() ? (
+            <button
+              type="button"
+              onClick={() => setVoiceModalOpen(true)}
+              title="Start Voice Chat with AI Guru"
+              aria-label="Start Voice Chat"
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: '50%',
+                background: 'rgba(64, 227, 120, 0.16)',
+                border: '1px solid rgba(64, 227, 120, 0.4)',
+                color: 'var(--chatter-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                flexShrink: 0,
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                <line x1="12" y1="19" x2="12" y2="23" />
+                <line x1="8" y1="23" x2="16" y2="23" />
+              </svg>
+            </button>
           ) : (
             <button
               type="submit"
@@ -2574,6 +2693,27 @@ export default function ChatterGuruView({
           )}
         </form>
       </div>
+
+      {/* ── Interactive Hands-Free Voice Chat with AI Guru Modal ── */}
+      {voiceModalOpen && (
+        <ChatterGuruVoiceModal
+          isOpen={voiceModalOpen}
+          onClose={() => setVoiceModalOpen(false)}
+          aiMode={aiMode}
+          selectedDoc={uploadedDocs.find((d) => (d.doc_id || d.id) === selectedDocId) || (selectedDocId === null ? uploadedDocs[0] : null)}
+          serverId={serverId}
+          channelName={channelName}
+          onSaveVoiceMessages={(newTurns) => {
+            if (Array.isArray(newTurns) && newTurns.length > 0) {
+              if (aiMode === 'free') {
+                setFreeMessages((prev) => [...prev, ...newTurns]);
+              } else {
+                setGuidedMessages((prev) => [...prev, ...newTurns]);
+              }
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
