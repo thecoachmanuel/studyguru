@@ -949,7 +949,7 @@ export default function ChatterGuruView({
 
     try {
       const activeDoc = isFreeChat ? null : (uploadedDocs.find((d) => (d.doc_id || d.id) === selectedDocId) || (selectedDocId === null ? uploadedDocs[0] : null));
-      const docText = isFreeChat ? '' : (activeDoc?.extractedText || (uploadedDocs.length > 0 ? uploadedDocs.map((d) => d.extractedText).filter(Boolean).join('\n\n') : ''));
+      const docText = isFreeChat ? '' : (activeDoc?.extractedText ? activeDoc.extractedText.slice(0, 5000) : (uploadedDocs[0]?.extractedText ? uploadedDocs[0].extractedText.slice(0, 5000) : ''));
       const docTitle = isFreeChat ? '' : (activeDoc?.filename || activeDoc?.title || '');
       const docIdToSend = isFreeChat ? null : (selectedDocId || activeDoc?.doc_id || activeDoc?.id || null);
 

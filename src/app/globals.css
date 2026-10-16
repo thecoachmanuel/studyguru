@@ -10035,5 +10035,30 @@ input, textarea, [contenteditable="true"], .chat-markdown, .chatter-post-card {
   }
 }
 
+/* 8. WebRTC Live Speaker Glowing Waveform & Outline */
+@keyframes chatter-speaker-glow {
+  0% {
+    box-shadow: 0 0 0 2px rgba(64, 227, 120, 0.4), 0 0 14px rgba(64, 227, 120, 0.65);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(64, 227, 120, 0.3), 0 0 26px rgba(64, 227, 120, 0.95);
+  }
+  100% {
+    box-shadow: 0 0 0 2px rgba(64, 227, 120, 0.4), 0 0 14px rgba(64, 227, 120, 0.65);
+  }
+}
 
-
+@keyframes chatter-pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(64, 227, 120, 0.7);
+  }
+  70% {
+    transform: scale(1.08);
+    box-shadow: 0 0 0 6px rgba(64, 227, 120, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(64, 227, 120, 0);
+  }
+}

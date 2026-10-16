@@ -218,43 +218,66 @@ export async function POST(req) {
       }
     }
 
+function extractFastRelevantPassages(text, query, maxChars = 3500) {
+  if (!text || text.length <= maxChars) return text || '';
+  const queryWords = query.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length > 2);
+  
+  const paragraphs = text.split(/\n\s*\n/).map((p) => p.trim()).filter((p) => p.length > 25);
+  if (paragraphs.length <= 2) {
+    return text.slice(0, maxChars);
+  }
+
+  const scored = paragraphs.map((p, idx) => {
+    const pLower = p.toLowerCase();
+    let score = 0;
+    for (const w of queryWords) {
+      if (pLower.includes(w)) score += 3;
+    }
+    if (idx === 0) score += 2; // Keep introductory overview
+    return { p, score, idx };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  const selected = scored.slice(0, 4);
+  selected.sort((a, b) => a.idx - b.idx);
+  
+  const combined = selected.map((s) => s.p).join('\n\n');
+  return combined.slice(0, maxChars);
+}
+
     const isTeachingQuery = isTeachingOrBroadQuery(message);
     const isExplicitAllAtOnce = wantsAllAtOnce(message);
 
-    // 2. Retrieve relevant semantic chunks
-    const chunkSearchQuery = isTeachingQuery
-      ? `${message} ${docTitle} overview introduction core concepts summary`
-      : `${message} ${docTitle}`;
-
+    // 2. High-speed Context Extraction: Use fast in-memory relevance if full text exists, otherwise fall back to vector search
     let contextChunks = [];
-    if (!isFreeChat && (doc?._id || documentId)) {
+    if (!isFreeChat && !fullDocumentText && (doc?._id || documentId)) {
       try {
+        const chunkSearchQuery = isTeachingQuery
+          ? `${message} ${docTitle} overview introduction core concepts summary`
+          : `${message} ${docTitle}`;
+
         contextChunks = await Promise.race([
           retrieveRelevantChunks({
             query: chunkSearchQuery,
             documentId: doc?._id?.toString() || documentId,
             userId,
-            limit: isTeachingQuery ? 6 : 4,
+            limit: isTeachingQuery ? 5 : 3,
           }),
-          new Promise((resolve) => setTimeout(() => resolve([]), 500)),
+          new Promise((resolve) => setTimeout(() => resolve([]), 400)),
         ]);
       } catch {}
     }
 
-    // 3. Assemble whole-document context
+    // 3. Assemble document context with optimized token footprint for instantaneous TTFT (Time-To-First-Token)
     let contextText = '';
     if (docTitle) {
-      contextText += `Document Title / Subject: ${docTitle}\n\n`;
+      contextText += `Document Subject: ${docTitle}\n\n`;
     }
 
     if (fullDocumentText) {
-      const textSlice = isTeachingQuery
-        ? fullDocumentText.slice(0, 14000)
-        : fullDocumentText.slice(0, 10000);
-      contextText += `Document Overview & Core Material:\n${textSlice}\n\n`;
-    }
-
-    if (contextChunks.length > 0) {
+      const relevantPassages = extractFastRelevantPassages(fullDocumentText, message, isTeachingQuery ? 4000 : 3200);
+      contextText += `Document Material & Key Insights:\n${relevantPassages}\n\n`;
+    } else if (contextChunks.length > 0) {
       contextText += `Relevant Document Passages:\n${contextChunks.join('\n\n---\n\n')}`;
     }
 

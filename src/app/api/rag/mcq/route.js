@@ -393,13 +393,6 @@ export async function POST(req) {
         }
       }
 
-      const chunks = await retrieveRelevantChunks({
-        query: `quiz test concepts exam practice details iteration ${iteration}`,
-        documentId: doc?._id?.toString() || documentId,
-        userId,
-        limit: 8,
-      });
-
       const isDocPlaceholder = !doc?.extracted_text || doc.extracted_text.length < 60 || doc.extracted_text.startsWith('Academic study material:');
 
       if (!isDocPlaceholder && doc?.extracted_text) {
@@ -414,8 +407,16 @@ export async function POST(req) {
         }
       } else if (doc?.extracted_text) {
         contextText = doc.extracted_text;
-      } else if (chunks.length > 0) {
-        contextText = chunks.join('\n\n---\n\n');
+      } else {
+        const chunks = await retrieveRelevantChunks({
+          query: `quiz test concepts exam practice details iteration ${iteration}`,
+          documentId: doc?._id?.toString() || documentId,
+          userId,
+          limit: 6,
+        });
+        if (chunks.length > 0) {
+          contextText = chunks.join('\n\n---\n\n');
+        }
       }
     } else if (clientText && clientText.length > 20 && !hasSpecificTopic) {
       contextText = clientText;

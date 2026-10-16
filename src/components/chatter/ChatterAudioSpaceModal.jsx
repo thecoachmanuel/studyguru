@@ -685,7 +685,7 @@ export default function ChatterAudioSpaceModal({
                     textAlign: 'center',
                   }}
                 >
-                  {/* Avatar with Chatter Pulsing Emerald Ring */}
+                  {/* Avatar with Animated Glowing Emerald Outline when Speaking */}
                   <div
                     style={{
                       position: 'relative',
@@ -694,7 +694,11 @@ export default function ChatterAudioSpaceModal({
                       borderRadius: 28,
                       padding: 3,
                       background: isSpeaking ? 'var(--chatter-primary)' : 'rgba(255, 255, 255, 0.1)',
-                      boxShadow: isSpeaking ? '0 0 16px rgba(64, 227, 120, 0.6)' : 'none',
+                      boxShadow: isSpeaking
+                        ? '0 0 0 3px rgba(64, 227, 120, 0.45), 0 0 22px rgba(64, 227, 120, 0.85), inset 0 0 10px rgba(64, 227, 120, 0.3)'
+                        : 'none',
+                      animation: isSpeaking ? 'chatter-speaker-glow 1.4s infinite ease-in-out' : 'none',
+                      border: isSpeaking ? '2.5px solid var(--chatter-primary)' : '2px solid rgba(255, 255, 255, 0.08)',
                       transition: 'all 0.2s ease',
                     }}
                   >
@@ -746,11 +750,39 @@ export default function ChatterAudioSpaceModal({
                           fontSize: 13,
                           border: '2px solid var(--chatter-black)',
                           boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
-                          zIndex: 2,
+                          zIndex: 4,
                         }}
                         title={`${speaker.name} has hand raised`}
                       >
                         ✋
+                      </div>
+                    )}
+
+                    {/* Green Voice Audio Indicator badge when speaking */}
+                    {isSpeaking && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          bottom: -4,
+                          left: -4,
+                          width: 26,
+                          height: 26,
+                          borderRadius: '50%',
+                          background: 'var(--chatter-primary)',
+                          color: '#0E0E0E',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: '2px solid var(--chatter-black)',
+                          boxShadow: '0 0 12px rgba(64, 227, 120, 0.85)',
+                          animation: 'chatter-pulse 1.1s infinite ease-in-out',
+                          zIndex: 3,
+                        }}
+                        title="Speaking now"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 2v20M17 5v14M7 9v6M22 10v4M2 10v4" />
+                        </svg>
                       </div>
                     )}
 
@@ -763,19 +795,24 @@ export default function ChatterAudioSpaceModal({
                         width: 26,
                         height: 26,
                         borderRadius: '50%',
-                        background: isSpeaking ? 'var(--chatter-primary)' : '#222',
-                        color: isSpeaking ? '#0E0E0E' : '#FF3939',
+                        background: isSpeaking ? 'var(--chatter-primary)' : speaker.isMuted ? '#222' : 'rgba(64, 227, 120, 0.18)',
+                        color: isSpeaking ? '#0E0E0E' : speaker.isMuted ? '#FF3939' : 'var(--chatter-primary)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         border: '2px solid var(--chatter-black)',
+                        boxShadow: isSpeaking ? '0 0 10px rgba(64, 227, 120, 0.7)' : 'none',
+                        zIndex: 2,
                       }}
                     >
                       {isSpeaking ? (
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                          <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                          <line x1="12" y1="19" x2="12" y2="23" />
+                          <line x1="8" y1="23" x2="16" y2="23" />
                         </svg>
-                      ) : (
+                      ) : speaker.isMuted ? (
                         <svg
                           width="13"
                           height="13"
@@ -786,6 +823,11 @@ export default function ChatterAudioSpaceModal({
                         >
                           <line x1="1" y1="1" x2="23" y2="23" />
                           <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6" />
+                        </svg>
+                      ) : (
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                          <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
                         </svg>
                       )}
                     </div>
@@ -830,11 +872,20 @@ export default function ChatterAudioSpaceModal({
                   <span
                     style={{
                       fontSize: 13,
-                      marginTop: 2,
+                      marginTop: 4,
+                      fontWeight: isSpeaking ? 700 : 500,
                       color: isSpeaking ? 'var(--chatter-primary)' : 'var(--chatter-light-text)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
                     }}
                   >
-                    {isSpeaking ? 'Speaking' : speaker.isMuted ? 'Muted' : 'Mic On'}
+                    {isSpeaking ? (
+                      <>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--chatter-primary)', display: 'inline-block', boxShadow: '0 0 8px var(--chatter-primary)' }} />
+                        Speaking
+                      </>
+                    ) : speaker.isMuted ? 'Muted' : 'Mic On'}
                   </span>
                 </div>
               );

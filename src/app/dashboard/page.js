@@ -1568,8 +1568,8 @@ export default function DashboardPage() {
       )}
 
       {/* ── Mobile 5-Tab Navigation Bar (Exact Chatter App TabBarScreen) ── */}
-      {/* Hide bottom navigation only when inside active channel chat room */}
-      {!(chatterTab === 'chats' && activeChannelId) && !(chatterTab === 'rooms' && activeChannelId) && (
+      {/* Hide bottom navigation when inside active channel chat room or when on AI Guru screen */}
+      {!(chatterTab === 'chats' && activeChannelId) && !(chatterTab === 'rooms' && activeChannelId) && chatterTab !== 'guru' && (
         <ChatterBottomNav
           activeTab={chatterTab}
           onSelectTab={(tab) => {
