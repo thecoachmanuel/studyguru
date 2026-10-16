@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getDatabase } from '@/lib/mongodb';
 
-export const dynamic = 'force-dynamic';
-
 export async function GET(request) {
   try {
     const session = await auth();
