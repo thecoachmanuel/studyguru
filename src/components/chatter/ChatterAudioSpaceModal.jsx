@@ -115,8 +115,7 @@ export default function ChatterAudioSpaceModal({
       (remoteStreams[id] || remoteStreams[getModalBaseUserId(id)])
   );
 
-  // Deduplicate participants rigorously by unique canonical user ID,
-  // while preserving multi-device connections (e.g. testing desktop and mobile simultaneously).
+  // Deduplicate participants rigorously by unique canonical user ID
   const participantsMap = new Map();
   const myBaseId = getModalBaseUserId(userId);
   const effectiveOwnerId = roomOwnerId ? getModalBaseUserId(roomOwnerId) : null;
@@ -127,15 +126,11 @@ export default function ChatterAudioSpaceModal({
     const normId = getModalBaseUserId(p);
     if (!normId) continue;
 
-    const rawId = String(typeof p === 'object' ? (p.user_id || p.userId || p.id || '') : p);
-    // If testing on same user with multiple devices (__dev), keep unique map key
-    const isDistinctDevice = rawId.includes('__') && !p.isLocal;
-    const mapKey = isDistinctDevice ? rawId : normId;
-    const isMe = !isDistinctDevice && normId === myBaseId;
+    const isMe = normId === myBaseId;
 
-    // Never show duplicate entries for the exact same connection
-    if (participantsMap.has(mapKey)) {
-      if (isMe && !participantsMap.get(mapKey).isLocal) {
+    // Never show the same user twice in the call room
+    if (participantsMap.has(normId)) {
+      if (isMe && !participantsMap.get(normId).isLocal) {
         // Local participant instance takes precedence
       } else {
         continue;
@@ -153,8 +148,6 @@ export default function ChatterAudioSpaceModal({
 
     const displayName = isMe
       ? profile?.full_name || profile?.name || 'You'
-      : isDistinctDevice && normId === myBaseId
-      ? `${profile?.full_name || 'You'} (Mobile)`
       : rawName && rawName !== 'Scholar' && rawName !== 'User' && rawName !== 'Study Partner'
       ? rawName
       : p.profiles?.username || p.username || 'Study Partner';
@@ -166,22 +159,16 @@ export default function ChatterAudioSpaceModal({
     const isHost = effectiveOwnerId ? normId === effectiveOwnerId : false;
     const isSpeakingNow = isMe
       ? (!isMuted && Boolean(voiceSession?.isSpeaking || activeSpeakerIds.has(normId)))
-      : Boolean(
-          activeSpeakerIds.has(normId) ||
-          activeSpeakerIds.has(mapKey) ||
-          (audioLevels[normId] || 0) > 15 ||
-          (audioLevels[mapKey] || 0) > 15
-        );
+      : (!p.is_muted && activeSpeakerIds.has(normId));
 
-    participantsMap.set(mapKey, {
-      userId: mapKey,
-      baseUserId: normId,
+    participantsMap.set(normId, {
+      userId: normId,
       name: displayName,
       username: p.username || p.profiles?.username || '',
       avatar_url: avatarUrl,
       speaking: isSpeakingNow,
       isMuted: isMe ? isMuted : (p.is_muted ?? false),
-      audioLevel: audioLevels[mapKey] || audioLevels[normId] || 0,
+      audioLevel: audioLevels[normId] || 0,
       isLocal: isMe,
       isHost,
     });
@@ -193,7 +180,6 @@ export default function ChatterAudioSpaceModal({
     const mySpeaking = !isMuted && Boolean(voiceSession?.isSpeaking || activeSpeakerIds.has(myBaseId));
     participantsMap.set(myBaseId, {
       userId: myBaseId,
-      baseUserId: myBaseId,
       name: profile?.full_name || profile?.name || 'You',
       avatar_url: profile?.avatar_url || profile?.image || null,
       speaking: mySpeaking,
@@ -205,11 +191,10 @@ export default function ChatterAudioSpaceModal({
   }
 
   const fullParticipants = Array.from(participantsMap.values());
-  // In a Study Room, all connected scholars belong on the active call stage.
-  // We sort stably (host first, then local user, then alphabetically) so elements never flicker or swap positions.
-  // Crucially: participants do NOT jump off stage or flicker away when they mute their mic or pause speaking!
+  // The host, unmuted participants, and actively speaking users are anchored to Stage
+  // Stably sort speakers (host first, then local user, then alphabetically) so elements never flicker or swap positions
   const speakers = fullParticipants
-    .filter((p) => !p.isAudienceOnly)
+    .filter((p) => p.isHost || !p.isMuted || p.speaking)
     .sort((a, b) => {
       if (a.isHost) return -1;
       if (b.isHost) return 1;
@@ -367,25 +352,23 @@ export default function ChatterAudioSpaceModal({
             <span>{speakers.length}</span>
           </div>
 
-          {/* Listeners count (Headset eye icon) - only shown when there are audience listeners */}
-          {listeners.length > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 14, color: '#D4D4D4' }}>
-              <svg
-                width="17"
-                height="17"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
-                <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
-              </svg>
-              <span>{listeners.length}</span>
-            </div>
-          )}
+          {/* Listeners count (Headset eye icon) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 14, color: '#D4D4D4' }}>
+            <svg
+              width="17"
+              height="17"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+              <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
+            </svg>
+            <span>{listeners.length}</span>
+          </div>
 
           {/* Minimize Call Icon Button: placed directly after the headset icon */}
           <button
@@ -642,7 +625,7 @@ export default function ChatterAudioSpaceModal({
           </div>
         )}
 
-        {/* ── Section: Active Study Room Call Participants on Stage ── */}
+        {/* ── Section: Speakers on Stage ── */}
         <div style={{ marginBottom: 28 }}>
           <div
             style={{
@@ -654,7 +637,7 @@ export default function ChatterAudioSpaceModal({
               marginBottom: 16,
             }}
           >
-            {listeners.length > 0 ? `Speakers (${speakers.length})` : `In This Call (${speakers.length})`}
+            Speakers ({speakers.length})
           </div>
 
           <div
@@ -666,9 +649,9 @@ export default function ChatterAudioSpaceModal({
             }}
           >
             {speakers.map((speaker, index) => {
-              const isMe = speaker.isLocal || String(speaker.userId) === String(userId);
+              const isMe = String(speaker.userId) === String(userId);
               const isSpeaking = speaker.speaking;
-              const hasHandRaised = isMe ? raisedHand : Boolean(raisedHandsMap[speaker.userId] || raisedHandsMap[speaker.baseUserId]);
+              const hasHandRaised = isMe ? raisedHand : Boolean(raisedHandsMap[speaker.userId]);
               return (
                 <div
                   key={speaker.userId || index}

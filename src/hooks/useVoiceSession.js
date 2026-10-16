@@ -1867,32 +1867,22 @@ export function useVoiceSession(userId, profile = null) {
           // Use DB profile data (names/avatars) to enrich, but trust LiveKit for presence.
           const seenRemoteIds = new Set();
           const livekitRemotes = [];
-          const localIdentity = livekitRoomRef.current?.localParticipant?.identity;
-
           livekitRoomRef.current.remoteParticipants.forEach((rp) => {
-            if (localIdentity && rp.identity === localIdentity) return; // skip exact self connection
             let meta = {};
             try { if (rp.metadata) meta = JSON.parse(rp.metadata); } catch {}
-            const rawId = meta.userId || meta.baseUserId || rp.identity;
-            const pId = getBaseUserId(rawId);
-            if (!pId) return;
-
-            // If same base user ID as local user (e.g. testing desktop and mobile simultaneously with same login),
-            // give it a distinct key so the second device isn't dropped!
-            const isOtherDevice = pId === localBaseId;
-            const finalId = isOtherDevice ? `${pId}__${rp.sid || 'mobile'}` : pId;
-            if (seenRemoteIds.has(finalId)) return;
-            seenRemoteIds.add(finalId);
+            const pId = getBaseUserId(meta.userId || meta.baseUserId || rp.identity);
+            if (!pId || pId === localBaseId) return; // skip self / same user connection
+            if (seenRemoteIds.has(pId)) return; // prevent duplicate cards for same remote user
+            seenRemoteIds.add(pId);
 
             const dbEntry = dbProfileMap.get(pId);
-            const baseName =
+            const resolvedName =
               rp.name ||
               meta.name ||
               dbEntry?.profiles?.full_name ||
               dbEntry?.profiles?.username ||
               dbEntry?.name ||
               'Study Partner';
-            const resolvedName = isOtherDevice ? `${baseName} (Mobile)` : baseName;
             const resolvedAvatar =
               meta.image ||
               dbEntry?.profiles?.avatar_url ||
@@ -1900,18 +1890,17 @@ export function useVoiceSession(userId, profile = null) {
               null;
 
             livekitRemotes.push({
-              id: `vp-${joinedChannelId}-${finalId}`,
+              id: `vp-${joinedChannelId}-${pId}`,
               channel_id: joinedChannelId,
               server_id: joinedServerId,
-              user_id: finalId,
-              base_user_id: pId,
+              user_id: pId,
               is_muted: !rp.isMicrophoneEnabled,
               joined_at: dbEntry?.joined_at || new Date().toISOString(),
               last_seen: new Date().toISOString(),
               name: resolvedName,
               user_name: resolvedName,
               profiles: {
-                id: finalId,
+                id: pId,
                 username: rp.name || meta.name || dbEntry?.profiles?.username || 'Study Partner',
                 full_name: resolvedName,
                 name: resolvedName,
@@ -1941,33 +1930,9 @@ export function useVoiceSession(userId, profile = null) {
           remoteOthers.push({
             ...p,
             user_id: pId,
-            is_muted: prevMuteMap.has(pId) ? prevMuteMap.get(pId) : (p.is_muted ?? false),
+            is_muted: prevMuteMap.has(pId) ? prevMuteMap.get(pId) : (p.is_muted ?? true),
           });
         });
-
-        // STABILITY PRESERVATION: If a remote participant was in previous state, has NOT explicitly left,
-        // and has an active WebRTC peer connection or remote audio stream, do NOT drop them if the DB poll
-        // had a momentary delay. This prevents desktop from flickering between 1 and 2 participants.
-        prev.forEach((prevP) => {
-          const prevId = getBaseUserId(prevP);
-          if (
-            prevId &&
-            prevId !== localBaseId &&
-            !seenFallbackIds.has(prevId) &&
-            !explicitlyLeftRef.current.has(prevId)
-          ) {
-            const hasLiveAudio =
-              Boolean(remoteStreamsRef?.current?.[prevId]) ||
-              Boolean(peerConnectionsRef?.current?.[prevId]) ||
-              Boolean(analysersRef?.current?.has(prevId));
-
-            if (hasLiveAudio) {
-              seenFallbackIds.add(prevId);
-              remoteOthers.push(prevP);
-            }
-          }
-        });
-
         return [localEntry, ...remoteOthers];
       });
     } catch (err) {
@@ -2707,7 +2672,7 @@ export function useVoiceSession(userId, profile = null) {
     return () => clearInterval(interval);
   }, [fetchParticipants, joinedChannelId]);
 
-  // Heartbeat to update last_seen every 4 seconds when joined
+  // Heartbeat to update last_seen every 6 seconds when joined
   useEffect(() => {
     if (!joinedChannelId || !userId) return;
 
@@ -2718,7 +2683,7 @@ export function useVoiceSession(userId, profile = null) {
           body: JSON.stringify({ action: 'heartbeat' }),
         });
       } catch {}
-    }, 4000);
+    }, 6000);
 
     return () => clearInterval(interval);
   }, [joinedChannelId, userId]);
