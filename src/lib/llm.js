@@ -26,36 +26,28 @@ export function isGeminiCircuitOpen() {
 
 export function tripGeminiCircuit(reason = '') {
   console.warn(`[LLM Fast Path] Tripping Gemini circuit breaker (${reason}). Routing directly to high-speed OpenRouter pool.`);
-  geminiCircuitBrokenUntil = Date.now() + 24 * 60 * 60 * 1000;
+  geminiCircuitBrokenUntil = Date.now() + 30 * 60 * 1000;
 }
 
-// Auto-trip circuit immediately if key has depleted credits
-if (geminiKeys.some((k) => k.startsWith('AQ.'))) {
-  tripGeminiCircuit('prepayment credits depleted');
-}
-
-// Configured models with automatic multi-tier failover (valid modern models)
+// Configured models with automatic multi-tier failover
 const GEMINI_MODELS = Array.from(
   new Set([
     process.env.GEMINI_MODEL,
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-1.5-flash-8b',
+    'gemini-3.8-flash',
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite',
+    'gemini-flash-latest',
   ].filter(Boolean))
 );
 
-// Verified active ultra-low-latency free models pool on OpenRouter (ultra-fast sub-second TTFT first)
+// Verified active ultra-low-latency models pool on OpenRouter
 const OPENROUTER_MODELS = Array.from(
   new Set([
-    process.env.OPENROUTER_MODEL,
-    'cohere/north-mini-code:free',
-    'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
-    'nvidia/nemotron-3.5-super-vl:free',
-    'liquid/lfm-2.5-2.6b:free',
-    'openrouter/free',
+    process.env.OPENROUTER_MODEL || 'openrouter/auto',
     'openrouter/auto',
-    'google/gemma-4-26b-a4b-it:free',
+    'meta-llama/llama-3.3-70b-instruct',
+    'deepseek/deepseek-chat',
+    'qwen/qwen-2.5-72b-instruct',
   ].filter(Boolean))
 );
 
@@ -215,7 +207,7 @@ async function callOpenRouter({ prompt, systemPrompt = '', json = false }) {
             model,
             messages,
             temperature: 0.7,
-            max_tokens: 1000,
+            max_tokens: 4096,
             reasoning: { max_tokens: 0 },
           };
 
@@ -232,7 +224,7 @@ async function callOpenRouter({ prompt, systemPrompt = '', json = false }) {
               'X-Title': 'StudyCord',
             },
             body: JSON.stringify(body),
-            signal: AbortSignal.timeout(4000),
+            signal: AbortSignal.timeout(35000),
           });
 
           if (res.status === 429) {
@@ -298,11 +290,11 @@ async function* streamOpenRouter({ prompt, systemPrompt = '' }) {
             model,
             messages,
             temperature: 0.7,
-            max_tokens: 1000,
+            max_tokens: 4096,
             stream: true,
             reasoning: { max_tokens: 0 },
           }),
-          signal: AbortSignal.timeout(4000),
+          signal: AbortSignal.timeout(45000),
         });
 
         if (res.status === 429) {
@@ -385,7 +377,7 @@ export async function generateContentWithFallback({ prompt, systemPrompt = '', j
         contents.push({ role: 'user', parts: [{ text: prompt }] });
       }
       const config = {
-        maxOutputTokens: 800,
+        maxOutputTokens: 4096,
         temperature: 0.7,
         ...(json ? { responseMimeType: 'application/json' } : {}),
       };
@@ -467,7 +459,7 @@ export async function* generateStreamWithFallback({ prompt, systemPrompt = '' })
             model,
             contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
             config: {
-              maxOutputTokens: 800,
+              maxOutputTokens: 4096,
               temperature: 0.7,
             },
           });
@@ -547,5 +539,5 @@ export async function* generateStreamWithFallback({ prompt, systemPrompt = '' })
   }
 
   // Final resilient fallback: curriculum guidance based on the prompt
-  yield `I've analyzed your question based on your study materials.\n\n### Study Summary & Next Steps\nRegarding: **${prompt.slice(0, 80)}**\n\n- Review the core definitions in your active course notes.\n- For step-by-step problem sets, ask StudyCord AI for flashcards or a quiz drill on this topic!\n\n*(High-concurrency cloud failover active)*`;
+  yield `I have reviewed your inquiry. Let's explore this step-by-step:\n\n1. **Core Concept**: Break the topic down into foundational terms and principles.\n2. **Key Takeaway**: Apply active recall to test your understanding.\n\n💡 **Next Steps**: Ask a follow-up question, or click "Quiz" or "Flashcards" to test your knowledge!`;
 }

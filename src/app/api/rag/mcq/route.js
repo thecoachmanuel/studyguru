@@ -612,7 +612,9 @@ CRITICAL RULES:
     return NextResponse.json({ questions, mcq: questions, mcqs: questions });
   } catch (error) {
     console.error('MCQ error:', error);
-    const fallback = generateProceduralQuiz(5, Math.floor(Math.random() * 100));
+    const fallback = (contextText && contextText.trim().length >= 20)
+      ? synthesizeQuizFromText(contextText, count, iteration)
+      : generateProceduralQuiz(count, Math.floor(Math.random() * 100));
     return NextResponse.json({ questions: fallback, mcq: fallback, mcqs: fallback });
   }
 }

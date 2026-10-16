@@ -335,6 +335,12 @@ Return ONLY a valid JSON object matching this exact structure:
     return NextResponse.json({ flashcards });
   } catch (error) {
     console.error('Flashcards error:', error);
+    if (contextText && contextText.trim().length >= 20) {
+      const fallbackCards = synthesizeFlashcardsFromText(contextText, count);
+      if (fallbackCards.length > 0) {
+        return NextResponse.json({ flashcards: fallbackCards });
+      }
+    }
     return NextResponse.json(
       { error: error.message || 'Failed to generate flashcards' },
       { status: 500 }

@@ -237,6 +237,10 @@ ${contextText.slice(0, 12000)}`;
     return NextResponse.json(summary);
   } catch (error) {
     console.error('Summary error:', error);
+    if (contextText && contextText.trim().length >= 20) {
+      const fallbackSummary = synthesizeSummaryFromText(contextText, docFilename || 'Study Material');
+      return NextResponse.json(fallbackSummary);
+    }
     return NextResponse.json(
       { error: error.message || 'Failed to generate summary' },
       { status: 500 }

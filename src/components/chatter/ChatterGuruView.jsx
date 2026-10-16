@@ -363,11 +363,20 @@ export default function ChatterGuruView({
       .then((r) => (r.ok ? r.json() : []))
       .then((docs) => {
         if (Array.isArray(docs) && docs.length > 0) {
-          setUploadedDocs(docs);
-          setSelectedDocId(docs[0].doc_id || docs[0].id);
-          try {
-            localStorage.setItem('studycord_cached_docs', JSON.stringify(docs.slice(0, 10)));
-          } catch {}
+          setUploadedDocs((prev) => {
+            const merged = docs.map((d) => {
+              const existing = prev.find((p) => (p.doc_id || p.id) === (d.doc_id || d.id));
+              return {
+                ...d,
+                extractedText: d.extractedText || existing?.extractedText || '',
+              };
+            });
+            try {
+              localStorage.setItem('studycord_cached_docs', JSON.stringify(merged.slice(0, 10)));
+            } catch {}
+            return merged;
+          });
+          setSelectedDocId((prev) => prev || docs[0].doc_id || docs[0].id);
         }
       })
       .catch((err) => console.warn('Documents load notice:', err));
@@ -1746,11 +1755,12 @@ export default function ChatterGuruView({
           🌐 All Notes
         </button>
         {uploadedDocs.map((doc) => {
-          const isSelected = selectedDocId === doc.doc_id;
+          const currentId = doc.doc_id || doc.id;
+          const isSelected = selectedDocId === currentId;
           return (
             <div
-              key={doc.doc_id}
-              onClick={() => setSelectedDocId(doc.doc_id)}
+              key={currentId}
+              onClick={() => setSelectedDocId(currentId)}
               style={{
                 padding: '4px 8px 4px 12px',
                 borderRadius: 14,
@@ -1775,7 +1785,7 @@ export default function ChatterGuruView({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleDeleteDoc(doc.doc_id, doc.filename);
+                  handleDeleteDoc(currentId, doc.filename);
                 }}
                 style={{
                   background: 'rgba(239, 68, 68, 0.18)',
@@ -1930,7 +1940,7 @@ export default function ChatterGuruView({
                 <div style={{ display: 'flex', gap: 6, marginLeft: 6 }}>
                   <button
                     type="button"
-                    onClick={() => handleGenerateMCQ(doc.doc_id, doc.filename)}
+                    onClick={() => handleGenerateMCQ(doc.doc_id || doc.id, doc.filename)}
                     style={{
                       padding: '3px 8px',
                       borderRadius: 8,
@@ -1946,7 +1956,7 @@ export default function ChatterGuruView({
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleGenerateFlashcards(doc.doc_id, doc.filename)}
+                    onClick={() => handleGenerateFlashcards(doc.doc_id || doc.id, doc.filename)}
                     style={{
                       padding: '3px 8px',
                       borderRadius: 8,
@@ -1962,7 +1972,7 @@ export default function ChatterGuruView({
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleDeleteDoc(doc.doc_id, doc.filename)}
+                    onClick={() => handleDeleteDoc(doc.doc_id || doc.id, doc.filename)}
                     style={{
                       padding: '3px 8px',
                       borderRadius: 8,
