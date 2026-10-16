@@ -38,27 +38,57 @@ function parseTextFlashcards(rawText) {
   return cards;
 }
 
-function synthesizeFlashcardsFromText(text, count = 6) {
-  if (!text || typeof text !== 'string') return [];
-  const paragraphs = text
-    .split(/\n\n+|\n/)
-    .map((p) => p.trim())
-    .filter((p) => p.length >= 35 && p.length <= 400);
-
+function synthesizeFlashcardsFromText(text, count = 8) {
+  if (!text || typeof text !== 'string' || text.trim().length < 20) return [];
+  
   const cards = [];
-  for (const p of paragraphs.slice(0, count)) {
-    const sentences = p.split(/(?<=[.?!])\s+/);
-    if (sentences.length >= 1) {
-      const first = sentences[0];
-      const rest = sentences.slice(1).join(' ') || first;
-      cards.push({
-        question: `Key Concept: ${first.replace(/^[#*\s-]+/, '').slice(0, 90)}`,
-        answer: rest.length > 15 ? rest : p,
-        front: `Key Concept: ${first.replace(/^[#*\s-]+/, '').slice(0, 90)}`,
-        back: rest.length > 15 ? rest : p,
-      });
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.length > 10);
+
+  // 1. First pass: look for explicit definitions (e.g. "Term: Definition", "**Term** - Definition", "Term is defined as...")
+  for (const line of lines) {
+    if (cards.length >= count) break;
+    // Check "Term: Definition" or "**Term**: Definition"
+    const colonMatch = line.match(/^(?:[-*•]\s*)?(?:\*\*)?([A-Za-z0-9\s/()_-]{3,40})(?:\*\*)?\s*[:–—\-]\s*(.{20,})/);
+    if (colonMatch) {
+      const term = colonMatch[1].trim();
+      const def = colonMatch[2].trim();
+      if (!cards.some((c) => c.question.includes(term))) {
+        cards.push({
+          question: `Define: ${term}`,
+          answer: def,
+          front: `Define: ${term}`,
+          back: def,
+        });
+      }
     }
   }
+
+  // 2. Second pass: paragraphs and key sentences
+  if (cards.length < count) {
+    const paragraphs = text
+      .split(/\n\n+|\n/)
+      .map((p) => p.trim())
+      .filter((p) => p.length >= 35 && p.length <= 400);
+
+    for (const p of paragraphs) {
+      if (cards.length >= count) break;
+      const cleanP = p.replace(/^[#*\s-]+/, '').trim();
+      const sentences = cleanP.split(/(?<=[.?!])\s+/);
+      if (sentences.length >= 1) {
+        const first = sentences[0].trim();
+        const rest = sentences.slice(1).join(' ').trim() || cleanP;
+        if (first.length > 15 && !cards.some((c) => c.question.includes(first.slice(0, 30)))) {
+          cards.push({
+            question: `Key Concept: ${first.slice(0, 90)}`,
+            answer: rest.length > 20 ? rest : cleanP,
+            front: `Key Concept: ${first.slice(0, 90)}`,
+            back: rest.length > 20 ? rest : cleanP,
+          });
+        }
+      }
+    }
+  }
+
   return cards;
 }
 
@@ -73,13 +103,20 @@ export async function POST(req) {
     const documentId = body.documentId || body.doc_id || body.document_id;
     const requestedCount = parseInt(body.count, 10);
     const count = !isNaN(requestedCount) && requestedCount > 0 ? Math.min(Math.max(requestedCount, 2), 30) : 8;
-    const topic = (body.topic || body.prompt || body.message || '').trim();
-    const hasSpecificTopic = Boolean(
-      topic &&
-      !topic.toLowerCase().includes('core subject definitions') &&
-      !topic.toLowerCase().includes('the active study session') &&
-      !topic.toLowerCase().includes('the active document')
+    const rawTopic = (body.topic || body.prompt || body.message || '').trim();
+    const docTitle = (body.documentTitle || body.docTitle || body.filename || '').trim();
+
+    // Check if topic is a generic label or filename rather than a custom separate topic
+    const isTopicDocFilename = Boolean(
+      rawTopic &&
+      (rawTopic.toLowerCase() === docTitle.toLowerCase() ||
+       /\.(pdf|docx|txt|md|pptx)$/i.test(rawTopic) ||
+       rawTopic.toLowerCase().includes('active study session') ||
+       rawTopic.toLowerCase().includes('core subject definitions') ||
+       rawTopic.toLowerCase().includes('the active document'))
     );
+    const hasSpecificTopic = Boolean(rawTopic && !isTopicDocFilename);
+    const topic = hasSpecificTopic ? rawTopic : '';
 
     const userId = session.user.id;
     const db = await getDatabase();
@@ -95,7 +132,9 @@ export async function POST(req) {
         if (Array.isArray(cached?.content) && cached.content.length > 0) {
           const isDummy = cached.content.some((c) =>
             c.question?.toLowerCase().includes('active recall') ||
-            c.question?.toLowerCase().includes('exam preparation')
+            c.question?.toLowerCase().includes('exam preparation') ||
+            c.front?.toLowerCase().includes('stokes') ||
+            c.front?.toLowerCase().includes('pre-ln')
           );
           if (!isDummy) {
             return NextResponse.json({ flashcards: cached.content });
@@ -108,11 +147,21 @@ export async function POST(req) {
       }
     }
 
-    // 1. Resolve document text if documentId is provided (only when no separate specific topic requested)
+    // 1. Resolve document text: prioritize client-sent documentText for millisecond speed, then database
     let contextText = '';
     const clientText = String(body.documentText || body.docText || body.text || '').trim();
 
-    if (documentId && !hasSpecificTopic) {
+    if (clientText && clientText.length > 20) {
+      contextText = clientText;
+      // Background sync to db if documentId exists
+      if (documentId) {
+        const safeId = safeObjectId(documentId);
+        db.collection('rag_documents').updateOne(
+          { $or: [{ _id: safeId }, { id: documentId }] },
+          { $set: { extracted_text: clientText, updated_at: new Date() } }
+        ).catch(() => {});
+      }
+    } else if (documentId) {
       const safeId = safeObjectId(documentId);
       let doc = await db.collection('rag_documents').findOne({
         $or: [{ _id: safeId }, { id: documentId }, { document_id: documentId }],
@@ -129,18 +178,10 @@ export async function POST(req) {
         }
       }
 
-      const isDocPlaceholder = !doc?.extracted_text || doc.extracted_text.length < 60 || doc.extracted_text.startsWith('Academic study material:');
+      const isDocPlaceholder = !doc?.extracted_text || doc.extracted_text.length < 40 || doc.extracted_text.startsWith('Academic study material:');
 
       if (!isDocPlaceholder && doc?.extracted_text) {
         contextText = doc.extracted_text;
-      } else if (clientText && clientText.length > 20) {
-        contextText = clientText;
-        if (doc?._id) {
-          db.collection('rag_documents').updateOne(
-            { _id: doc._id },
-            { $set: { extracted_text: clientText, updated_at: new Date() } }
-          ).catch(() => {});
-        }
       } else if (doc?.extracted_text) {
         contextText = doc.extracted_text;
       } else {
@@ -154,21 +195,42 @@ export async function POST(req) {
           contextText = chunks.join('\n\n---\n\n');
         }
       }
-    } else if (clientText && clientText.length > 20 && !hasSpecificTopic) {
-      contextText = clientText;
     }
 
     const randomSeed = Math.floor(Math.random() * 10000);
     let prompt = '';
 
-    if (hasSpecificTopic) {
-      // User explicitly specified a topic (e.g. "trauma", "biology", "ecology"). Strict topic focus!
+    // If document text is available, ALWAYS ground flashcards in the document!
+    if (contextText && contextText.trim().length >= 20) {
+      const textSlice = contextText.length > 15000 ? contextText.slice(0, 15000) : contextText;
+      prompt = `Based STRICTLY on the uploaded study document text provided below, generate EXACTLY ${count} comprehensive, high-yield educational flashcards.
+CRITICAL GROUNDING DIRECTIVE (Seed #${randomSeed}):
+- Every single flashcard MUST be derived directly from the document text below.
+- Do NOT hallucinate concepts, external facts, or unrelated subject matter.
+${hasSpecificTopic ? `- Prioritize passages and concepts relating to: "${topic}".` : '- Cover the core definitions, mechanisms, key principles, formulas, and critical takeaways.'}
+- "question" must be an active recall question or prompt (e.g. "What is...", "Define...", "Explain the mechanism of...", "How does...").
+- "answer" must be the accurate, concise explanation directly from the document.
+- Never use em-dashes ('—') or double hyphens ('--') in any question or answer.
+
+Document Text:
+${textSlice}
+
+Return ONLY a valid JSON object matching this exact structure:
+{
+  "flashcards": [
+    {
+      "question": "Specific question or key concept from the document",
+      "answer": "Accurate, concise explanation or definition from the document"
+    }
+  ]
+}`;
+    } else if (hasSpecificTopic) {
+      // User explicitly specified a topic in free mode (no document uploaded)
       prompt = `Generate EXACTLY ${count} comprehensive, high-yield educational flashcards strictly on the topic: "${topic}".
 CRITICAL TOPIC DIRECTIVE (Seed #${randomSeed}):
 - Every single flashcard must be 100% focused on "${topic}".
-- Do NOT generate flashcards about previous topics, old queries, or unrelated documents.
 - Ensure the questions are insightful, varied, and test core definitions, mechanisms, and key facts of "${topic}".
-Punctuation rule: Never use em-dashes ('—') or double hyphens ('--') in any question or answer; write naturally using commas, periods, or colons instead.
+- Never use em-dashes ('—') or double hyphens ('--') in any question or answer.
 
 Return ONLY a valid JSON object matching this exact structure:
 {
@@ -179,30 +241,12 @@ Return ONLY a valid JSON object matching this exact structure:
     }
   ]
 }`;
-    } else if (contextText && contextText.trim().length >= 10) {
-      prompt = `Based on the study document text provided below, generate EXACTLY ${count} fresh, unique educational flashcards covering key concepts, terms, definitions, and facts.
-Seed / variation token: ${randomSeed}. Ensure this is a brand-new set covering high-yield material.
-Do NOT use generic filler text or placeholder questions. Every single card must be directly based on the document text.
-Punctuation rule: Never use em-dashes ('—') or double hyphens ('--') in any question or answer; write naturally using commas, periods, or colons instead.
-
-Return ONLY a valid JSON object matching this exact structure:
-{
-  "flashcards": [
-    {
-      "question": "Specific question or key concept from the text",
-      "answer": "Accurate, concise explanation or definition from the text"
-    }
-  ]
-}
-
-Document Text:
-${contextText.slice(0, 12000)}`;
     } else {
       // General knowledge generation from user topic/prompt
-      const targetTopic = topic || 'General Academic Study';
+      const targetTopic = topic || docTitle || 'General Academic Study';
       prompt = `Generate EXACTLY ${count} comprehensive, high-yield educational flashcards on the topic: "${targetTopic}".
 Seed / variation token: ${randomSeed}. Ensure the questions are insightful, varied, and test deep conceptual understanding.
-Punctuation rule: Never use em-dashes ('—') or double hyphens ('--') in any question or answer; write naturally using commas, periods, or colons instead.
+Never use em-dashes ('—') or double hyphens ('--') in any question or answer.
 
 Return ONLY a valid JSON object matching this exact structure:
 {

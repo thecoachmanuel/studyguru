@@ -33,10 +33,10 @@ export function tripGeminiCircuit(reason = '') {
 const GEMINI_MODELS = Array.from(
   new Set([
     process.env.GEMINI_MODEL,
-    'gemini-2.5-flash-lite',
-    'gemini-3.8-flash',
-    'gemini-3.5-flash',
-    'gemini-flash-latest',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-1.5-flash-8b',
   ].filter(Boolean))
 );
 
@@ -44,11 +44,11 @@ const GEMINI_MODELS = Array.from(
 const OPENROUTER_MODELS = Array.from(
   new Set([
     process.env.OPENROUTER_MODEL,
-    'liquid/lfm-2.5-2.6b:free',
-    'nvidia/nemotron-3.5-lightning:free',
+    'google/gemini-2.0-flash-lite:free',
+    'meta-llama/llama-3.3-70b-instruct:free',
+    'meta-llama/llama-3.1-8b-instruct:free',
+    'mistralai/mistral-7b-instruct:free',
     'openrouter/auto',
-    'dots-studio/dots-3-note-preview:free',
-    'cohere/north-mini-code:free',
   ].filter(Boolean))
 );
 

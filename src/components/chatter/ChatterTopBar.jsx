@@ -1,5 +1,7 @@
 'use client';
 
+import { useState, useRef, useEffect } from 'react';
+
 export default function ChatterTopBar({
   onOpenNotifications,
   onOpenSearch,
@@ -10,48 +12,36 @@ export default function ChatterTopBar({
   onSelectFeedTab = null,
   title = null,
 }) {
+  const [isScrolled, setIsScrolled] = useState(false);
+  const brandHeaderRef = useRef(null);
+
+  useEffect(() => {
+    if (!feedTab) return;
+    const scrollContainer = brandHeaderRef.current?.closest('.chatter-main-column') || window;
+    const handleScroll = () => {
+      const scrollY = scrollContainer === window ? window.scrollY : scrollContainer.scrollTop;
+      setIsScrolled(scrollY > 15);
+    };
+
+    scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => scrollContainer.removeEventListener('scroll', handleScroll);
+  }, [feedTab]);
+
   return (
     <>
-      {/* ── Mobile Brand Header (scrolls with feed, disappears while scrolling) ── */}
+      {/* ── Mobile Brand Header (scrolls with feed, disappears while scrolling - clean logo with no icons) ── */}
       {feedTab && (
-        <div className="chatter-mobile-brand-header">
-          <div className="chatter-logo-tag" style={{ fontSize: 22, gap: 6 }}>
+        <div ref={brandHeaderRef} className="chatter-mobile-brand-header">
+          <div className="chatter-logo-tag" style={{ fontSize: 21, gap: 6 }}>
             <span>Study<span style={{ color: 'var(--chatter-primary)' }}>Cord</span></span>
             <span className="chatter-logo-tag__dot" style={{ width: 7, height: 7 }} />
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button
-              type="button"
-              className="chatter-topbar__btn"
-              onClick={onOpenNotifications}
-              aria-label="Notifications"
-              title="Notifications"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-              </svg>
-              {unreadNotificationsCount > 0 && <span className="chatter-topbar__badge" />}
-            </button>
-            <button
-              type="button"
-              className="chatter-topbar__btn"
-              onClick={onOpenSearch}
-              aria-label="Search"
-              title="Search"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-            </button>
           </div>
         </div>
       )}
 
       {/* ── Sticky Top Bar: Tabs ("For you" / "Following") or Section Title ── */}
-      <header className="chatter-topbar" aria-label="StudyCord Top Header">
+      <header className={`chatter-topbar ${feedTab && isScrolled ? 'chatter-topbar--scrolled' : ''}`} aria-label="StudyCord Top Header">
         {/* Left Action: Notifications on mobile & desktop (desktop only on feed since brand header has it) */}
         <div className={`chatter-topbar__actions chatter-topbar__actions--left ${feedTab ? 'chatter-topbar__actions--desktop-only' : ''}`}>
           <button

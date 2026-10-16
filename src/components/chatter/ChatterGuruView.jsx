@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import ChatbotIcon from '@/components/ChatbotIcon';
 import ChatMarkdownMessage from '@/components/ChatMarkdownMessage';
 import { TwitterVerifiedBadge } from './ChatterFeedView';
+import { parseDocumentLocally } from '@/lib/clientDocumentParser';
 
 const WORD_TO_NUMBER = {
   one: 1, two: 2, three: 3, four: 4, five: 5,
@@ -28,6 +29,74 @@ function extractRequestedCount(text) {
     if (WORD_TO_NUMBER[w]) return WORD_TO_NUMBER[w];
   }
   return null;
+}
+
+function synthesizeLocalMCQFromText(text, count = 5, iteration = 0) {
+  if (!text || typeof text !== 'string' || text.trim().length < 20) return null;
+  const paragraphs = text
+    .split(/\n\n+|\n/)
+    .map((p) => p.trim())
+    .filter((p) => p.length >= 35 && p.length <= 450);
+
+  if (paragraphs.length === 0) return null;
+  const rotated = [...paragraphs];
+  const shift = (iteration * 3) % paragraphs.length;
+  for (let i = 0; i < shift; i++) rotated.push(rotated.shift());
+
+  const selected = rotated.slice(0, count);
+  return selected.map((p, i) => {
+    const sentences = p.split(/(?<=[.?!])\s+/).filter((s) => s.length > 15);
+    const key = (sentences[i % sentences.length] || sentences[0]).replace(/^[#*\s-]+/, '').trim();
+    const correct = `Directly confirmed: ${key.slice(0, 90)}`;
+    const d1 = `Directly contradicts the statement regarding ${key.slice(0, 30)}`;
+    const d2 = `Applies only under extreme or hypothetical boundary conditions`;
+    const d3 = `Irrelevant to the primary analysis in this section`;
+    const opts = [correct, d1, d2, d3].sort(() => Math.random() - 0.5);
+    return {
+      question: `Q${i + 1}. Based on your notes: Which statement is accurate concerning "${key.slice(0, 75)}..."?`,
+      options: opts,
+      correct_answer: correct,
+      explanation: p.slice(0, 160),
+    };
+  });
+}
+
+function synthesizeLocalFlashcardsFromText(text, count = 8) {
+  if (!text || typeof text !== 'string' || text.trim().length < 20) return null;
+  const cards = [];
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.length > 10);
+  for (const line of lines) {
+    if (cards.length >= count) break;
+    const colonMatch = line.match(/^(?:[-*•]\s*)?(?:\*\*)?([A-Za-z0-9\s/()_-]{3,40})(?:\*\*)?\s*[:–—\-]\s*(.{20,})/);
+    if (colonMatch) {
+      const term = colonMatch[1].trim();
+      const def = colonMatch[2].trim();
+      if (!cards.some((c) => c.question.includes(term))) {
+        cards.push({ question: `Define: ${term}`, answer: def, front: `Define: ${term}`, back: def });
+      }
+    }
+  }
+  if (cards.length < count) {
+    const paragraphs = text.split(/\n\n+|\n/).map((p) => p.trim()).filter((p) => p.length >= 35 && p.length <= 400);
+    for (const p of paragraphs) {
+      if (cards.length >= count) break;
+      const cleanP = p.replace(/^[#*\s-]+/, '').trim();
+      const sentences = cleanP.split(/(?<=[.?!])\s+/);
+      if (sentences.length >= 1) {
+        const first = sentences[0].trim();
+        const rest = sentences.slice(1).join(' ').trim() || cleanP;
+        if (first.length > 15 && !cards.some((c) => c.question.includes(first.slice(0, 30)))) {
+          cards.push({
+            question: `Key Concept: ${first.slice(0, 90)}`,
+            answer: rest.length > 20 ? rest : cleanP,
+            front: `Key Concept: ${first.slice(0, 90)}`,
+            back: rest.length > 20 ? rest : cleanP,
+          });
+        }
+      }
+    }
+  }
+  return cards.length > 0 ? cards : null;
 }
 
 export default function ChatterGuruView({
@@ -382,8 +451,22 @@ export default function ChatterGuruView({
     setUploadingDoc(true);
     setUploadFileName(file.name);
 
+    // 1. Immediately extract document text locally in milliseconds on the student's browser!
+    let localText = '';
+    let localChunks = [];
+    try {
+      const localResult = await parseDocumentLocally(file);
+      if (localResult?.fullText && localResult.fullText.trim().length > 15) {
+        localText = localResult.fullText.trim();
+        localChunks = localResult.chunks || [];
+      }
+    } catch (parseErr) {
+      console.warn('In-browser doc parser notice:', parseErr?.message);
+    }
+
     const formData = new FormData();
     formData.append('file', file);
+    if (localText) formData.append('extractedText', localText);
     if (serverId) formData.append('serverId', serverId);
 
     try {
@@ -398,11 +481,12 @@ export default function ChatterGuruView({
       }
 
       const data = await res.json();
+      const resolvedText = data.extractedText || data.extracted_text || data.text || localText || '';
       const newDoc = {
         doc_id: data.doc_id || `doc-${Date.now()}`,
         filename: data.filename || file.name,
-        chunksCount: data.chunksCount || 12,
-        extractedText: data.extractedText || data.extracted_text || data.text || '',
+        chunksCount: data.chunksCount || localChunks.length || 12,
+        extractedText: resolvedText,
         status: 'Indexed & Ready',
       };
 
@@ -421,7 +505,7 @@ export default function ChatterGuruView({
         {
           id: `g-upload-${Date.now()}`,
           role: 'assistant',
-          content: `✅ Successfully indexed **${newDoc.filename}** (${newDoc.chunksCount} vectorized text chunks). It is now your **active study target**! You can ask questions about this document or click below to generate an instant quiz or flashcards!`,
+          content: `✅ Successfully indexed and read **${newDoc.filename}** (${newDoc.chunksCount} study sections). It is now your **active study target**! I have read your document and am ready to provide guided assistance, step-by-step teachings, flashcards, or practice quizzes based on it.`,
           documentRef: newDoc,
           timestamp: 'Just now',
         },
@@ -431,18 +515,24 @@ export default function ChatterGuruView({
       const newDoc = {
         doc_id: `doc-${Date.now()}`,
         filename: file.name,
-        chunksCount: 14,
-        extractedText: 'Lecture notes loaded locally for review session.',
+        chunksCount: localChunks.length || 14,
+        extractedText: localText || `Lecture notes from ${file.name} loaded locally for interactive study review.`,
         status: 'Parsed (Local)',
       };
-      setUploadedDocs((prev) => [newDoc, ...prev]);
+      setUploadedDocs((prev) => {
+        const updated = [newDoc, ...prev];
+        try {
+          localStorage.setItem('studycord_cached_docs', JSON.stringify(updated.slice(0, 10)));
+        } catch {}
+        return updated;
+      });
       setSelectedDocId(newDoc.doc_id);
       setGuidedMessages((prev) => [
         ...prev,
         {
           id: `g-upload-${Date.now()}`,
           role: 'assistant',
-          content: `📄 Loaded **${file.name}** as your active study target. Vector index initialized for instant tutoring!`,
+          content: `📄 Successfully read and loaded **${file.name}** as your active study target (${newDoc.chunksCount} study sections). Ready for instant guided tutoring, teachings, quizzes, and flashcards!`,
           documentRef: newDoc,
           timestamp: 'Just now',
         },
@@ -645,11 +735,12 @@ export default function ChatterGuruView({
       lastQuizTopicRef.current = customTopic.trim();
     }
 
-    const activeDoc = (isFree || hasExplicitTopic) ? null : (uploadedDocs.find((d) => (d.doc_id || d.id) === (docId || selectedDocId)) || (selectedDocId === null ? uploadedDocs[0] : null));
-    const targetDocId = (isFree || hasExplicitTopic) ? null : (docId || selectedDocId || activeDoc?.doc_id || activeDoc?.id || null);
+    const activeDoc = isFree ? null : (uploadedDocs.find((d) => (d.doc_id || d.id) === (docId || selectedDocId)) || (selectedDocId === null ? uploadedDocs[0] : null) || uploadedDocs[0] || null);
+    const targetDocId = isFree ? null : (docId || selectedDocId || activeDoc?.doc_id || activeDoc?.id || null);
     const targetDocName = hasExplicitTopic
       ? customTopic.trim()
       : (isFree ? 'Core Academic Concepts' : (docName || activeDoc?.filename || 'the active study session'));
+    const docText = isFree ? '' : (activeDoc?.extractedText || activeDoc?.extracted_text || activeDoc?.text || activeDoc?.summary || '');
 
     const count = customCount && customCount > 0 ? customCount : 5;
     const isRegen = quizGenCountRef.current > 0;
@@ -680,7 +771,8 @@ export default function ChatterGuruView({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           documentId: targetDocId,
-          documentText: activeDoc?.extractedText || activeDoc?.text || activeDoc?.summary || '',
+          documentTitle: activeDoc?.filename || targetDocName,
+          documentText: docText,
           count,
           topic: targetDocName,
           regenerate: true,
@@ -732,8 +824,11 @@ export default function ChatterGuruView({
         throw new Error('No questions synthesized');
       }
     } catch {
-      // Dynamic fallback rotating through subjects so fresh questions are always shown
-      const fallbackQuestions = generateGuruFallbackQuestions(currentIteration, targetDocName);
+      // Prioritize document-grounded synthesized questions from student's actual text
+      const localSynthesized = docText && docText.length > 25
+        ? synthesizeLocalMCQFromText(docText, count, currentIteration)
+        : null;
+      const fallbackQuestions = localSynthesized || generateGuruFallbackQuestions(currentIteration, targetDocName);
       if (targetMessageId) {
         setTargetMessages((prev) =>
           prev.map((m) =>
@@ -790,11 +885,12 @@ export default function ChatterGuruView({
       lastFlashcardTopicRef.current = customTopic.trim();
     }
 
-    const activeDoc = (isFree || hasExplicitTopic) ? null : (uploadedDocs.find((d) => (d.doc_id || d.id) === (docId || selectedDocId)) || (selectedDocId === null ? uploadedDocs[0] : null));
-    const targetDocId = (isFree || hasExplicitTopic) ? null : (docId || selectedDocId || activeDoc?.doc_id || activeDoc?.id || null);
+    const activeDoc = isFree ? null : (uploadedDocs.find((d) => (d.doc_id || d.id) === (docId || selectedDocId)) || (selectedDocId === null ? uploadedDocs[0] : null) || uploadedDocs[0] || null);
+    const targetDocId = isFree ? null : (docId || selectedDocId || activeDoc?.doc_id || activeDoc?.id || null);
     const targetDocName = hasExplicitTopic
       ? customTopic.trim()
       : (isFree ? 'Core Subject Definitions & Facts' : (docName || activeDoc?.filename || 'the active study session'));
+    const docText = isFree ? '' : (activeDoc?.extractedText || activeDoc?.extracted_text || activeDoc?.text || '');
 
     const count = customCount && customCount > 0 ? customCount : 8;
     const isRegen = flashcardsGenCountRef.current > 0;
@@ -824,7 +920,8 @@ export default function ChatterGuruView({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           documentId: targetDocId,
-          documentText: activeDoc?.extractedText || activeDoc?.extracted_text || activeDoc?.text || '',
+          documentTitle: activeDoc?.filename || targetDocName,
+          documentText: docText,
           count,
           topic: targetDocName,
           regenerate: true,
@@ -872,12 +969,12 @@ export default function ChatterGuruView({
         throw new Error('No flashcards returned');
       }
     } catch {
-      const fallbackCards = [
-        { front: 'Stokes’ Theorem Formula', back: '∮_C F · dr = ∬_S (∇ × F) · dS' },
-        { front: 'Pre-LN vs Post-LN benefit', back: 'Pre-LN yields well-behaved gradient norms, allowing training stability without warmup.' },
-        { front: 'Eigenvalue Characteristic Equation', back: 'det(A - λI) = 0 defines the characteristic equation for eigenvalues λ.' },
-        { front: 'Bayes Theorem Conditional Formula', back: 'P(A|B) = [P(B|A) · P(A)] / P(B)' },
-        { front: 'Heisenberg Uncertainty Principle', back: 'Δx · Δp ≥ ℏ / 2' },
+      const localCards = docText && docText.length > 25
+        ? synthesizeLocalFlashcardsFromText(docText, count)
+        : null;
+      const fallbackCards = localCards || [
+        { front: 'Key Concept Definition', back: 'Review the highlighted terms in your study notes.' },
+        { front: 'Active Recall Check', back: 'Explain this concept aloud in your own words.' },
       ];
       if (targetMessageId) {
         setTargetMessages((prev) =>
@@ -965,16 +1062,23 @@ export default function ChatterGuruView({
     if (isFlashcardRequest && !isQuizRequest) {
       const targetCount = parsedCount && parsedCount > 0 ? parsedCount : 8;
       setInputText('');
+      const activeDoc = isFreeChat ? null : (uploadedDocs.find((d) => (d.doc_id || d.id) === selectedDocId) || uploadedDocs[0] || null);
 
       if (specificTopic) {
         lastFlashcardTopicRef.current = specificTopic;
-        handleGenerateFlashcards(null, null, targetCount, specificTopic, text, replaceUserMsgId ? targetAiMsgId : null);
+        handleGenerateFlashcards(
+          activeDoc?.doc_id || activeDoc?.id || null,
+          activeDoc?.filename || null,
+          targetCount,
+          specificTopic,
+          text,
+          replaceUserMsgId ? targetAiMsgId : null
+        );
       } else {
         const existingTopic = lastFlashcardTopicRef.current;
-        if (existingTopic && !mentionsDocExplicitly) {
+        if (existingTopic && !mentionsDocExplicitly && isFreeChat) {
           handleGenerateFlashcards(null, null, targetCount, existingTopic, text, replaceUserMsgId ? targetAiMsgId : null);
         } else {
-          const activeDoc = useDoc ? (uploadedDocs.find((d) => (d.doc_id || d.id) === selectedDocId) || uploadedDocs[0]) : null;
           handleGenerateFlashcards(
             activeDoc?.doc_id || activeDoc?.id || null,
             activeDoc?.filename || null,
@@ -992,16 +1096,23 @@ export default function ChatterGuruView({
     if (isQuizRequest) {
       const targetCount = parsedCount && parsedCount > 0 ? parsedCount : 5;
       setInputText('');
+      const activeDoc = isFreeChat ? null : (uploadedDocs.find((d) => (d.doc_id || d.id) === selectedDocId) || uploadedDocs[0] || null);
 
       if (specificTopic) {
         lastQuizTopicRef.current = specificTopic;
-        handleGenerateMCQ(null, null, replaceUserMsgId ? targetAiMsgId : null, targetCount, specificTopic, text);
+        handleGenerateMCQ(
+          activeDoc?.doc_id || activeDoc?.id || null,
+          activeDoc?.filename || null,
+          replaceUserMsgId ? targetAiMsgId : null,
+          targetCount,
+          specificTopic,
+          text
+        );
       } else {
         const existingTopic = lastQuizTopicRef.current;
-        if (existingTopic && !mentionsDocExplicitly) {
+        if (existingTopic && !mentionsDocExplicitly && isFreeChat) {
           handleGenerateMCQ(null, null, replaceUserMsgId ? targetAiMsgId : null, targetCount, existingTopic, text);
         } else {
-          const activeDoc = useDoc ? (uploadedDocs.find((d) => (d.doc_id || d.id) === selectedDocId) || uploadedDocs[0]) : null;
           handleGenerateMCQ(
             activeDoc?.doc_id || activeDoc?.id || null,
             activeDoc?.filename || null,

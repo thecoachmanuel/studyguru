@@ -331,13 +331,19 @@ export async function POST(req) {
     const count = !isNaN(requestedCount) && requestedCount > 0 ? Math.min(Math.max(requestedCount, 2), 30) : 5;
     const iteration = parseInt(body.iteration, 10) || Math.floor(Math.random() * 1000);
     const isRegenerate = Boolean(body.regenerate || body.forceRefresh || body.fresh || requestedCount);
-    const topic = (body.topic || body.prompt || body.message || '').trim();
-    const hasSpecificTopic = Boolean(
-      topic &&
-      !topic.toLowerCase().includes('core academic concepts') &&
-      !topic.toLowerCase().includes('the active study session') &&
-      !topic.toLowerCase().includes('the active document')
+    const rawTopic = (body.topic || body.prompt || body.message || '').trim();
+    const docTitle = (body.documentTitle || body.docTitle || body.filename || '').trim();
+
+    const isTopicDocFilename = Boolean(
+      rawTopic &&
+      (rawTopic.toLowerCase() === docTitle.toLowerCase() ||
+       /\.(pdf|docx|txt|md|pptx)$/i.test(rawTopic) ||
+       rawTopic.toLowerCase().includes('core academic concepts') ||
+       rawTopic.toLowerCase().includes('the active study session') ||
+       rawTopic.toLowerCase().includes('the active document'))
     );
+    const hasSpecificTopic = Boolean(rawTopic && !isTopicDocFilename);
+    const topic = hasSpecificTopic ? rawTopic : '';
 
     const userId = session.user.id;
     const db = await getDatabase();
@@ -372,11 +378,20 @@ export async function POST(req) {
       }
     }
 
-    // Resolve document text if documentId is provided (only when no specific separate topic is requested)
+    // Resolve document text: prioritize client-provided documentText for millisecond speed, then database
     let contextText = '';
     const clientText = String(body.documentText || body.docText || body.text || '').trim();
 
-    if (documentId && !hasSpecificTopic) {
+    if (clientText && clientText.length > 20) {
+      contextText = clientText;
+      if (documentId) {
+        const safeId = safeObjectId(documentId);
+        db.collection('rag_documents').updateOne(
+          { $or: [{ _id: safeId }, { id: documentId }] },
+          { $set: { extracted_text: clientText, updated_at: new Date() } }
+        ).catch(() => {});
+      }
+    } else if (documentId) {
       const safeId = safeObjectId(documentId);
       let doc = await db.collection('rag_documents').findOne({
         $or: [{ _id: safeId }, { id: documentId }, { document_id: documentId }],
@@ -393,18 +408,10 @@ export async function POST(req) {
         }
       }
 
-      const isDocPlaceholder = !doc?.extracted_text || doc.extracted_text.length < 60 || doc.extracted_text.startsWith('Academic study material:');
+      const isDocPlaceholder = !doc?.extracted_text || doc.extracted_text.length < 40 || doc.extracted_text.startsWith('Academic study material:');
 
       if (!isDocPlaceholder && doc?.extracted_text) {
         contextText = doc.extracted_text;
-      } else if (clientText && clientText.length > 20) {
-        contextText = clientText;
-        if (doc?._id) {
-          db.collection('rag_documents').updateOne(
-            { _id: doc._id },
-            { $set: { extracted_text: clientText, updated_at: new Date() } }
-          ).catch(() => {});
-        }
       } else if (doc?.extracted_text) {
         contextText = doc.extracted_text;
       } else {
@@ -418,38 +425,13 @@ export async function POST(req) {
           contextText = chunks.join('\n\n---\n\n');
         }
       }
-    } else if (clientText && clientText.length > 20 && !hasSpecificTopic) {
-      contextText = clientText;
     }
 
     const variationSeed = Date.now() + '-' + iteration + '-' + Math.floor(Math.random() * 1000);
     let prompt = '';
 
-    if (hasSpecificTopic) {
-      // User explicitly specified a topic (e.g. "ecology", "trauma", "cardiology"). Strict topic focus!
-      prompt = `Generate EXACTLY ${count} high-yield, challenging, non-repetitive multiple choice revision quiz questions strictly on the topic: "${topic}".
-CRITICAL SUBJECT DIRECTIVE (Seed #${variationSeed}):
-- Every single question must be 100% focused on "${topic}".
-- Do NOT generate questions about previous topics, old queries, or unrelated documents.
-- Each question must be rigorous, factually accurate, and test deep conceptual understanding of "${topic}".
-
-Return ONLY valid JSON matching this exact structure:
-{
-  "questions": [
-    {
-      "question": "Clear, precise academic question text strictly concerning ${topic}",
-      "options": ["Option A", "Option B", "Option C", "Option D"],
-      "correct_answer": "Option A",
-      "explanation": "Clear explanation of why this answer is correct"
-    }
-  ]
-}
-
-CRITICAL RULES:
-1. "options" must be an array of exactly 4 distinct choice strings.
-2. "correct_answer" MUST be a string that exactly matches one of the choices in "options".
-3. Never use em-dashes ('—') or double hyphens ('--') in questions, options, or explanations.`;
-    } else if (contextText && contextText.trim().length >= 15) {
+    // If document text is available, ALWAYS ground quiz questions in the document!
+    if (contextText && contextText.trim().length >= 20) {
       // Offset the text window for long documents so subsequent quizzes pull from alternate chapters/sections
       let textSlice = contextText;
       if (contextText.length > 10000) {
@@ -459,11 +441,12 @@ CRITICAL RULES:
         textSlice = contextText.slice(0, 12000);
       }
 
-      prompt = `Based ONLY on the document text provided below, generate EXACTLY ${count} multiple choice revision quiz questions.
-CRITICAL VARIATION INSTRUCTION (Seed #${variationSeed}):
-- This is assessment drill #${iteration + 1}. You MUST generate a completely NEW, DIFFERENT set of questions than standard overviews.
-- Focus on specific mechanisms, deeper implications, formulas, secondary concepts, or alternate paragraphs.
-- Do NOT repeat generic or superficial questions.
+      prompt = `Based STRICTLY on the uploaded study document text provided below, generate EXACTLY ${count} multiple choice revision quiz questions.
+CRITICAL GROUNDING DIRECTIVE (Seed #${variationSeed}):
+- Assessment drill #${iteration + 1}. You MUST generate questions directly rooted in the provided document text.
+- Do NOT make up facts or generate questions about unrelated outside subjects.
+${hasSpecificTopic ? `- Focus especially on passages and concepts relating to: "${topic}".` : '- Cover specific mechanisms, definitions, formulas, principles, or key paragraphs from the text.'}
+- Every question must test genuine understanding with 4 distinct options.
 
 Return ONLY valid JSON matching this exact structure:
 {
@@ -484,9 +467,32 @@ CRITICAL RULES:
 
 Document Text:
 ${textSlice}`;
+    } else if (hasSpecificTopic) {
+      // User explicitly specified a topic in free mode (no document uploaded)
+      prompt = `Generate EXACTLY ${count} high-yield, challenging, non-repetitive multiple choice revision quiz questions strictly on the topic: "${topic}".
+CRITICAL SUBJECT DIRECTIVE (Seed #${variationSeed}):
+- Every single question must be 100% focused on "${topic}".
+- Each question must be rigorous, factually accurate, and test deep conceptual understanding of "${topic}".
+
+Return ONLY valid JSON matching this exact structure:
+{
+  "questions": [
+    {
+      "question": "Clear, precise academic question text strictly concerning ${topic}",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correct_answer": "Option A",
+      "explanation": "Clear explanation of why this answer is correct"
+    }
+  ]
+}
+
+CRITICAL RULES:
+1. "options" must be an array of exactly 4 distinct choice strings.
+2. "correct_answer" MUST be a string that exactly matches one of the choices in "options".
+3. Never use em-dashes ('—') or double hyphens ('--') in questions, options, or explanations.`;
     } else {
       // Topic or general knowledge based quiz generation
-      const targetTopic = topic || 'General Science and Academic Knowledge';
+      const targetTopic = topic || docTitle || 'General Science and Academic Knowledge';
       prompt = `Generate EXACTLY ${count} high-yield, challenging multiple choice revision quiz questions on the topic: "${targetTopic}".
 CRITICAL VARIATION INSTRUCTION (Seed #${variationSeed}):
 - You MUST generate a completely fresh, engaging set of questions testing conceptual understanding, application, and nuance.
