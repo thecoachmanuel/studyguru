@@ -5,6 +5,8 @@ import { retrieveRelevantChunks } from '@/lib/vectorSearch';
 import { generateStreamWithFallback, generateContentWithFallback } from '@/lib/llm';
 import { cleanEmDashes } from '@/lib/cleanText';
 import { generateOpenAIImage } from '@/lib/openaiImage';
+import { extractUrlsFromText, scrapeMultipleWebPages } from '@/lib/webScraper';
+import { performWebSearch } from '@/lib/webSearch';
 
 // In-memory cache for common student questions on documents
 const chatResponseCache = new Map();
@@ -285,14 +287,69 @@ function extractFastRelevantPassages(text, query, maxChars = 22000) {
       contextText = `Study Document: ${docTitle}. Teach strictly from this topic.`;
     }
 
-    // 4. Incorporate multi-turn conversation history
+    // 4. Live Internet Web Search & URL Webpage Crawling
+    const isWebSearchRequested = Boolean(body.webSearch === true || body.enableWebSearch);
+    const extractedUrls = extractUrlsFromText(trimmedMessage);
+    let liveWebContext = '';
+
+    // 4a. If student provided URLs or links in their message, crawl & scrape each page
+    if (extractedUrls.length > 0) {
+      try {
+        const scrapedPages = await scrapeMultipleWebPages(extractedUrls, 3);
+        if (scrapedPages.length > 0) {
+          liveWebContext += `\n\n=== LIVE WEBPAGE CONTENT EXTRACTED FROM LINK(S) IN USER MESSAGE ===\n`;
+          for (const page of scrapedPages) {
+            liveWebContext += `Source URL: ${page.url}\nPage Title: ${page.title || 'Webpage'}\nExtracted Page Content:\n${page.text}\n\n---\n`;
+          }
+        }
+      } catch (scrapeErr) {
+        console.warn('URL scraping notice in chat:', scrapeErr?.message);
+      }
+    }
+
+    // 4b. If student toggled Web Search or typed web search intent queries
+    const SEARCH_INTENT_REGEX = /\b(?:search (?:the )?web|browse (?:the )?web|look ?up online|search online|live (?:data|facts|results|info|news)|latest news|recent news|current news|find on (?:the )?web|google (?:this|it)?|what is the latest on|what's the latest on|who won the latest|current price of|today's news|live internet)\b/i;
+    const hasSearchIntent = SEARCH_INTENT_REGEX.test(trimmedMessage);
+
+    if ((isWebSearchRequested || hasSearchIntent) && extractedUrls.length === 0) {
+      try {
+        const cleanSearchQuery = trimmedMessage
+          .replace(/^(?:please\s+)?(?:can you\s+)?(?:search (?:the )?web for|browse (?:the )?web for|look ?up online|search online for|find online|google)\s+/i, '')
+          .trim();
+
+        const searchData = await performWebSearch(cleanSearchQuery || trimmedMessage, {
+          maxResults: 5,
+          deepScrape: true,
+        });
+
+        if (searchData?.results?.length > 0) {
+          liveWebContext += `\n\n=== LIVE INTERNET SEARCH FINDINGS (${searchData.provider}) FOR: "${searchData.query}" ===\n`;
+          if (searchData.directAnswer) {
+            liveWebContext += `Direct Answer / Summary: ${searchData.directAnswer}\n\n`;
+          }
+          for (const item of searchData.results) {
+            liveWebContext += `• [${item.title}](${item.url})\n  Source: ${item.source}\n  Snippet: ${item.snippet}\n\n`;
+          }
+          if (searchData.scrapedPassages?.length > 0) {
+            liveWebContext += `DEEP WEBPAGE EXCERPTS FROM TOP SEARCH RESULTS:\n`;
+            for (const passage of searchData.scrapedPassages) {
+              liveWebContext += `[${passage.title}](${passage.url}):\n${passage.text}\n\n---\n`;
+            }
+          }
+        }
+      } catch (searchErr) {
+        console.warn('Web search notice in chat:', searchErr?.message);
+      }
+    }
+
+    // 5. Incorporate multi-turn conversation history
     const formattedHistory = rawHistory
       .filter((turn) => turn && typeof turn.content === 'string' && turn.content.trim())
       .slice(-8)
       .map((turn) => `${turn.role === 'user' ? 'Student' : 'Personal Tutor'}: ${turn.content.trim()}`)
       .join('\n\n');
 
-    // 5. Personal Tutor System Prompt (Grounded in doc if present, versatile academic wisdom overall)
+    // 6. Personal Tutor System Prompt (Grounded in doc if present, versatile academic wisdom overall)
     const isGuidedMode = !isFreeChat && (body.mode === 'guided' || Boolean(docTitle));
     const hasActiveDoc = !isFreeChat && Boolean(docTitle && (fullDocumentText || contextChunks.length > 0));
 
@@ -325,6 +382,12 @@ ${contextText || (docTitle ? `Document: ${docTitle}. (Ground your tutoring stric
 Document Context:
 ${contextText}` : `ACADEMIC TUTORING CONTEXT:
 • General Academic Mode: Answer any subject question (STEM, Coding, Medicine, Humanities, Languages, or Exam Prep) with crystal-clear explanations, intuitive analogies, and step-by-step guidance.`};
+${liveWebContext ? `
+LIVE INTERNET SEARCH & REAL-TIME WEB DATA ACCESS:
+• You have active access to real-time internet search results and/or live scraped web pages provided below.
+• Ground your factual explanations, latest developments, dates, figures, and answers directly in this live web material.
+• Always include helpful, clickable Markdown citations in the standard format [Source Title](url) so the student can verify sources or read further.
+• If the student provided a link, summarize or explain the webpage content thoroughly according to their prompt.` : ''}
 
 CORE TUTORING PEDAGOGY & ADAPTIVE PACING:
 1. ADAPTIVE RESPONSE LENGTH & DYNAMIC DEPTH:
@@ -371,7 +434,10 @@ CORE TUTORING PEDAGOGY & ADAPTIVE PACING:
       userPrompt += `Previous Conversation Turns:\n${formattedHistory}\n\n`;
     }
     userPrompt += `Current Student Message: ${message}`;
-    userPrompt += `\n\n(TUTOR INSTRUCTION: Focus 100% on the student's current requested topic. If the student has changed topics, pivot completely to the new topic without mixing in past topics from the conversation turns. Adapt your response length dynamically without artificial caps. ${hasActiveDoc ? `Ground your response in "${docTitle}".` : 'Answer freely without referring to any document.'})`;
+    if (liveWebContext) {
+      userPrompt += `\n\nLive Internet & Web Grounding Material:${liveWebContext}`;
+    }
+    userPrompt += `\n\n(TUTOR INSTRUCTION: Focus 100% on the student's current requested topic. If the student has changed topics, pivot completely to the new topic without mixing in past topics from the conversation turns. Adapt your response length dynamically without artificial caps. ${hasActiveDoc ? `Ground your response in "${docTitle}".` : 'Answer freely without referring to any document.'}${liveWebContext ? ' Ground your response in the live web search / scraped webpage data and cite sources using [Source Title](url).' : ''})`;
 
     if (wantsStream) {
       const encoder = new TextEncoder();

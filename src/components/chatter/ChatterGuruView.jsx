@@ -195,6 +195,7 @@ export default function ChatterGuruView({
 
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isWebSearchActive, setIsWebSearchActive] = useState(false);
   const [copiedMsgId, setCopiedMsgId] = useState(null);
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editingText, setEditingText] = useState('');
@@ -387,10 +388,10 @@ export default function ChatterGuruView({
   }, [messages, loading]);
 
   const freeChatPrompts = [
+    '🌐 Search Web: Latest science news',
     '💡 Explain a concept simply',
     '🧠 Brainstorm study schedule',
     '💻 Debug code or algorithm',
-    '📐 Step-by-step problem walkthrough',
   ];
 
   const guidedStudyPrompts = [
@@ -1338,6 +1339,7 @@ export default function ChatterGuruView({
           documentId: docIdToSend,
           documentTitle: docTitle,
           documentText: docText,
+          webSearch: isWebSearchActive,
           history: targetSpaceHistory.slice(-6).map((m) => ({ role: m.role, content: m.content })),
         }),
       });
@@ -2330,7 +2332,40 @@ export default function ChatterGuruView({
         })}
 
         {loading && (
-          <div style={{ display: 'flex', justifyContent: 'flex-start', paddingLeft: 4 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', paddingLeft: 4, gap: 6 }}>
+            {isWebSearchActive && (
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '4px 10px',
+                  borderRadius: 12,
+                  background: 'rgba(64, 227, 120, 0.12)',
+                  border: '1px solid rgba(64, 227, 120, 0.28)',
+                  color: 'var(--chatter-primary)',
+                  fontSize: 12,
+                  fontWeight: 650,
+                }}
+              >
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ animation: 'chatter-spin 2s linear infinite' }}
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="2" y1="12" x2="22" y2="12" />
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                </svg>
+                <span>Searching live web & analyzing sources...</span>
+              </div>
+            )}
             <div
               className="chatter-ai-typing-bubble"
               style={{
@@ -2373,6 +2408,9 @@ export default function ChatterGuruView({
             key={i}
             type="button"
             onClick={() => {
+              if (p.includes('Search Web')) {
+                setIsWebSearchActive(true);
+              }
               if (p.includes('Quiz') || p.includes('Assessment')) {
                 if (aiMode === 'guided' && uploadedDocs.length === 0) {
                   docFileInputRef.current?.click();
@@ -2484,6 +2522,42 @@ export default function ChatterGuruView({
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
             </svg>
+          </button>
+
+          {/* Live Web Search Toggle shortcut */}
+          <button
+            type="button"
+            onClick={() => setIsWebSearchActive((prev) => !prev)}
+            style={{
+              background: isWebSearchActive ? 'rgba(64, 227, 120, 0.18)' : 'transparent',
+              border: isWebSearchActive ? '1px solid var(--chatter-primary)' : '1px solid transparent',
+              borderRadius: 14,
+              color: isWebSearchActive ? 'var(--chatter-primary)' : 'var(--chatter-light-text)',
+              cursor: 'pointer',
+              padding: isWebSearchActive ? '4px 8px' : '4px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              transition: 'all 0.18s ease',
+            }}
+            title={
+              isWebSearchActive
+                ? 'Web Search is ON: AI Guru searches the live internet & cites web links'
+                : 'Turn ON Web Search (browse live web & current data)'
+            }
+            aria-label={isWebSearchActive ? 'Web Search active' : 'Enable Web Search'}
+            aria-pressed={isWebSearchActive}
+          >
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="2" y1="12" x2="22" y2="12" />
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+            </svg>
+            {isWebSearchActive && (
+              <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '0.02em' }}>
+                Web
+              </span>
+            )}
           </button>
 
           <input
