@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { Room, RoomEvent, Track } from 'livekit-client';
 import { apiRequest } from '../lib/api';
 import { getPusherClient } from '../lib/pusherClient';
 
@@ -8,6 +9,13 @@ const PLAYBACK_RETRY_EVENTS = ['pointerdown', 'click', 'keydown', 'touchstart'];
 export const unlockAudioDesktopAndMobile = () => {
   if (typeof window === 'undefined') return;
   try {
+    // 1. LiveKit active room audio unlocking for iOS Safari / Mobile PWA
+    if (window.__livekit_active_room) {
+      if (!window.__livekit_active_room.canPlayAudio) {
+        window.__livekit_active_room.startAudio().catch(() => {});
+      }
+    }
+
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     if (AudioCtx) {
       if (!window.__studycord_audio_ctx) {
@@ -28,7 +36,7 @@ export const unlockAudioDesktopAndMobile = () => {
     // Play all mounted remote-audio elements
     const remoteAudios = document.querySelectorAll('audio[id^="remote-audio-"]');
     remoteAudios.forEach((el) => {
-      if (el && el.srcObject) {
+      if (el) {
         el.muted = false;
         el.volume = 1.0;
         el.play().catch(() => {});
@@ -40,7 +48,7 @@ export const unlockAudioDesktopAndMobile = () => {
 const unlockAudioOnMobile = unlockAudioDesktopAndMobile;
 if (typeof window !== 'undefined') {
   window.__unlockStudyCordAudio = unlockAudioDesktopAndMobile;
-  ['click', 'pointerdown', 'keydown'].forEach((evt) => {
+  ['click', 'pointerdown', 'keydown', 'touchstart'].forEach((evt) => {
     window.addEventListener(evt, unlockAudioDesktopAndMobile, { once: false, passive: true });
   });
 }
@@ -178,6 +186,8 @@ export function useVoiceSession(userId, profile = null) {
   ]);
   const offerWaitTimersRef = useRef({});
   const negotiatePeerRef = useRef(null);
+  const livekitRoomRef = useRef(null);
+  const isLiveKitActiveRef = useRef(false);
 
   useEffect(() => {
     participantsRef.current = participants;
@@ -1178,6 +1188,27 @@ export function useVoiceSession(userId, profile = null) {
   }, [sendSignal, logVideoDiagnostic]);
 
   const handleStopScreenShare = useCallback(async ({ notifyPeers = true } = {}) => {
+    if (livekitRoomRef.current) {
+      try {
+        await livekitRoomRef.current.localParticipant.setScreenShareEnabled(false);
+      } catch (e) {
+        console.warn('[LiveKit] Stop screen share notice:', e);
+      }
+      if (screenStreamRef.current) {
+        screenStreamRef.current.getTracks().forEach((track) => {
+          track.onended = null;
+          track.stop();
+        });
+        screenStreamRef.current = null;
+      }
+      screenTrackRef.current = null;
+      setLocalScreenStream(null);
+      setIsScreenSharing(false);
+      setScreenShareBusy(false);
+      screenShareStoppingRef.current = false;
+      return;
+    }
+
     if (screenShareStoppingRef.current) return;
     screenShareStoppingRef.current = true;
 
@@ -1268,6 +1299,36 @@ export function useVoiceSession(userId, profile = null) {
 
   const handleStartScreenShare = useCallback(async ({ shareSystemAudio = false } = {}) => {
     if (!isJoinedRef.current || screenTrackRef.current || screenShareBusy || cameraBusy) return;
+
+    if (livekitRoomRef.current) {
+      setScreenShareBusy(true);
+      setScreenShareError('');
+      try {
+        await livekitRoomRef.current.localParticipant.setScreenShareEnabled(true, {
+          audio: Boolean(shareSystemAudio),
+          resolution: { width: 1920, height: 1080, frameRate: 30 },
+        });
+        const screenPub = livekitRoomRef.current.localParticipant.getTrackPublication(Track.Source.ScreenShare);
+        if (screenPub?.track?.mediaStreamTrack) {
+          const screenStream = new MediaStream([screenPub.track.mediaStreamTrack]);
+          screenStreamRef.current = screenStream;
+          setLocalScreenStream(screenStream);
+          setIsScreenSharing(true);
+          screenTrackRef.current = screenPub.track.mediaStreamTrack;
+          screenPub.track.mediaStreamTrack.onended = () => {
+            stopScreenShareRef.current?.();
+          };
+        }
+      } catch (err) {
+        console.error('[LiveKit] Screen sharing error:', err);
+        if (err?.name !== 'NotAllowedError' && err?.name !== 'AbortError') {
+          setScreenShareError('Screen sharing could not start.');
+        }
+      } finally {
+        setScreenShareBusy(false);
+      }
+      return;
+    }
 
     // Enforce single-sharer rule: only one user can share screen at a time
     const activeRemoteSharer = Object.entries(remoteScreenShareStatesRef.current || {}).find(
@@ -1426,6 +1487,20 @@ export function useVoiceSession(userId, profile = null) {
   }, [broadcastScreenShareState, cameraBusy, negotiatePeer, screenShareBusy]);
 
   const handleTurnCameraOff = useCallback(async ({ notifyPeers = true } = {}) => {
+    if (livekitRoomRef.current) {
+      try {
+        await livekitRoomRef.current.localParticipant.setCameraEnabled(false);
+      } catch (e) {
+        console.warn('[LiveKit] Camera off notice:', e);
+      }
+      cameraTrackRef.current = null;
+      cameraEnabledRef.current = false;
+      setLocalVideoStream(null);
+      setCameraEnabled(false);
+      setCameraBusy(false);
+      return;
+    }
+
     const track = cameraTrackRef.current;
     cameraTrackRef.current = null;
     cameraEnabledRef.current = false;
@@ -1477,7 +1552,35 @@ export function useVoiceSession(userId, profile = null) {
   }, [handleTurnCameraOff]);
 
   const handleTurnCameraOn = useCallback(async () => {
+    // Desktop camera video is removed as requested; mobile devices retain camera support
+    const isDesktop = typeof window !== 'undefined' && window.innerWidth > 768;
+    if (isDesktop) {
+      console.info('[VoiceSession] Camera video is disabled on desktop.');
+      return;
+    }
+
     if (!isJoinedRef.current || cameraTrackRef.current || cameraBusy || screenShareBusy) return;
+
+    if (livekitRoomRef.current) {
+      setCameraBusy(true);
+      setCameraError('');
+      try {
+        await livekitRoomRef.current.localParticipant.setCameraEnabled(true);
+        const camPub = livekitRoomRef.current.localParticipant.getTrackPublication(Track.Source.Camera);
+        if (camPub?.track?.mediaStreamTrack) {
+          const stream = new MediaStream([camPub.track.mediaStreamTrack]);
+          setLocalVideoStream(stream);
+          cameraTrackRef.current = camPub.track.mediaStreamTrack;
+        }
+        cameraEnabledRef.current = true;
+        setCameraEnabled(true);
+      } catch (err) {
+        console.warn('[LiveKit] Camera error:', err);
+      } finally {
+        setCameraBusy(false);
+      }
+      return;
+    }
 
     setCameraBusy(true);
     setCameraError('');
@@ -1701,27 +1804,268 @@ export function useVoiceSession(userId, profile = null) {
     isLocalMutedRef.current = false;
 
     try {
+      // 1. Attempt connection via LiveKit SFU (supports 100+ students, low latency audio & screen sharing)
+      let livekitSuccess = false;
       try {
-        await initLocalAudio(false);
-      } catch (micErr) {
-        console.warn('[WebRTC] Microphone unavailable, joining as listener:', micErr);
-        setIsLocalMuted(true);
-        isLocalMutedRef.current = true;
-        setMicConnected(true);
+        const tokenData = await apiRequest('/api/livekit/token', {
+          method: 'POST',
+          body: JSON.stringify({
+            roomName: channelId,
+            channelId,
+            channelName,
+            serverId,
+            participantName: profile?.full_name || profile?.name || profile?.username || 'Student',
+            avatar: profile?.avatar_url || '',
+          }),
+        });
+
+        if (tokenData?.configured && tokenData?.token && tokenData?.url) {
+          console.log('[LiveKit] Connecting to LiveKit SFU room:', channelId);
+          const room = new Room({
+            adaptiveStream: true,
+            dynacast: true,
+            audioCaptureDefaults: {
+              autoGainControl: true,
+              echoCancellation: true,
+              noiseSuppression: true,
+            },
+            publishDefaults: {
+              simulcast: true,
+            },
+          });
+
+          if (typeof window !== 'undefined') {
+            window.__livekit_active_room = room;
+          }
+
+          room.on(RoomEvent.Connected, () => {
+            console.log(`[LiveKit] Connected to SFU room: ${channelId}`);
+            setCallStatus('LiveKit SFU Connected (100+ Scale)');
+          });
+
+          room.on(RoomEvent.Reconnecting, () => {
+            console.log('[LiveKit] Reconnecting to SFU...');
+            setCallStatus('Reconnecting…');
+          });
+
+          room.on(RoomEvent.Reconnected, () => {
+            console.log('[LiveKit] Reconnected to SFU');
+            setCallStatus('LiveKit SFU Connected (100+ Scale)');
+          });
+
+          room.on(RoomEvent.Disconnected, (reason) => {
+            console.log(`[LiveKit] Disconnected from SFU: ${reason}`);
+          });
+
+          room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+            const pId = String(participant.identity);
+            console.log(`[LiveKit] TrackSubscribed: kind=${track.kind}, source=${track.source}, participant=${pId}`);
+
+            if (track.kind === Track.Kind.Audio) {
+              let el = document.getElementById(`remote-audio-${pId}`);
+              if (!el) {
+                el = track.attach();
+                el.id = `remote-audio-${pId}`;
+                el.setAttribute('playsinline', 'true');
+                el.setAttribute('webkit-playsinline', 'true');
+                el.muted = false;
+                el.volume = 1.0;
+                el.style.display = 'none';
+                document.body.appendChild(el);
+              } else {
+                track.attach(el);
+              }
+
+              if (track.mediaStreamTrack) {
+                try {
+                  const tempStream = new MediaStream([track.mediaStreamTrack]);
+                  attachAudioAnalyser(pId, tempStream);
+                } catch {}
+              }
+
+              playRemoteMedia(el);
+            } else if (track.kind === Track.Kind.Video) {
+              const stream = new MediaStream([track.mediaStreamTrack]);
+              setRemoteStreams((prev) => ({ ...prev, [pId]: stream }));
+
+              if (track.source === Track.Source.ScreenShare || publication.source === Track.Source.ScreenShare) {
+                setRemoteScreenShareStates((prev) => ({ ...prev, [pId]: true }));
+              } else if (track.source === Track.Source.Camera || publication.source === Track.Source.Camera) {
+                setRemoteCameraStates((prev) => ({ ...prev, [pId]: true }));
+              }
+            }
+          });
+
+          room.on(RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
+            const pId = String(participant.identity);
+            console.log(`[LiveKit] TrackUnsubscribed: kind=${track.kind}, participant=${pId}`);
+
+            if (track.kind === Track.Kind.Audio) {
+              detachAudioAnalyser(pId);
+              track.detach().forEach((el) => {
+                forgetRemoteMediaElement(el);
+                if (el && el.parentNode) el.parentNode.removeChild(el);
+              });
+              const existingEl = document.getElementById(`remote-audio-${pId}`);
+              if (existingEl) {
+                forgetRemoteMediaElement(existingEl);
+                existingEl.remove();
+              }
+            } else if (track.kind === Track.Kind.Video) {
+              setRemoteStreams((prev) => {
+                const next = { ...prev };
+                delete next[pId];
+                return next;
+              });
+              if (track.source === Track.Source.ScreenShare || publication.source === Track.Source.ScreenShare) {
+                setRemoteScreenShareStates((prev) => ({ ...prev, [pId]: false }));
+              } else {
+                setRemoteCameraStates((prev) => ({ ...prev, [pId]: false }));
+              }
+            }
+          });
+
+          room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
+            const activeIds = new Set(speakers.map((s) => String(s.identity)));
+            setActiveSpeakerIds(activeIds);
+            setIsSpeakingLocal(activeIds.has(String(currentUserIdRef.current)));
+
+            const levels = {};
+            speakers.forEach((s) => {
+              levels[String(s.identity)] = Math.min(100, Math.round((s.audioLevel || 0.8) * 100));
+            });
+            setAudioLevels((prev) => ({ ...prev, ...levels }));
+          });
+
+          room.on(RoomEvent.AudioPlaybackChanged, ({ canPlayAudio }) => {
+            if (!canPlayAudio) {
+              setAutoplayWarning(AUTOPLAY_WARNING);
+              unlockAudioDesktopAndMobile();
+            } else {
+              setAutoplayWarning('');
+            }
+          });
+
+          room.on(RoomEvent.ParticipantConnected, (participant) => {
+            let meta = {};
+            try {
+              if (participant.metadata) meta = JSON.parse(participant.metadata);
+            } catch {}
+            const pUserId = String(participant.identity);
+            const joinName = participant.name || meta.name || 'A scholar';
+
+            try {
+              new Audio('/sounds/user-join.mp3').play().catch(() => {});
+            } catch {}
+
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(
+                new CustomEvent('studycord_voice_user_joined', {
+                  detail: { userId: pUserId, name: joinName },
+                })
+              );
+              window.dispatchEvent(
+                new CustomEvent('studycord_toast', {
+                  detail: `🟢 ${joinName} joined the space`,
+                })
+              );
+            }
+
+            setParticipants((prev) => {
+              const without = prev.filter((p) => String(p.user_id || p.userId) !== pUserId);
+              const newP = {
+                id: `vp-${channelId}-${pUserId}`,
+                channel_id: channelId,
+                server_id: serverId,
+                user_id: pUserId,
+                is_muted: !participant.isMicrophoneEnabled,
+                joined_at: new Date().toISOString(),
+                last_seen: new Date().toISOString(),
+                profiles: {
+                  username: participant.name || meta.name || 'Scholar',
+                  full_name: participant.name || meta.name || 'Scholar',
+                  avatar_url: meta.image || null,
+                },
+              };
+              return [...without, newP];
+            });
+          });
+
+          room.on(RoomEvent.ParticipantDisconnected, (participant) => {
+            const pUserId = String(participant.identity);
+            const leaveName = participant.name || 'A scholar';
+
+            try {
+              new Audio('/sounds/user-leave.mp3').play().catch(() => {});
+            } catch {}
+
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(
+                new CustomEvent('studycord_voice_user_left', {
+                  detail: { userId: pUserId, name: leaveName },
+                })
+              );
+              window.dispatchEvent(
+                new CustomEvent('studycord_toast', {
+                  detail: `${leaveName} left the call`,
+                })
+              );
+            }
+
+            setParticipants((prev) => prev.filter((p) => String(p.user_id || p.userId) !== pUserId));
+            detachAudioAnalyser(pUserId);
+          });
+
+          await room.connect(tokenData.url, tokenData.token);
+
+          // Enable microphone on LiveKit
+          try {
+            await room.localParticipant.setMicrophoneEnabled(!isLocalMutedRef.current);
+            setMicConnected(true);
+            const micTrack = room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track?.mediaStreamTrack;
+            if (micTrack) {
+              const localAudioStream = new MediaStream([micTrack]);
+              localStreamRef.current = localAudioStream;
+              attachAudioAnalyser(currentUserIdRef.current, localAudioStream);
+            }
+          } catch (micErr) {
+            console.warn('[LiveKit] Could not enable microphone:', micErr);
+            setIsLocalMuted(true);
+            isLocalMutedRef.current = true;
+          }
+
+          livekitRoomRef.current = room;
+          isLiveKitActiveRef.current = true;
+          livekitSuccess = true;
+        }
+      } catch (lkErr) {
+        console.warn('[VoiceSession] LiveKit SFU connect notice:', lkErr?.message);
       }
 
-      // Fetch TURN / STUN credentials
-      try {
-        console.log('[WebRTC] Fetching TURN credentials from backend...');
-        const data = await apiRequest('/api/turn-credentials');
-        iceServersRef.current = data;
-        setTurnWarning('');
-      } catch (err) {
-        iceServersRef.current = [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-        ];
-        setTurnWarning('');
+      if (!livekitSuccess) {
+        isLiveKitActiveRef.current = false;
+        // Fallback to WebRTC peer-to-peer mesh
+        try {
+          await initLocalAudio(false);
+        } catch (micErr) {
+          console.warn('[WebRTC] Microphone unavailable, joining as listener:', micErr);
+          setIsLocalMuted(true);
+          isLocalMutedRef.current = true;
+          setMicConnected(true);
+        }
+
+        try {
+          console.log('[WebRTC] Fetching TURN credentials from backend...');
+          const data = await apiRequest('/api/turn-credentials');
+          iceServersRef.current = data;
+          setTurnWarning('');
+        } catch (err) {
+          iceServersRef.current = [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+          ];
+          setTurnWarning('');
+        }
       }
 
       // Optimistically set active states & local participant
@@ -1783,6 +2127,24 @@ export function useVoiceSession(userId, profile = null) {
     if (!joinedChannelId || !userId) return;
     setError('');
 
+    if (livekitRoomRef.current) {
+      try {
+        await livekitRoomRef.current.disconnect();
+      } catch (e) {
+        console.warn('[LiveKit] Disconnect notice:', e);
+      }
+      livekitRoomRef.current = null;
+      isLiveKitActiveRef.current = false;
+      if (typeof window !== 'undefined') {
+        delete window.__livekit_active_room;
+      }
+      const remoteAudios = document.querySelectorAll('audio[id^="remote-audio-"]');
+      remoteAudios.forEach((el) => {
+        forgetRemoteMediaElement(el);
+        if (el && el.parentNode) el.parentNode.removeChild(el);
+      });
+    }
+
     await handleStopScreenShare();
     await handleTurnCameraOff();
     cleanupLocalAudio();
@@ -1817,6 +2179,14 @@ export function useVoiceSession(userId, profile = null) {
     const newMuteState = !isLocalMutedRef.current;
     isLocalMutedRef.current = newMuteState;
     setIsLocalMuted(newMuteState);
+
+    if (livekitRoomRef.current) {
+      try {
+        await livekitRoomRef.current.localParticipant.setMicrophoneEnabled(!newMuteState);
+      } catch (e) {
+        console.warn('[LiveKit] Toggle mute notice:', e);
+      }
+    }
 
     if (localStreamRef.current) {
       localStreamRef.current.getAudioTracks().forEach((track) => {
@@ -1853,6 +2223,22 @@ export function useVoiceSession(userId, profile = null) {
     isJoinedRef.current = false;
     const channelId = currentChannelIdRef.current;
     console.log(`[VoicePanel] Cleaning up voice session. Reason: ${reason}`);
+
+    if (livekitRoomRef.current) {
+      try {
+        livekitRoomRef.current.disconnect();
+      } catch {}
+      livekitRoomRef.current = null;
+      isLiveKitActiveRef.current = false;
+      if (typeof window !== 'undefined') {
+        delete window.__livekit_active_room;
+      }
+      const remoteAudios = document.querySelectorAll('audio[id^="remote-audio-"]');
+      remoteAudios.forEach((el) => {
+        forgetRemoteMediaElement(el);
+        if (el && el.parentNode) el.parentNode.removeChild(el);
+      });
+    }
 
     cleanupLocalAudio();
     cleanupAllCalls('voice-session-ended');
@@ -2087,6 +2473,10 @@ export function useVoiceSession(userId, profile = null) {
     }
 
     const startConnections = async () => {
+      if (isLiveKitActiveRef.current) {
+        console.log('[WebRTC] LiveKit SFU active, bypassing peer-to-peer mesh creation.');
+        return;
+      }
       const remoteParticipants = participants.filter((p) => String(p.user_id || p.userId) !== String(userId));
       console.log(`[WebRTC] Evaluating connections for ${remoteParticipants.length} remote participant(s)`);
 

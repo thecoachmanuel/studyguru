@@ -934,6 +934,32 @@ export default function DashboardPage() {
     };
   }, [activeServerId, activeChannelId, servers, workspace, user?.id, handleMarkChannelRead, showToast]);
 
+  // Pusher Realtime global space notifications for all devices & PWA
+  useEffect(() => {
+    if (!user?.id) return;
+    const pusher = getPusherClient();
+    if (!pusher) return;
+
+    let globalChan = null;
+    try {
+      globalChan = pusher.subscribe('rooms-global');
+      const handleGlobalSpaceJoined = (payload) => {
+        if (!payload || String(payload.userId) === String(user.id)) return;
+        const participantName = payload.username || 'A scholar';
+        const spaceName = payload.channelName || 'Live Space';
+        showToast(`🎙️ ${participantName} joined ${spaceName}`);
+      };
+      globalChan.bind('space-joined', handleGlobalSpaceJoined);
+
+      return () => {
+        try {
+          globalChan.unbind('space-joined', handleGlobalSpaceJoined);
+          pusher.unsubscribe('rooms-global');
+        } catch {}
+      };
+    } catch {}
+  }, [user?.id, showToast]);
+
   // ──────────────────────────────────────────────
   // 6. Channel Actions
   // ──────────────────────────────────────────────

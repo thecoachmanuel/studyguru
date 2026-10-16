@@ -134,6 +134,16 @@ export default function VoicePanel({
   const activeParticipants = isJoinedHere ? (voiceSession.participants || []) : participants;
   const activeLoading = isJoinedHere ? voiceSession.loading : loading;
 
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(typeof window !== 'undefined' && window.innerWidth <= 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   // Track room fullscreen state
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -362,11 +372,11 @@ export default function VoicePanel({
       : Boolean(voiceSession.remoteScreenShareStates?.[participant.user_id]);
 
     const stream = isMe
-      ? (isSharingScreen ? voiceSession.localScreenStream : voiceSession.localVideoStream)
+      ? (isSharingScreen ? voiceSession.localScreenStream : (isMobile ? voiceSession.localVideoStream : null))
       : voiceSession.remoteStreams?.[participant.user_id];
 
     const participantCameraState = isMe
-      ? cameraEnabled
+      ? (isMobile && cameraEnabled)
       : voiceSession.remoteCameraStates?.[participant.user_id];
 
     const hasLiveVideoTrack = Boolean(
@@ -684,7 +694,7 @@ export default function VoicePanel({
                 </div>
                 <h3 className="voice-meet-lobby-title">Ready to join {channelName}?</h3>
                 <p className="voice-meet-lobby-subtitle">
-                  Connect with your classmates for real-time voice, video collaboration, and screen sharing.
+                  Connect with your classmates for real-time voice collaboration and screen sharing.
                 </p>
 
                 <button
@@ -844,27 +854,29 @@ export default function VoicePanel({
                 )}
               </button>
 
-              {/* Camera Toggle */}
-              <button
-                type="button"
-                className={`voice-meet-dock__btn ${cameraEnabled ? 'voice-meet-dock__btn--active-blue' : 'voice-meet-dock__btn--muted-red'}`}
-                onClick={cameraEnabled ? () => voiceSession.handleTurnCameraOff() : voiceSession.handleTurnCameraOn}
-                disabled={voiceSession.cameraBusy || voiceSession.screenShareBusy}
-                title={cameraEnabled ? 'Turn camera off' : 'Turn camera on'}
-                aria-label={cameraEnabled ? 'Turn camera off' : 'Turn camera on'}
-              >
-                {cameraEnabled ? (
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <polygon points="23 7 16 12 23 17 23 7" />
-                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-                  </svg>
-                ) : (
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="1" y1="1" x2="23" y2="23" />
-                    <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10" />
-                  </svg>
-                )}
-              </button>
+              {/* Camera Toggle — mobile devices only; removed for desktop */}
+              {isMobile && (
+                <button
+                  type="button"
+                  className={`voice-meet-dock__btn ${cameraEnabled ? 'voice-meet-dock__btn--active-blue' : 'voice-meet-dock__btn--muted-red'}`}
+                  onClick={cameraEnabled ? () => voiceSession.handleTurnCameraOff() : voiceSession.handleTurnCameraOn}
+                  disabled={voiceSession.cameraBusy || voiceSession.screenShareBusy}
+                  title={cameraEnabled ? 'Turn camera off' : 'Turn camera on'}
+                  aria-label={cameraEnabled ? 'Turn camera off' : 'Turn camera on'}
+                >
+                  {cameraEnabled ? (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <polygon points="23 7 16 12 23 17 23 7" />
+                      <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                    </svg>
+                  ) : (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="1" y1="1" x2="23" y2="23" />
+                      <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10" />
+                    </svg>
+                  )}
+                </button>
+              )}
 
               {/* Screen Share Toggle */}
               <button
