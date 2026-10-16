@@ -108,11 +108,24 @@ export default function DashboardPage() {
       }
     };
     updateAppHeight();
+
+    // Prevent iOS Safari page-level scroll displacement that causes bottom nav to float upwards
+    const handleScrollOrBlur = () => {
+      if (typeof window !== 'undefined' && window.scrollY > 0) {
+        window.scrollTo(0, 0);
+      }
+    };
+
     window.addEventListener('resize', updateAppHeight, { passive: true });
     window.addEventListener('orientationchange', updateAppHeight, { passive: true });
+    window.addEventListener('scroll', handleScrollOrBlur, { passive: true });
+    window.addEventListener('focusout', handleScrollOrBlur);
+
     return () => {
       window.removeEventListener('resize', updateAppHeight);
       window.removeEventListener('orientationchange', updateAppHeight);
+      window.removeEventListener('scroll', handleScrollOrBlur);
+      window.removeEventListener('focusout', handleScrollOrBlur);
     };
   }, []);
 
@@ -1266,6 +1279,12 @@ export default function DashboardPage() {
                 servers={servers}
                 activeServerId={activeServerId}
                 onRefreshServers={fetchServers}
+                onOpenSettings={(srv) => {
+                  if (srv?.id) {
+                    handleSelectServer(srv.id);
+                  }
+                  setSettingsOpen(true);
+                }}
                 onSelectServer={async (sId, cId, cName) => {
                   handleSelectServer(sId);
                   let selectedServer = servers.find((s) => s.id === sId);
@@ -1308,6 +1327,7 @@ export default function DashboardPage() {
                 userId={user?.id}
                 profile={profile}
                 partnerUser={null}
+                onOpenSettings={() => setSettingsOpen(true)}
                 onBack={() => {
                   setActiveChannelId(null);
                   setActivePartnerUser(null);

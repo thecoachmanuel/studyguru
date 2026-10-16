@@ -9,6 +9,7 @@ export default function ChatterRoomsView({
   onJoinServer,
   onJoinVoiceChannel,
   onRefreshServers,
+  onOpenSettings,
   isJoinedInVoiceRoom = false,
   activeVoiceChannelName = null,
 }) {
@@ -41,6 +42,8 @@ export default function ChatterRoomsView({
   const [userFollowers, setUserFollowers] = useState(0);
   const [newSpaceTitle, setNewSpaceTitle] = useState('');
   const [newSpaceCategory, setNewSpaceCategory] = useState('Computer Science');
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
+  const [customCategory, setCustomCategory] = useState('');
   const [liveVoiceCounts, setLiveVoiceCounts] = useState({});
   const [liveSpeakersByChannel, setLiveSpeakersByChannel] = useState({});
 
@@ -213,6 +216,10 @@ export default function ChatterRoomsView({
     e.preventDefault();
     if (!newSpaceTitle.trim() || creatingSpace) return;
 
+    const finalCategory = isCustomCategory
+      ? (customCategory.trim() || 'General Study')
+      : newSpaceCategory;
+
     setCreatingSpace(true);
     try {
       const res = await fetch('/api/servers', {
@@ -220,7 +227,7 @@ export default function ChatterRoomsView({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: newSpaceTitle.trim(),
-          category: newSpaceCategory,
+          category: finalCategory,
           isAudioSpace: true,
         }),
       });
@@ -230,6 +237,8 @@ export default function ChatterRoomsView({
         setCommunityRooms((prev) => [createdRoom, ...prev.filter((r) => r.id !== createdRoom.id)]);
         onRefreshServers?.();
         setNewSpaceTitle('');
+        setCustomCategory('');
+        setIsCustomCategory(false);
         setCreateSpaceModalOpen(false);
 
         // Find voice channel and automatically join creator into the audio space
@@ -709,6 +718,38 @@ export default function ChatterRoomsView({
                       )}
                     </button>
 
+                    {/* Room Settings for Admin/Owner */}
+                    {(isOwner || server.role === 'admin' || isCurrent) && onOpenSettings && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenSettings(server);
+                        }}
+                        title="Room Settings (Admin)"
+                        style={{
+                          padding: '8px 14px',
+                          borderRadius: 12,
+                          background: 'rgba(255, 255, 255, 0.06)',
+                          border: '1px solid rgba(255, 255, 255, 0.12)',
+                          color: '#fff',
+                          fontSize: 14,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="3" />
+                          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                        </svg>
+                        <span>Settings</span>
+                      </button>
+                    )}
+
                     {/* Enter or Join Room button */}
                     <button
                       type="button"
@@ -1145,34 +1186,82 @@ export default function ChatterRoomsView({
               </div>
 
               <div style={{ marginBottom: 22 }}>
-                <label style={{ display: 'block', fontSize: 14, fontWeight: 700, color: '#b5b5b5', marginBottom: 6 }}>
-                  Subject Category
-                </label>
-                <select
-                  value={newSpaceCategory}
-                  onChange={(e) => setNewSpaceCategory(e.target.value)}
-                  disabled={creatingSpace}
-                  style={{
-                    width: '100%',
-                    padding: '12px 14px',
-                    borderRadius: 14,
-                    background: 'var(--chatter-black)',
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
-                    color: '#fff',
-                    fontSize: 16,
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <option value="Computer Science">Computer Science</option>
-                  <option value="Mathematics">Mathematics</option>
-                  <option value="Medicine">Medicine</option>
-                  <option value="Biology">Biology</option>
-                  <option value="Physics">Physics</option>
-                  <option value="Law">Law</option>
-                  <option value="General Study">General Study</option>
-                </select>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <label style={{ fontSize: 14, fontWeight: 700, color: '#b5b5b5' }}>
+                    Subject Category
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsCustomCategory((prev) => !prev)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--chatter-primary)',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      padding: 0,
+                    }}
+                  >
+                    {isCustomCategory ? '← Choose from list' : '+ Type custom category'}
+                  </button>
+                </div>
+
+                {!isCustomCategory ? (
+                  <select
+                    value={newSpaceCategory}
+                    onChange={(e) => {
+                      if (e.target.value === '__custom__') {
+                        setIsCustomCategory(true);
+                      } else {
+                        setNewSpaceCategory(e.target.value);
+                      }
+                    }}
+                    disabled={creatingSpace}
+                    style={{
+                      width: '100%',
+                      padding: '12px 14px',
+                      borderRadius: 14,
+                      background: 'var(--chatter-black)',
+                      border: '1px solid rgba(255, 255, 255, 0.12)',
+                      color: '#fff',
+                      fontSize: 16,
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <option value="Computer Science">Computer Science</option>
+                    <option value="Mathematics">Mathematics</option>
+                    <option value="Medicine">Medicine</option>
+                    <option value="Biology">Biology</option>
+                    <option value="Physics">Physics</option>
+                    <option value="Law">Law</option>
+                    <option value="General Study">General Study</option>
+                    <option value="__custom__">✏️ Type custom category...</option>
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="e.g. Organic Chemistry, Trauma, Architecture..."
+                    value={customCategory}
+                    onChange={(e) => setCustomCategory(e.target.value)}
+                    disabled={creatingSpace}
+                    autoFocus
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '12px 14px',
+                      borderRadius: 14,
+                      background: 'var(--chatter-black)',
+                      border: '1.5px solid var(--chatter-primary)',
+                      color: '#fff',
+                      fontSize: 16,
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                )}
               </div>
 
               <div style={{ display: 'flex', gap: 10 }}>

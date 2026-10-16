@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import ChatbotIcon from '@/components/ChatbotIcon';
 import ChatMarkdownMessage from '@/components/ChatMarkdownMessage';
 import { TwitterVerifiedBadge } from './ChatterFeedView';
@@ -2524,8 +2525,8 @@ function QuizAssessmentCard({ questions = [], onRegenerate, messageId }) {
         {renderQuizContent(false)}
       </div>
 
-      {/* Fullscreen Immersive Quiz Modal Overlay */}
-      {isFullscreen && (
+      {/* Fullscreen Immersive Quiz Modal Overlay mounted directly to document.body */}
+      {isFullscreen && typeof document !== 'undefined' && createPortal(
         <div
           style={{
             position: 'fixed',
@@ -2533,9 +2534,10 @@ function QuizAssessmentCard({ questions = [], onRegenerate, messageId }) {
             width: '100vw',
             height: '100dvh',
             maxHeight: '100dvh',
-            zIndex: 99999,
+            zIndex: 999999,
             background: 'rgba(10, 10, 10, 0.98)',
             backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
             display: 'flex',
             flexDirection: 'column',
             overflowY: 'auto',
@@ -2623,7 +2625,8 @@ function QuizAssessmentCard({ questions = [], onRegenerate, messageId }) {
 
             {renderQuizContent(true)}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
@@ -2923,8 +2926,8 @@ function FlashcardDeck({ cards = [], onRegenerate }) {
         </button>
       </div>
 
-      {/* Fullscreen Overlay Modal */}
-      {isFullscreen && (
+      {/* Fullscreen Overlay Modal mounted directly to document.body */}
+      {isFullscreen && typeof document !== 'undefined' && createPortal(
         <div
           style={{
             position: 'fixed',
@@ -2932,9 +2935,10 @@ function FlashcardDeck({ cards = [], onRegenerate }) {
             width: '100vw',
             height: '100dvh',
             maxHeight: '100dvh',
-            zIndex: 99999,
+            zIndex: 999999,
             background: 'rgba(10, 10, 10, 0.98)',
             backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
@@ -3035,7 +3039,8 @@ function FlashcardDeck({ cards = [], onRegenerate }) {
               Next → (Right)
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

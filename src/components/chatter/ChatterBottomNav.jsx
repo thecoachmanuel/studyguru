@@ -34,14 +34,11 @@ export default function ChatterBottomNav({
     {
       id: 'guru',
       label: 'AI Guru',
-      isAi: true,
       icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
-          <path d="M20 3v4" />
-          <path d="M22 5h-4" />
-          <path d="M4 17v2" />
-          <path d="M5 18H3" />
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
         </svg>
       ),
     },
@@ -76,42 +73,19 @@ export default function ChatterBottomNav({
     >
       {tabs.map((tab) => {
         const isActive = activeTab === tab.id;
-        const isAi = Boolean(tab.isAi);
         return (
           <button
             key={tab.id}
             type="button"
-            className={`chatter-tabbar__item ${isAi ? 'chatter-tabbar__item--ai' : ''} ${isActive ? 'chatter-tabbar__item--active' : ''}`}
+            className={`chatter-tabbar__item ${isActive ? 'chatter-tabbar__item--active' : ''}`}
             onClick={() => onSelectTab(tab.id)}
             aria-label={tab.label}
           >
-            <div
-              className={`chatter-tabbar__icon ${isAi ? 'chatter-tabbar__icon--ai' : ''}`}
-              style={isAi ? {
-                width: 34,
-                height: 34,
-                borderRadius: '50%',
-                background: isActive
-                  ? 'var(--chatter-primary)'
-                  : 'linear-gradient(135deg, rgba(64, 227, 120, 0.22), rgba(59, 130, 246, 0.22))',
-                color: isActive ? '#0E0E0E' : 'var(--chatter-primary)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: isActive
-                  ? '0 2px 14px rgba(64, 227, 120, 0.5)'
-                  : '0 2px 10px rgba(64, 227, 120, 0.25)',
-                border: '1.5px solid var(--chatter-primary)',
-                transition: 'all 0.18s ease',
-              } : undefined}
-            >
+            <div className="chatter-tabbar__icon">
               {tab.icon}
               {tab.hasBadge && <span className="chatter-tabbar__badge" />}
             </div>
-            <span
-              className="chatter-tabbar__label"
-              style={isAi ? { color: isActive ? 'var(--chatter-primary)' : 'var(--chatter-light-text)', fontWeight: 700 } : undefined}
-            >
+            <span className="chatter-tabbar__label">
               {tab.label}
             </span>
           </button>

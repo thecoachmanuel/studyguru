@@ -60,6 +60,7 @@ export default function ServerSettingsModal({
   const [activeTab, setActiveTab] = useState('overview');
   const [name, setName] = useState(server?.name || '');
   const [description, setDescription] = useState(server?.description || '');
+  const [category, setCategory] = useState(server?.category || 'General Study');
   const [bans, setBans] = useState([]);
   const [bansLoading, setBansLoading] = useState(false);
   const [error, setError] = useState('');
@@ -71,8 +72,17 @@ export default function ServerSettingsModal({
   const [dmRecipientId, setDmRecipientId] = useState(null);
   const iconInputRef = useRef(null);
 
-  const canManageServer = hasServerPermission(currentRole, 'manage_server');
-  const isOwner = currentRole === 'owner';
+  // Sync state whenever the selected server prop changes
+  useEffect(() => {
+    if (server) {
+      setName(server.name || '');
+      setDescription(server.description || '');
+      setCategory(server.category || 'General Study');
+    }
+  }, [server?.id, server?.name, server?.description, server?.category]);
+
+  const isOwner = currentRole === 'owner' || server?.owner_id === currentUserId || server?.role === 'owner';
+  const canManageServer = isOwner || hasServerPermission(currentRole, 'manage_server') || currentRole === 'admin';
 
   const ownerCandidates = useMemo(
     () => members.filter((member) => member.user_id !== currentUserId && member.role !== 'owner'),
@@ -121,7 +131,7 @@ export default function ServerSettingsModal({
     await runAction('overview', 'Group settings updated', async () => {
       await apiRequest(`/api/servers/${server.id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ name, description }),
+        body: JSON.stringify({ name, description, category }),
       });
     });
   }
@@ -315,6 +325,14 @@ export default function ServerSettingsModal({
                 <input className="form-input" value={name} onChange={(e) => setName(e.target.value)} disabled={busyKey === 'overview'} />
                 <label className="form-label">Description</label>
                 <textarea className="form-input settings-textarea" value={description} onChange={(e) => setDescription(e.target.value)} disabled={busyKey === 'overview'} />
+                <label className="form-label">Subject Category</label>
+                <input
+                  className="form-input"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  placeholder="e.g. Mathematics, Biology, Machine Learning"
+                  disabled={busyKey === 'overview'}
+                />
                 <div className="settings-row">
                   <button className="btn btn-primary settings-btn" disabled={busyKey === 'overview' || !name.trim()}>
                     {busyKey === 'overview' ? 'Saving...' : 'Save Changes'}
@@ -341,6 +359,7 @@ export default function ServerSettingsModal({
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14.5px', color: 'var(--text-secondary)' }}>
+                  <p><strong>Category:</strong> <span style={{ marginLeft: '6px' }}>{server.category || 'General Study'}</span></p>
                   <p><strong>Your Role:</strong> <span className="settings-role" style={{ marginLeft: '6px' }}>{currentRole}</span></p>
                   <p><strong>Total Members:</strong> {members.length}</p>
                   {server.invite_code && (

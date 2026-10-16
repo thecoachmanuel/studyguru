@@ -48,6 +48,7 @@ export async function GET(req, { params }) {
       id: srvIdStr,
       name: server.name,
       description: server.description || '',
+      category: server.category || 'General Study',
       icon_url: server.icon_url || null,
       invite_code: server.invite_code,
       owner_id: server.owner_id,
@@ -91,6 +92,7 @@ export async function PATCH(req, { params }) {
     const updates = {};
     if (body.name !== undefined) updates.name = body.name.trim();
     if (body.description !== undefined) updates.description = body.description.trim();
+    if (body.category !== undefined) updates.category = body.category.trim();
     if (body.icon_url !== undefined) updates.icon_url = body.icon_url;
 
     await db.collection('servers').updateOne(

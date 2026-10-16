@@ -72,6 +72,73 @@ export function useVoiceSession(userId, profile = null) {
   const [remoteScreenShareStates, setRemoteScreenShareStates] = useState({});
   const remoteScreenShareStatesRef = useRef({});
 
+  // Active Speaker & Audio Level Detection Engine (Web Audio API)
+  const [activeSpeakerIds, setActiveSpeakerIds] = useState(new Set());
+  const [audioLevels, setAudioLevels] = useState({});
+  const [isSpeakingLocal, setIsSpeakingLocal] = useState(false);
+  const audioContextRef = useRef(null);
+  const analysersRef = useRef(new Map());
+
+  const attachAudioAnalyser = useCallback((streamUserId, stream) => {
+    if (typeof window === 'undefined' || !stream || !streamUserId) return;
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+
+    try {
+      if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
+        audioContextRef.current = new AudioCtx();
+      }
+      const ctx = audioContextRef.current;
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
+
+      const normId = String(streamUserId);
+      if (analysersRef.current.has(normId)) {
+        try {
+          const prev = analysersRef.current.get(normId);
+          prev.sourceNode?.disconnect();
+          prev.analyserNode?.disconnect();
+        } catch {}
+        analysersRef.current.delete(normId);
+      }
+
+      const audioTracks = stream.getAudioTracks();
+      if (!audioTracks || audioTracks.length === 0) return;
+
+      const sourceNode = ctx.createMediaStreamSource(stream);
+      const analyserNode = ctx.createAnalyser();
+      analyserNode.fftSize = 256;
+      analyserNode.smoothingTimeConstant = 0.4;
+      sourceNode.connect(analyserNode);
+
+      const bufferLength = analyserNode.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      analysersRef.current.set(normId, {
+        sourceNode,
+        analyserNode,
+        dataArray,
+        lastSpokeAt: 0,
+        stream,
+      });
+    } catch (err) {
+      console.warn('[WebRTC] attachAudioAnalyser warning:', err.message);
+    }
+  }, []);
+
+  const detachAudioAnalyser = useCallback((streamUserId) => {
+    if (!streamUserId) return;
+    const normId = String(streamUserId);
+    if (!analysersRef.current.has(normId)) return;
+    try {
+      const entry = analysersRef.current.get(normId);
+      entry.sourceNode?.disconnect();
+      entry.analyserNode?.disconnect();
+    } catch {}
+    analysersRef.current.delete(normId);
+  }, []);
+
   useEffect(() => {
     remoteScreenShareStatesRef.current = remoteScreenShareStates;
   }, [remoteScreenShareStates]);
@@ -133,6 +200,67 @@ export function useVoiceSession(userId, profile = null) {
     currentUserIdRef.current = userId;
     isJoinedRef.current = isJoined;
   }, [joinedChannelId, userId, isJoined]);
+
+  // Real-time Active Speaker Detection & Level Monitor (Web Audio API)
+  useEffect(() => {
+    if (!joinedChannelId) {
+      setActiveSpeakerIds(new Set());
+      setAudioLevels({});
+      setIsSpeakingLocal(false);
+      return;
+    }
+
+    const SPEECH_THRESHOLD = 14; // Out of 255 (~ -42 dB, above background noise)
+    const HANGOVER_TIME_MS = 350; // Retain speech highlight during brief pauses/syllables
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const currentActive = new Set();
+      const newLevels = {};
+      let localSpeaking = false;
+
+      analysersRef.current.forEach((entry, uId) => {
+        try {
+          const { analyserNode, dataArray, stream } = entry;
+          const audioTrack = stream?.getAudioTracks()?.[0];
+          if (!audioTrack || audioTrack.readyState !== 'live' || !audioTrack.enabled || audioTrack.muted) {
+            newLevels[uId] = 0;
+            return;
+          }
+
+          if (String(uId) === String(currentUserIdRef.current) && isLocalMutedRef.current) {
+            newLevels[uId] = 0;
+            return;
+          }
+
+          analyserNode.getByteFrequencyData(dataArray);
+
+          let sum = 0;
+          for (let i = 0; i < dataArray.length; i++) {
+            sum += dataArray[i];
+          }
+          const avg = sum / dataArray.length;
+          const level = Math.min(100, Math.round((avg / 128) * 100));
+          newLevels[uId] = level;
+
+          if (avg > SPEECH_THRESHOLD) {
+            entry.lastSpokeAt = now;
+            currentActive.add(String(uId));
+            if (String(uId) === String(currentUserIdRef.current)) localSpeaking = true;
+          } else if (now - entry.lastSpokeAt < HANGOVER_TIME_MS) {
+            currentActive.add(String(uId));
+            if (String(uId) === String(currentUserIdRef.current)) localSpeaking = true;
+          }
+        } catch {}
+      });
+
+      setActiveSpeakerIds(currentActive);
+      setAudioLevels(newLevels);
+      setIsSpeakingLocal(localSpeaking);
+    }, 60);
+
+    return () => clearInterval(interval);
+  }, [joinedChannelId]);
 
   const logVideoDiagnostic = useCallback((event, remoteUserId, details = {}) => {
     console.debug('[WebRTC][video]', {
@@ -232,6 +360,7 @@ export function useVoiceSession(userId, profile = null) {
 
   // ---------- local media helpers ----------
   const cleanupLocalAudio = useCallback(() => {
+    detachAudioAnalyser(currentUserIdRef.current);
     if (screenStreamRef.current) {
       screenStreamRef.current.getTracks().forEach((track) => {
         track.onended = null;
@@ -260,19 +389,32 @@ export function useVoiceSession(userId, profile = null) {
     setCameraBusy(false);
     setLocalVideoStream(null);
     setMicConnected(false);
-  }, []);
+  }, [detachAudioAnalyser]);
 
   const initLocalAudio = useCallback(async (currentMuteState) => {
     try {
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach((track) => track.stop());
       }
+      detachAudioAnalyser(currentUserIdRef.current);
       setMicConnected(false);
       setError('');
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: { ideal: true },
+          noiseSuppression: { ideal: true },
+          autoGainControl: { ideal: true },
+          channelCount: { ideal: 1 },
+          sampleRate: { ideal: 48000 },
+        },
+      });
       localStreamRef.current = stream;
       setMicConnected(true);
+
+      if (currentUserIdRef.current) {
+        attachAudioAnalyser(currentUserIdRef.current, stream);
+      }
 
       const audioTrack = stream.getAudioTracks()[0];
       if (audioTrack) {
@@ -308,7 +450,7 @@ export function useVoiceSession(userId, profile = null) {
       }
       throw err;
     }
-  }, []);
+  }, [attachAudioAnalyser, detachAudioAnalyser]);
 
   // ---------- WebRTC signaling & peer connection helpers ----------
   const updateCallStatus = useCallback(() => {
@@ -373,6 +515,7 @@ export function useVoiceSession(userId, profile = null) {
       audioElement.srcObject = null;
       audioElement.remove();
     }
+    detachAudioAnalyser(otherUserId);
 
     setRemoteStreams((prev) => {
       const next = { ...prev };
@@ -395,7 +538,7 @@ export function useVoiceSession(userId, profile = null) {
       return next;
     });
     updateCallStatus();
-  }, [forgetRemoteMediaElement, updateCallStatus]);
+  }, [forgetRemoteMediaElement, updateCallStatus, detachAudioAnalyser]);
 
   const cleanupAllCalls = useCallback((reason) => {
     if (!reason) {
@@ -415,6 +558,15 @@ export function useVoiceSession(userId, profile = null) {
     Object.keys(peerConnectionsRef.current).forEach((otherUserId) => {
       cleanupPeerConnection(otherUserId);
     });
+
+    analysersRef.current.forEach((entry) => {
+      try {
+        entry.sourceNode?.disconnect();
+        entry.analyserNode?.disconnect();
+      } catch {}
+    });
+    analysersRef.current.clear();
+
     clearPendingMediaPlayback();
     remoteScreenShareStateTimesRef.current = {};
     setRemoteScreenShareStates({});
@@ -707,13 +859,14 @@ export function useVoiceSession(userId, profile = null) {
           audioElement.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;opacity:0.01;pointer-events:none;';
           document.body.appendChild(audioElement);
         }
-        // Provide pure audio stream to prevent desktop media decode stalls
-        const audioOnlyStream = (event.streams && event.streams[0]) ? event.streams[0] : new MediaStream([event.track]);
+        // Provide dedicated pure audio-only stream to guarantee reliable playback and analysis
+        const audioOnlyStream = new MediaStream([event.track]);
         audioElement.srcObject = audioOnlyStream;
         audioElement.volume = 1.0;
         audioElement.muted = false;
         playRemoteMedia(audioElement);
         unlockAudioDesktopAndMobile();
+        attachAudioAnalyser(otherUserId, audioOnlyStream);
       }
 
       // Clone MediaStream with current tracks to trigger React state reactivity and component re-render
@@ -741,7 +894,7 @@ export function useVoiceSession(userId, profile = null) {
 
     return pc;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sendSignal, cleanupPeerConnection, updateCallStatus, negotiatePeer, logVideoDiagnostic, playRemoteMedia]);
+  }, [sendSignal, cleanupPeerConnection, updateCallStatus, negotiatePeer, logVideoDiagnostic, playRemoteMedia, attachAudioAnalyser]);
 
   // ---------- reconnect helper ----------
   const reconnectPeer = useCallback(async (otherUserId) => {
@@ -2128,5 +2281,8 @@ export function useVoiceSession(userId, profile = null) {
     handleTurnCameraOff,
     handleStartScreenShare,
     handleStopScreenShare,
+    activeSpeakerIds,
+    audioLevels,
+    isSpeaking: isSpeakingLocal,
   };
 }

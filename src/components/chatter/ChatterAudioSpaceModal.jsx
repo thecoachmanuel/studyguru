@@ -99,6 +99,8 @@ export default function ChatterAudioSpaceModal({
     localVideoStream,
     remoteStreams = {},
     remoteScreenShareStates = {},
+    activeSpeakerIds = new Set(),
+    audioLevels = {},
   } = voiceSession || {};
 
   const onToggleMic = () => {
@@ -156,14 +158,18 @@ export default function ChatterAudioSpaceModal({
       : p.profiles?.avatar_url || p.profiles?.image || p.avatar_url || p.image || null;
 
     const isHost = effectiveOwnerId ? normId === effectiveOwnerId : false;
+    const isSpeakingNow = isMe
+      ? (!isMuted && Boolean(voiceSession?.isSpeaking || activeSpeakerIds.has(normId)))
+      : (!p.is_muted && activeSpeakerIds.has(normId));
 
     participantsMap.set(normId, {
       userId: normId,
       name: displayName,
       username: p.username || p.profiles?.username || '',
       avatar_url: avatarUrl,
-      speaking: isMe ? !isMuted : !p.is_muted && p.speaking !== false,
+      speaking: isSpeakingNow,
       isMuted: isMe ? isMuted : (p.is_muted ?? false),
+      audioLevel: audioLevels[normId] || 0,
       isLocal: isMe,
       isHost,
     });
@@ -173,20 +179,23 @@ export default function ChatterAudioSpaceModal({
   const myIdStr = String(userId || '').trim();
   if (isActuallyJoined && myIdStr && !participantsMap.has(myIdStr)) {
     const isMeHost = effectiveOwnerId ? myIdStr === effectiveOwnerId : false;
+    const mySpeaking = !isMuted && Boolean(voiceSession?.isSpeaking || activeSpeakerIds.has(myIdStr));
     participantsMap.set(myIdStr, {
       userId: myIdStr,
       name: profile?.full_name || profile?.name || 'You',
       avatar_url: profile?.avatar_url || profile?.image || null,
-      speaking: !isMuted,
+      speaking: mySpeaking,
       isMuted,
+      audioLevel: audioLevels[myIdStr] || 0,
       isLocal: true,
       isHost: isMeHost,
     });
   }
 
   const fullParticipants = Array.from(participantsMap.values());
-  const speakers = fullParticipants.filter((p) => !p.isMuted);
-  const listeners = fullParticipants.filter((p) => p.isMuted);
+  // The host, current active speakers, unmuted users, and local participant are anchored to Stage
+  const speakers = fullParticipants.filter((p) => p.isHost || !p.isMuted || p.isLocal);
+  const listeners = fullParticipants.filter((p) => !speakers.some((s) => s.userId === p.userId));
 
   const onToggleScreenShare = async () => {
     if (screenShareBusy) return;
@@ -349,7 +358,7 @@ export default function ChatterAudioSpaceModal({
           flex: 1,
           overflowY: 'auto',
           padding: '20px 24px',
-          maxWidth: activeScreenShare ? '100%' : '1100px',
+          maxWidth: '100%',
           width: '100%',
           margin: '0 auto',
           boxSizing: 'border-box',
@@ -825,7 +834,7 @@ export default function ChatterAudioSpaceModal({
                       color: isSpeaking ? 'var(--chatter-primary)' : 'var(--chatter-light-text)',
                     }}
                   >
-                    {isSpeaking ? 'Speaking' : 'Muted'}
+                    {isSpeaking ? 'Speaking' : speaker.isMuted ? 'Muted' : 'Mic On'}
                   </span>
                 </div>
               );
@@ -1011,7 +1020,7 @@ export default function ChatterAudioSpaceModal({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          maxWidth: activeScreenShare ? '100%' : '1000px',
+          maxWidth: '100%',
           width: '100%',
           margin: '0 auto',
           boxSizing: 'border-box',
