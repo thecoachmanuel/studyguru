@@ -4,6 +4,7 @@ import { getDatabase, safeObjectId } from '@/lib/mongodb';
 import { retrieveRelevantChunks } from '@/lib/vectorSearch';
 import { generateStreamWithFallback, generateContentWithFallback } from '@/lib/llm';
 import { cleanEmDashes } from '@/lib/cleanText';
+import { generateOpenAIImage } from '@/lib/openaiImage';
 
 // In-memory cache for common student questions on documents
 const chatResponseCache = new Map();
@@ -112,18 +113,16 @@ export async function POST(req) {
       return NextResponse.json({ answer: reply, success: true, instant: true });
     }
 
-    // Instant Visual / Image Generation Router (<20ms latency)
+    // Instant Visual / Image Generation Router powered by OpenAI DALL-E
     const imgMatch = trimmedMessage.match(IMAGE_PROMPT_REGEX);
     const drawMatch = !imgMatch ? trimmedMessage.match(DRAW_PROMPT_REGEX) : null;
     if (imgMatch || drawMatch) {
       const rawSubject = (imgMatch ? imgMatch[1] : drawMatch[1]).replace(/[.?!\s]+$/, '').trim();
       if (rawSubject.length > 1) {
-        const seed = Math.floor(Math.random() * 899999) + 100000;
         const enhancedPrompt = `${rawSubject}, academic educational diagram, ultra-clear high resolution, highly detailed, pedagogical scientific illustration, sharp focus, 4k`;
-        const encodedPrompt = encodeURIComponent(enhancedPrompt);
-        const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?model=flux&enhance=true&nologo=true&seed=${seed}&width=1024&height=1024`;
+        const imageUrl = await generateOpenAIImage(enhancedPrompt, { rawSubject });
 
-        const reply = `Here is the high-definition visual illustration for **${rawSubject}**:\n\n![${rawSubject}](${imageUrl})\n\n*Generated with FLUX.1 Open-Source AI (Ultra-HD)*\n\n💡 **Next Steps:** You can type *"explain this visual step-by-step"*, ask *"draw this from another angle"*, or ask *"how does this connect to our lesson?"*`;
+        const reply = `Here is the high-definition visual illustration for **${rawSubject}**:\n\n![${rawSubject}](${imageUrl})\n\n*Generated with OpenAI DALL·E Image AI (Ultra-HD)*\n\n💡 **Next Steps:** You can type *"explain this visual step-by-step"*, ask *"draw this from another angle"*, or ask *"how does this connect to our lesson?"*`;
 
         if (wantsStream) {
           const encoder = new TextEncoder();
@@ -321,16 +320,20 @@ CORE TUTORING PEDAGOGY & ADAPTIVE PACING:
 
 5. IMAGE & DIAGRAM GENERATION:
    - If the student asks you to generate, draw, illustrate, or create an image or visual diagram of any concept, process, organ, structure, or scene:
-   - You CAN embed images directly using Markdown format:
-     ![Subject Description](https://image.pollinations.ai/prompt/{URL_ENCODED_DETAILED_PROMPT}?model=flux&enhance=true&nologo=true&width=1024&height=1024)
-   - Always describe what is shown in the image and provide follow-up study guidance beneath it!`;
+   - Explain the concept thoroughly with structured steps, labeled components, and clear educational descriptions.
+   - Always describe key visual markers and provide follow-up study guidance beneath it!
+
+6. STRICT TOPIC ISOLATION & SHIFT DIRECTIVE (CRITICAL):
+   - Always pay close attention to what the student is asking about right now in their current message.
+   - If the student changes or introduces a new topic (e.g. asking about "ecology" or "trauma" after previously discussing "respiratory system" or "biology"), IMMEDIATELY and COMPLETELY switch to the newly requested topic!
+   - Do NOT bring up, repeat questions from, or mix in concepts from the previous topic or old questions unless the student explicitly asks to compare them.`;
 
     let userPrompt = '';
     if (formattedHistory) {
       userPrompt += `Previous Conversation Turns:\n${formattedHistory}\n\n`;
     }
     userPrompt += `Current Student Message: ${message}`;
-    userPrompt += `\n\n(TUTOR INSTRUCTION: Adapt your response length dynamically. Give a concise or in-depth explanation depending on what the student needs and asked for, without artificial length caps. ${hasActiveDoc ? `Ground your response in "${docTitle}".` : 'Answer freely without referring to any document.'})`;
+    userPrompt += `\n\n(TUTOR INSTRUCTION: Focus 100% on the student's current requested topic. If the student has changed topics, pivot completely to the new topic without mixing in past topics from the conversation turns. Adapt your response length dynamically without artificial caps. ${hasActiveDoc ? `Ground your response in "${docTitle}".` : 'Answer freely without referring to any document.'})`;
 
     if (wantsStream) {
       const encoder = new TextEncoder();

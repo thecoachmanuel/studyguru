@@ -45,6 +45,11 @@ export function useVoiceSession(userId, profile = null) {
   const [remoteStreams, setRemoteStreams] = useState({});
   const [remoteCameraStates, setRemoteCameraStates] = useState({});
   const [remoteScreenShareStates, setRemoteScreenShareStates] = useState({});
+  const remoteScreenShareStatesRef = useRef({});
+
+  useEffect(() => {
+    remoteScreenShareStatesRef.current = remoteScreenShareStates;
+  }, [remoteScreenShareStates]);
 
   const localStreamRef = useRef(null);
   const cameraTrackRef = useRef(null);
@@ -1075,6 +1080,15 @@ export function useVoiceSession(userId, profile = null) {
   const handleStartScreenShare = useCallback(async ({ shareSystemAudio = false } = {}) => {
     if (!isJoinedRef.current || screenTrackRef.current || screenShareBusy || cameraBusy) return;
 
+    // Enforce single-sharer rule: only one user can share screen at a time
+    const activeRemoteSharer = Object.entries(remoteScreenShareStatesRef.current || {}).find(
+      ([rId, s]) => (Boolean(s?.enabled) || s === true) && String(rId) !== String(userId)
+    );
+    if (activeRemoteSharer) {
+      setScreenShareError('Another user is already sharing their screen. Only one user can share at a time.');
+      return;
+    }
+
     if (!navigator.mediaDevices?.getDisplayMedia) {
       setScreenShareError('Screen sharing is not supported by this mobile browser or environment. You can turn on your camera to share your study workspace or notes!');
       return;
@@ -1615,7 +1629,11 @@ export function useVoiceSession(userId, profile = null) {
     }
 
     setParticipants((prev) =>
-      prev.map((p) => (p.user_id === userId ? { ...p, is_muted: newMuteState } : p))
+      prev.map((p) =>
+        String(p.user_id || p.userId || p.profiles?.id || '') === String(userId)
+          ? { ...p, is_muted: newMuteState }
+          : p
+      )
     );
 
     try {
@@ -1735,12 +1753,38 @@ export function useVoiceSession(userId, profile = null) {
     try {
       chan = pusher.subscribe(channelName);
       chan.bind('participant-joined', (participant) => {
-        if (participant?.user_id && participant.user_id !== userId) {
+        if (!participant) return;
+        const pUserId = String(participant.user_id || participant.userId || participant.profiles?.id || '');
+        if (pUserId && pUserId !== String(userId)) {
           try {
             new Audio('/sounds/user-join.mp3').play().catch(() => {});
           } catch {}
+          const joinName =
+            participant.name ||
+            participant.full_name ||
+            participant.profiles?.full_name ||
+            participant.profiles?.name ||
+            participant.user_name ||
+            participant.username ||
+            participant.profiles?.username ||
+            'A scholar';
+
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(
+              new CustomEvent('studycord_voice_user_joined', {
+                detail: { userId: pUserId, name: joinName },
+              })
+            );
+            window.dispatchEvent(
+              new CustomEvent('studycord_toast', {
+                detail: `🟢 ${joinName} joined the space`,
+              })
+            );
+          }
           setParticipants((prev) => {
-            const without = prev.filter((p) => p.user_id !== participant.user_id);
+            const without = prev.filter(
+              (p) => String(p.user_id || p.userId || p.profiles?.id || '') !== pUserId
+            );
             return [...without, participant];
           });
         }
@@ -1770,8 +1814,13 @@ export function useVoiceSession(userId, profile = null) {
 
       chan.bind('participant-updated', ({ user_id, is_muted }) => {
         if (user_id) {
+          const sUid = String(user_id);
           setParticipants((prev) =>
-            prev.map((p) => (p.user_id === user_id ? { ...p, is_muted } : p))
+            prev.map((p) =>
+              String(p.user_id || p.userId || p.profiles?.id || '') === sUid
+                ? { ...p, is_muted }
+                : p
+            )
           );
         }
       });

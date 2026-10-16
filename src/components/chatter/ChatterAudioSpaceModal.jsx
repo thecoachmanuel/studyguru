@@ -6,6 +6,7 @@ export default function ChatterAudioSpaceModal({
   voiceSession,
   channelName,
   serverName,
+  roomOwnerId,
   onClose,
   userId,
   profile,
@@ -13,13 +14,21 @@ export default function ChatterAudioSpaceModal({
   const [raisedHand, setRaisedHand] = useState(false);
   const [raisedHandsMap, setRaisedHandsMap] = useState({});
   const [leaveNotification, setLeaveNotification] = useState('');
-  const [activeTab, setActiveTab] = useState('stage'); // 'stage' | 'chat'
+  const [joinNotification, setJoinNotification] = useState('');
+  const [isScreenMaximized, setIsScreenMaximized] = useState(false);
 
   useEffect(() => {
     const handleUserLeft = (e) => {
       if (e?.detail?.name) {
         setLeaveNotification(`${e.detail.name} left the space`);
         const timer = setTimeout(() => setLeaveNotification(''), 4500);
+        return () => clearTimeout(timer);
+      }
+    };
+    const handleUserJoined = (e) => {
+      if (e?.detail?.name) {
+        setJoinNotification(`${e.detail.name} joined the space`);
+        const timer = setTimeout(() => setJoinNotification(''), 4500);
         return () => clearTimeout(timer);
       }
     };
@@ -31,129 +40,17 @@ export default function ChatterAudioSpaceModal({
         }));
       }
     };
+
     window.addEventListener('studycord_voice_user_left', handleUserLeft);
+    window.addEventListener('studycord_voice_user_joined', handleUserJoined);
     window.addEventListener('studycord_hand_raise_updated', handleHandRaise);
+
     return () => {
       window.removeEventListener('studycord_voice_user_left', handleUserLeft);
+      window.removeEventListener('studycord_voice_user_joined', handleUserJoined);
       window.removeEventListener('studycord_hand_raise_updated', handleHandRaise);
     };
   }, []);
-
-  const {
-    participants = [],
-    micConnected,
-    isMuted = false,
-    loading,
-    joining,
-    error,
-    setError,
-    handleLeave,
-    handleToggleMute,
-    toggleMic = handleToggleMute,
-    cameraEnabled,
-    handleTurnCameraOn,
-    handleTurnCameraOff,
-    toggleCamera,
-    cameraBusy,
-    cameraError,
-    setCameraError,
-    isScreenSharing,
-    handleStartScreenShare,
-    handleStopScreenShare,
-    toggleScreenShare,
-    screenShareBusy,
-    screenShareError,
-    setScreenShareError,
-    autoplayWarning,
-    localVideoStream,
-    localScreenStream,
-    remoteStreams = {},
-    remoteScreenShareStates = {},
-    remoteCameraStates = {},
-  } = voiceSession || {};
-
-  const onToggleMic = () => {
-    if (toggleMic) toggleMic();
-    else if (handleToggleMute) handleToggleMute();
-  };
-
-  const onToggleCamera = async () => {
-    if (cameraBusy) return;
-    if (toggleCamera) {
-      await toggleCamera();
-    } else if (cameraEnabled) {
-      await handleTurnCameraOff?.();
-    } else {
-      await handleTurnCameraOn?.();
-    }
-  };
-
-  const onToggleScreenShare = async () => {
-    if (screenShareBusy) return;
-    if (toggleScreenShare) {
-      await toggleScreenShare();
-    } else if (isScreenSharing) {
-      await handleStopScreenShare?.();
-    } else {
-      await handleStartScreenShare?.();
-    }
-  };
-
-  // Deduplicate participants rigorously by unique normalized string ID
-  const participantsMap = new Map();
-
-  for (const p of participants) {
-    const rawId = p.user_id || p.userId || p.id;
-    if (!rawId) continue;
-    const normId = String(rawId).replace(/^vp-[^-]+-/, '');
-    const isMe = normId === String(userId) || String(rawId) === String(userId);
-
-    const rawName =
-      p.name ||
-      p.full_name ||
-      p.profiles?.full_name ||
-      p.profiles?.name ||
-      p.profiles?.username ||
-      p.user_name ||
-      p.username;
-
-    const displayName = isMe
-      ? (profile?.full_name || profile?.name || 'You')
-      : (rawName && rawName !== 'Scholar' && rawName !== 'User'
-          ? rawName
-          : (p.profiles?.username || p.username || 'Study Partner'));
-
-    participantsMap.set(normId, {
-      userId: normId,
-      name: displayName,
-      username: p.username || p.profiles?.username || '',
-      avatar_url: isMe
-        ? (profile?.avatar_url || null)
-        : (p.profiles?.avatar_url || p.avatar_url || null),
-      speaking: isMe ? !isMuted : (!p.is_muted && p.speaking !== false),
-      isMuted: isMe ? isMuted : (p.is_muted ?? false),
-      isLocal: isMe,
-    });
-  }
-
-  const isActuallyJoined = Boolean(voiceSession?.joinedChannelId);
-  if (isActuallyJoined && !participantsMap.has(String(userId))) {
-    participantsMap.set(String(userId), {
-      userId: String(userId),
-      name: profile?.full_name || profile?.name || 'You',
-      avatar_url: profile?.avatar_url || null,
-      speaking: !isMuted,
-      isMuted,
-      isLocal: true,
-    });
-  }
-
-  const fullParticipants = Array.from(participantsMap.values());
-  const speakers = fullParticipants.filter((p) => !p.isMuted);
-  const listeners = fullParticipants.filter((p) => p.isMuted);
-
-  // Fullscreen Theater Mode for Shared Screen
-  const [isScreenMaximized, setIsScreenMaximized] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -165,43 +62,155 @@ export default function ChatterAudioSpaceModal({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isScreenMaximized]);
 
-  // Identify active screen share (local or remote)
+  const {
+    participants = [],
+    isMuted = false,
+    error,
+    setError,
+    handleLeave,
+    handleToggleMute,
+    toggleMic = handleToggleMute,
+    isScreenSharing,
+    handleStartScreenShare,
+    handleStopScreenShare,
+    toggleScreenShare,
+    screenShareBusy,
+    screenShareError,
+    setScreenShareError,
+    autoplayWarning,
+    localScreenStream,
+    localVideoStream,
+    remoteStreams = {},
+    remoteScreenShareStates = {},
+  } = voiceSession || {};
+
+  const onToggleMic = () => {
+    if (toggleMic) toggleMic();
+    else if (handleToggleMute) handleToggleMute();
+  };
+
+  // Identify active remote screen sharer
   const remoteScreenSharerId = Object.keys(remoteScreenShareStates).find(
-    (id) => (Boolean(remoteScreenShareStates[id]?.enabled) || remoteScreenShareStates[id] === true) && remoteStreams[id]
+    (id) =>
+      (Boolean(remoteScreenShareStates[id]?.enabled) || remoteScreenShareStates[id] === true) &&
+      remoteStreams[id]
   );
+
+  // Deduplicate participants rigorously by unique normalized string ID
+  const participantsMap = new Map();
+  const effectiveOwnerId = roomOwnerId ? String(roomOwnerId).trim() : null;
+
+  for (const p of participants) {
+    if (!p) continue;
+
+    let normId = '';
+    if (p.user_id) {
+      normId = String(p.user_id).trim();
+    } else if (p.userId) {
+      normId = String(p.userId).trim();
+    } else if (p.profiles?.id) {
+      normId = String(p.profiles.id).trim();
+    } else if (typeof p.id === 'string') {
+      normId = p.id.startsWith('vp-') ? p.id.split('-').pop().trim() : p.id.trim();
+    }
+
+    if (!normId) continue;
+
+    const isMe = normId === String(userId || '').trim();
+
+    const rawName =
+      p.name ||
+      p.full_name ||
+      p.profiles?.full_name ||
+      p.profiles?.name ||
+      p.user_name ||
+      p.username ||
+      p.profiles?.username;
+
+    const displayName = isMe
+      ? profile?.full_name || profile?.name || 'You'
+      : rawName && rawName !== 'Scholar' && rawName !== 'User' && rawName !== 'Study Partner'
+      ? rawName
+      : p.profiles?.username || p.username || 'Study Partner';
+
+    const avatarUrl = isMe
+      ? profile?.avatar_url || profile?.image || null
+      : p.profiles?.avatar_url || p.profiles?.image || p.avatar_url || p.image || null;
+
+    const isHost = effectiveOwnerId ? normId === effectiveOwnerId : false;
+
+    participantsMap.set(normId, {
+      userId: normId,
+      name: displayName,
+      username: p.username || p.profiles?.username || '',
+      avatar_url: avatarUrl,
+      speaking: isMe ? !isMuted : !p.is_muted && p.speaking !== false,
+      isMuted: isMe ? isMuted : (p.is_muted ?? false),
+      isLocal: isMe,
+      isHost,
+    });
+  }
+
+  const isActuallyJoined = Boolean(voiceSession?.joinedChannelId);
+  const myIdStr = String(userId || '').trim();
+  if (isActuallyJoined && myIdStr && !participantsMap.has(myIdStr)) {
+    const isMeHost = effectiveOwnerId ? myIdStr === effectiveOwnerId : false;
+    participantsMap.set(myIdStr, {
+      userId: myIdStr,
+      name: profile?.full_name || profile?.name || 'You',
+      avatar_url: profile?.avatar_url || profile?.image || null,
+      speaking: !isMuted,
+      isMuted,
+      isLocal: true,
+      isHost: isMeHost,
+    });
+  }
+
+  const fullParticipants = Array.from(participantsMap.values());
+  const speakers = fullParticipants.filter((p) => !p.isMuted);
+  const listeners = fullParticipants.filter((p) => p.isMuted);
+
+  const onToggleScreenShare = async () => {
+    if (screenShareBusy) return;
+
+    // Enforce single-sharer rule: only ONE user can share at a time
+    if (!isScreenSharing && remoteScreenSharerId) {
+      const sharerEntry = participantsMap.get(remoteScreenSharerId);
+      const sharerName = sharerEntry?.name || 'Another participant';
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('studycord_toast', {
+            detail: `⚠️ ${sharerName} is already sharing screen. Only one person can share at a time.`,
+          })
+        );
+      }
+      return;
+    }
+
+    if (toggleScreenShare) {
+      await toggleScreenShare();
+    } else if (isScreenSharing) {
+      await handleStopScreenShare?.();
+    } else {
+      await handleStartScreenShare?.();
+    }
+  };
+
   const activeScreenShare = isScreenSharing
     ? {
         isLocal: true,
         stream: localScreenStream || localVideoStream,
         userId: String(userId),
         name: profile?.full_name || profile?.name || 'You',
-        avatar_url: profile?.avatar_url,
       }
     : remoteScreenSharerId
-      ? {
-          isLocal: false,
-          stream: remoteStreams[remoteScreenSharerId],
-          userId: remoteScreenSharerId,
-          name: participantsMap.get(remoteScreenSharerId)?.name || 'Study Partner',
-          avatar_url: participantsMap.get(remoteScreenSharerId)?.avatar_url,
-        }
-      : null;
-
-  const hasLocalCamera = Boolean(cameraEnabled && !isScreenSharing);
-  const remoteVideoEntries = Object.entries(remoteStreams).filter(
-    ([remoteId]) => remoteId !== remoteScreenSharerId
-  );
-  const hasAnyVideo = hasLocalCamera || remoteVideoEntries.length > 0;
-  const totalVideos = (hasLocalCamera ? 1 : 0) + remoteVideoEntries.length;
-
-  // Local camera video ref
-  const localVideoRef = useRef(null);
-  useEffect(() => {
-    if (localVideoRef.current && localVideoStream) {
-      localVideoRef.current.srcObject = localVideoStream;
-      localVideoRef.current.play?.().catch(() => {});
-    }
-  }, [localVideoStream]);
+    ? {
+        isLocal: false,
+        stream: remoteStreams[remoteScreenSharerId],
+        userId: remoteScreenSharerId,
+        name: participantsMap.get(remoteScreenSharerId)?.name || 'Study Partner',
+      }
+    : null;
 
   return (
     <div
@@ -222,7 +231,8 @@ export default function ChatterAudioSpaceModal({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: 'calc(14px + env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px)) 14px max(20px, env(safe-area-inset-left, 0px))',
+          padding:
+            'calc(14px + env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px)) 14px max(20px, env(safe-area-inset-left, 0px))',
           background: 'var(--chatter-audiospace)',
           borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
         }}
@@ -242,14 +252,32 @@ export default function ChatterAudioSpaceModal({
             fontWeight: 700,
           }}
         >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <polyline points="15 18 9 12 15 6" />
           </svg>
           <span>Back</span>
         </button>
 
         <div style={{ textAlign: 'center', maxWidth: '60%', overflow: 'hidden' }}>
-          <h2 style={{ fontSize: 20, fontWeight: 800, margin: '0 0 3px 0', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+          <h2
+            style={{
+              fontSize: 20,
+              fontWeight: 800,
+              margin: '0 0 3px 0',
+              whiteSpace: 'nowrap',
+              textOverflow: 'ellipsis',
+              overflow: 'hidden',
+            }}
+          >
             {channelName || 'Live Study Space'}
           </h2>
           <div style={{ fontSize: 13.5, color: 'var(--chatter-primary)', fontWeight: 600 }}>
@@ -260,7 +288,16 @@ export default function ChatterAudioSpaceModal({
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           {/* Speakers count */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 14, color: '#D4D4D4' }}>
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              width="17"
+              height="17"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
               <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
             </svg>
@@ -269,7 +306,16 @@ export default function ChatterAudioSpaceModal({
 
           {/* Listeners count */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 14, color: '#D4D4D4' }}>
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              width="17"
+              height="17"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
               <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
             </svg>
@@ -278,10 +324,20 @@ export default function ChatterAudioSpaceModal({
         </div>
       </header>
 
-      {/* ── 2. Stage Area: Speakers & Video Tiles ── */}
-      <main style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', maxWidth: activeScreenShare ? '100%' : '1100px', width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
-        {/* Floating Error / Notification Banner */}
-        {(screenShareError || cameraError || error || autoplayWarning) && (
+      {/* ── 2. Stage Area: Audio Stage & Screen Share ── */}
+      <main
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '20px 24px',
+          maxWidth: activeScreenShare ? '100%' : '1100px',
+          width: '100%',
+          margin: '0 auto',
+          boxSizing: 'border-box',
+        }}
+      >
+        {/* Floating Error Banner */}
+        {(screenShareError || error || autoplayWarning) && (
           <div
             style={{
               padding: '10px 16px',
@@ -298,14 +354,53 @@ export default function ChatterAudioSpaceModal({
               gap: 10,
             }}
           >
-            <span>{screenShareError || cameraError || error || autoplayWarning}</span>
+            <span>{screenShareError || error || autoplayWarning}</span>
             <button
               type="button"
               onClick={() => {
                 setScreenShareError?.('');
-                setCameraError?.('');
                 setError?.('');
               }}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#fff',
+                fontSize: 14,
+                cursor: 'pointer',
+                padding: '0 6px',
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* Floating Join Alert Banner (Glowing Emerald) */}
+        {joinNotification && (
+          <div
+            style={{
+              padding: '10px 16px',
+              borderRadius: 14,
+              background: 'rgba(64, 227, 120, 0.16)',
+              border: '1px solid rgba(64, 227, 120, 0.35)',
+              color: 'var(--chatter-primary)',
+              fontSize: 13.5,
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 16,
+              gap: 10,
+              animation: 'fadeIn 0.2s ease',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+              <span style={{ fontSize: 14 }}>🟢</span>
+              <span>{joinNotification}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setJoinNotification('')}
               style={{
                 background: 'transparent',
                 border: 'none',
@@ -357,251 +452,31 @@ export default function ChatterAudioSpaceModal({
           </div>
         )}
 
-        {/* ── LIVE SCREEN SHARE & VIDEO STAGE ── */}
-        {(activeScreenShare || hasAnyVideo) && (
+        {/* ── LIVE SCREEN SHARE (One user at a time) ── */}
+        {activeScreenShare && (
           <div style={{ marginBottom: 28, width: '100%' }}>
-            {/* 1. When a screen is being shared, show it boldly across 100% width at top */}
-            {activeScreenShare && (
-              <ScreenSharePlayer
-                stream={activeScreenShare.stream}
-                isLocal={activeScreenShare.isLocal}
-                sharerName={activeScreenShare.name}
-                isMaximized={isScreenMaximized}
-                onToggleMaximize={() => setIsScreenMaximized((prev) => !prev)}
-                onStopSharing={activeScreenShare.isLocal ? handleStopScreenShare : null}
-              />
-            )}
-
-            {/* 2. When screen is sharing, render active camera feeds in a neat participant strip below the screen */}
-            {activeScreenShare ? (
-              hasAnyVideo && (
-                <div style={{ marginBottom: 18 }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--chatter-light-text)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
-                    Active Cameras ({hasLocalCamera ? 1 : 0 + remoteVideoEntries.length})
-                  </div>
-                  <div
-                    style={{
-                      display: 'flex',
-                      gap: 12,
-                      overflowX: 'auto',
-                      padding: '4px 2px 10px',
-                      scrollbarWidth: 'thin',
-                    }}
-                  >
-                    {/* Local Camera Tile in strip */}
-                    {hasLocalCamera && (
-                      <div
-                        className="chatter-video-tile"
-                        style={{
-                          position: 'relative',
-                          borderRadius: 16,
-                          overflow: 'hidden',
-                          background: '#111',
-                          border: !isMuted ? '2px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.1)',
-                          boxShadow: !isMuted ? '0 0 14px rgba(64, 227, 120, 0.35)' : 'none',
-                          aspectRatio: '16/9',
-                          width: 200,
-                          minWidth: 180,
-                          height: 120,
-                          flexShrink: 0,
-                        }}
-                      >
-                        <video
-                          ref={localVideoRef}
-                          autoPlay
-                          playsInline
-                          muted
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                            objectPosition: 'center center',
-                            display: 'block',
-                            transform: 'scaleX(-1)',
-                          }}
-                        />
-                        <div
-                          style={{
-                            position: 'absolute',
-                            bottom: 8,
-                            left: 8,
-                            background: 'rgba(0,0,0,0.7)',
-                            backdropFilter: 'blur(4px)',
-                            padding: '3px 8px',
-                            borderRadius: 8,
-                            fontSize: 12,
-                            fontWeight: 600,
-                            color: '#fff',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 5,
-                            zIndex: 2,
-                          }}
-                        >
-                          <span>{profile?.name || 'You'} (You)</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Remote Camera Tiles in strip */}
-                    {remoteVideoEntries.map(([remoteId, stream]) => {
-                      const p = participantsMap.get(remoteId) || participants.find((part) => String(part.userId || part.user_id) === String(remoteId));
-                      const isSpeaking = p?.speaking;
-                      return (
-                        <div
-                          key={remoteId}
-                          style={{
-                            width: 200,
-                            minWidth: 180,
-                            height: 120,
-                            flexShrink: 0,
-                          }}
-                        >
-                          <RemoteVideoTile
-                            remoteUserId={remoteId}
-                            stream={stream}
-                            participant={p}
-                            isSpeaking={isSpeaking}
-                            totalVideos={remoteVideoEntries.length + (hasLocalCamera ? 1 : 0)}
-                            isHandRaised={Boolean(raisedHandsMap[remoteId])}
-                            compact={true}
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )
-            ) : (
-              /* 3. When NO screen is sharing, show cameras in modern responsive grid */
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--chatter-primary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                    Live Video Stage ({totalVideos})
-                  </div>
-                  {raisedHand && (
-                    <span style={{ fontSize: 12.5, background: 'rgba(64, 227, 120, 0.16)', color: 'var(--chatter-primary)', padding: '3px 9px', borderRadius: 12, fontWeight: 700 }}>
-                      ✋ Hand Raised
-                    </span>
-                  )}
-                </div>
-                <div
-                  className={`chatter-video-stage-grid ${totalVideos === 1 ? 'single-video' : 'multi-video'}`}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns:
-                      totalVideos === 1
-                        ? '1fr'
-                        : totalVideos === 2
-                          ? 'repeat(auto-fit, minmax(280px, 1fr))'
-                          : 'repeat(auto-fit, minmax(240px, 1fr))',
-                    gap: 14,
-                    width: '100%',
-                  }}
-                >
-                  {/* Local Camera Tile */}
-                  {hasLocalCamera && (
-                    <div
-                      className="chatter-video-tile"
-                      style={{
-                        position: 'relative',
-                        borderRadius: 20,
-                        overflow: 'hidden',
-                        background: '#111',
-                        border: !isMuted ? '2px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.1)',
-                        boxShadow: !isMuted ? '0 0 16px rgba(64, 227, 120, 0.4)' : 'none',
-                        aspectRatio: totalVideos === 1 ? '16/10' : '4/3',
-                        maxWidth: totalVideos === 1 ? '620px' : '100%',
-                        margin: '0 auto',
-                        width: '100%',
-                        minHeight: totalVideos === 1 ? 260 : 180,
-                      }}
-                    >
-                      <video
-                        ref={localVideoRef}
-                        autoPlay
-                        playsInline
-                        muted
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                          objectPosition: 'center center',
-                          display: 'block',
-                          transform: 'scaleX(-1)',
-                        }}
-                      />
-                      {raisedHand && (
-                        <div
-                          style={{
-                            position: 'absolute',
-                            top: 10,
-                            right: 10,
-                            background: 'rgba(64, 227, 120, 0.95)',
-                            color: '#0E0E0E',
-                            padding: '4px 10px',
-                            borderRadius: 12,
-                            fontSize: 12,
-                            fontWeight: 800,
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 4,
-                            zIndex: 3,
-                          }}
-                        >
-                          <span>✋</span> Hand Raised
-                        </div>
-                      )}
-                      <div
-                        style={{
-                          position: 'absolute',
-                          bottom: 10,
-                          left: 10,
-                          background: 'rgba(0,0,0,0.65)',
-                          backdropFilter: 'blur(4px)',
-                          padding: '4px 10px',
-                          borderRadius: 10,
-                          fontSize: 13,
-                          fontWeight: 600,
-                          color: '#fff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 6,
-                          zIndex: 2,
-                        }}
-                      >
-                        <span>{profile?.name || 'You'} (You)</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Remote Video Tiles */}
-                  {remoteVideoEntries.map(([remoteId, stream]) => {
-                    const p = participantsMap.get(remoteId) || participants.find((part) => String(part.userId || part.user_id) === String(remoteId));
-                    const isSpeaking = p?.speaking;
-                    return (
-                      <RemoteVideoTile
-                        key={remoteId}
-                        remoteUserId={remoteId}
-                        stream={stream}
-                        participant={p}
-                        isSpeaking={isSpeaking}
-                        totalVideos={totalVideos}
-                        isHandRaised={Boolean(raisedHandsMap[remoteId])}
-                        compact={false}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            <ScreenSharePlayer
+              stream={activeScreenShare.stream}
+              isLocal={activeScreenShare.isLocal}
+              isMaximized={isScreenMaximized}
+              onToggleMaximize={() => setIsScreenMaximized((prev) => !prev)}
+              onStopSharing={activeScreenShare.isLocal ? handleStopScreenShare : null}
+            />
           </div>
         )}
 
-        {/* Section: Speakers on Stage */}
+        {/* ── Section: Speakers on Stage ── */}
         <div style={{ marginBottom: 28 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--chatter-primary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>
+          <div
+            style={{
+              fontSize: 15,
+              fontWeight: 700,
+              color: 'var(--chatter-primary)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+              marginBottom: 16,
+            }}
+          >
             Speakers ({speakers.length})
           </div>
 
@@ -618,7 +493,15 @@ export default function ChatterAudioSpaceModal({
               const isSpeaking = speaker.speaking;
               const hasHandRaised = isMe ? raisedHand : Boolean(raisedHandsMap[speaker.userId]);
               return (
-                <div key={speaker.userId || index} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                <div
+                  key={speaker.userId || index}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    textAlign: 'center',
+                  }}
+                >
                   {/* Avatar with Chatter Pulsing Emerald Ring */}
                   <div
                     style={{
@@ -636,7 +519,12 @@ export default function ChatterAudioSpaceModal({
                       <img
                         src={speaker.avatar_url}
                         alt={speaker.name}
-                        style={{ width: '100%', height: '100%', borderRadius: 25, objectFit: 'cover' }}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          borderRadius: 25,
+                          objectFit: 'cover',
+                        }}
                       />
                     ) : (
                       <div
@@ -705,7 +593,14 @@ export default function ChatterAudioSpaceModal({
                           <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
                         </svg>
                       ) : (
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <svg
+                          width="13"
+                          height="13"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                        >
                           <line x1="1" y1="1" x2="23" y2="23" />
                           <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6" />
                         </svg>
@@ -713,10 +608,49 @@ export default function ChatterAudioSpaceModal({
                     </div>
                   </div>
 
-                  <span style={{ marginTop: 10, fontSize: 15.5, fontWeight: 600, color: '#fff', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span
+                    style={{
+                      marginTop: 10,
+                      fontSize: 15.5,
+                      fontWeight: 600,
+                      color: '#fff',
+                      maxWidth: 100,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
                     {speaker.name} {isMe && '(You)'}
                   </span>
-                  <span style={{ fontSize: 13.5, color: isSpeaking ? 'var(--chatter-primary)' : 'var(--chatter-light-text)' }}>
+
+                  {/* 👑 Host Badge - Strictly for room creator/owner */}
+                  {speaker.isHost && (
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 800,
+                        background: 'rgba(234, 179, 8, 0.18)',
+                        color: '#FACC15',
+                        border: '1px solid rgba(234, 179, 8, 0.4)',
+                        padding: '2px 7px',
+                        borderRadius: 10,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 3,
+                        marginTop: 4,
+                      }}
+                    >
+                      👑 Host
+                    </span>
+                  )}
+
+                  <span
+                    style={{
+                      fontSize: 13,
+                      marginTop: 2,
+                      color: isSpeaking ? 'var(--chatter-primary)' : 'var(--chatter-light-text)',
+                    }}
+                  >
                     {isSpeaking ? 'Speaking' : 'Muted'}
                   </span>
                 </div>
@@ -725,10 +659,19 @@ export default function ChatterAudioSpaceModal({
           </div>
         </div>
 
-        {/* Section: Listeners */}
+        {/* ── Section: Listeners ── */}
         {listeners.length > 0 && (
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--chatter-light-text)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>
+            <div
+              style={{
+                fontSize: 15,
+                fontWeight: 700,
+                color: 'var(--chatter-light-text)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                marginBottom: 16,
+              }}
+            >
               Listeners ({listeners.length})
             </div>
 
@@ -744,7 +687,15 @@ export default function ChatterAudioSpaceModal({
                 const isMe = String(listener.userId) === String(userId);
                 const hasHandRaised = isMe ? raisedHand : Boolean(raisedHandsMap[listener.userId]);
                 return (
-                  <div key={listener.userId || index} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div
+                    key={listener.userId || index}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      textAlign: 'center',
+                    }}
+                  >
                     <div
                       style={{
                         position: 'relative',
@@ -760,9 +711,23 @@ export default function ChatterAudioSpaceModal({
                         color: '#888',
                       }}
                     >
-                      <div style={{ width: '100%', height: '100%', borderRadius: 20, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          borderRadius: 20,
+                          overflow: 'hidden',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
                         {listener.avatar_url ? (
-                          <img src={listener.avatar_url} alt={listener.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <img
+                            src={listener.avatar_url}
+                            alt={listener.name}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
                         ) : (
                           listener.name?.[0]?.toUpperCase() || 'P'
                         )}
@@ -792,9 +757,41 @@ export default function ChatterAudioSpaceModal({
                         </div>
                       )}
                     </div>
-                    <span style={{ marginTop: 8, fontSize: 14, color: 'var(--chatter-light-text)', maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+
+                    <span
+                      style={{
+                        marginTop: 8,
+                        fontSize: 14,
+                        color: 'var(--chatter-light-text)',
+                        maxWidth: 80,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
                       {listener.name} {isMe && '(You)'}
                     </span>
+
+                    {/* 👑 Host Badge - Strictly for room creator/owner */}
+                    {listener.isHost && (
+                      <span
+                        style={{
+                          fontSize: 10.5,
+                          fontWeight: 800,
+                          background: 'rgba(234, 179, 8, 0.18)',
+                          color: '#FACC15',
+                          border: '1px solid rgba(234, 179, 8, 0.4)',
+                          padding: '2px 6px',
+                          borderRadius: 9,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 3,
+                          marginTop: 3,
+                        }}
+                      >
+                        👑 Host
+                      </span>
+                    )}
                   </div>
                 );
               })}
@@ -803,12 +800,13 @@ export default function ChatterAudioSpaceModal({
         )}
       </main>
 
-      {/* ── 3. Chatter Bottom Floating Control Bar (Safe Area Protected) ── */}
+      {/* ── 3. Chatter Bottom Floating Control Bar (Voice & Screen Share) ── */}
       <footer
         style={{
           background: 'var(--chatter-sheet)',
           borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-          padding: '16px max(20px, env(safe-area-inset-right, 0px)) max(14px, calc(14px + env(safe-area-inset-bottom, 0px))) max(20px, env(safe-area-inset-left, 0px))',
+          padding:
+            '16px max(20px, env(safe-area-inset-right, 0px)) max(14px, calc(14px + env(safe-area-inset-bottom, 0px))) max(20px, env(safe-area-inset-left, 0px))',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -830,9 +828,13 @@ export default function ChatterAudioSpaceModal({
             }));
             const myName = profile?.full_name || profile?.name || 'You';
             if (typeof window !== 'undefined') {
-              window.dispatchEvent(new CustomEvent('studycord_toast', {
-                detail: nextState ? `✋ ${myName} raised hand to speak` : `✋ ${myName} lowered hand`,
-              }));
+              window.dispatchEvent(
+                new CustomEvent('studycord_toast', {
+                  detail: nextState
+                    ? `✋ ${myName} raised hand to speak`
+                    : `✋ ${myName} lowered hand`,
+                })
+              );
             }
             const chanId = voiceSession?.joinedChannelId;
             if (chanId) {
@@ -863,8 +865,8 @@ export default function ChatterAudioSpaceModal({
           <span>{raisedHand ? 'Hand Raised' : 'Raise Hand'}</span>
         </button>
 
-        {/* Center: Media Toggles (Mic, Camera, Screen) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        {/* Center: Voice Mic & Screen Share Controls (Pure Voice + Screen Share) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           {/* Mic Toggle Button */}
           <button
             type="button"
@@ -880,7 +882,9 @@ export default function ChatterAudioSpaceModal({
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
-              boxShadow: !isMuted ? '0 4px 16px rgba(64, 227, 120, 0.35)' : '0 4px 16px rgba(239, 68, 68, 0.35)',
+              boxShadow: !isMuted
+                ? '0 4px 16px rgba(64, 227, 120, 0.35)'
+                : '0 4px 16px rgba(239, 68, 68, 0.35)',
               transition: 'all 0.18s ease',
             }}
             title={!isMuted ? 'Mute Microphone' : 'Unmute Microphone'}
@@ -888,52 +892,31 @@ export default function ChatterAudioSpaceModal({
             {!isMuted ? (
               <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="currentColor" strokeWidth="2" fill="none" />
+                <path
+                  d="M19 10v2a7 7 0 0 1-14 0v-2"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  fill="none"
+                />
                 <line x1="12" y1="19" x2="12" y2="23" stroke="currentColor" strokeWidth="2.5" />
                 <line x1="8" y1="23" x2="16" y2="23" stroke="currentColor" strokeWidth="2.5" />
               </svg>
             ) : (
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <line x1="1" y1="1" x2="23" y2="23" />
                 <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6" />
                 <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23" />
                 <line x1="12" y1="19" x2="12" y2="23" />
                 <line x1="8" y1="23" x2="16" y2="23" />
-              </svg>
-            )}
-          </button>
-
-          {/* Camera Toggle Button */}
-          <button
-            type="button"
-            onClick={onToggleCamera}
-            disabled={cameraBusy}
-            style={{
-              width: 52,
-              height: 52,
-              borderRadius: '50%',
-              background: cameraEnabled ? 'var(--chatter-primary)' : '#ef4444',
-              color: cameraEnabled ? '#0E0E0E' : '#FFFFFF',
-              border: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: cameraBusy ? 'not-allowed' : 'pointer',
-              boxShadow: cameraEnabled ? '0 4px 16px rgba(64, 227, 120, 0.35)' : '0 4px 16px rgba(239, 68, 68, 0.35)',
-              transition: 'all 0.18s ease',
-            }}
-            title={cameraEnabled ? 'Turn Off Camera' : 'Turn On Camera'}
-          >
-            {cameraEnabled ? (
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polygon points="23 7 16 12 23 17 23 7" fill="currentColor" />
-                <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-              </svg>
-            ) : (
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="1" y1="1" x2="23" y2="23" />
-                <path d="M21 15.5l-5-3.5 5-3.5v7z" />
-                <path d="M2 7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7z" />
               </svg>
             )}
           </button>
@@ -944,8 +927,8 @@ export default function ChatterAudioSpaceModal({
             onClick={onToggleScreenShare}
             disabled={screenShareBusy}
             style={{
-              width: 50,
-              height: 50,
+              width: 52,
+              height: 52,
               borderRadius: '50%',
               background: isScreenSharing ? 'var(--chatter-primary)' : 'rgba(255, 255, 255, 0.1)',
               color: isScreenSharing ? '#0E0E0E' : '#fff',
@@ -954,11 +937,21 @@ export default function ChatterAudioSpaceModal({
               alignItems: 'center',
               justifyContent: 'center',
               cursor: screenShareBusy ? 'not-allowed' : 'pointer',
+              boxShadow: isScreenSharing ? '0 4px 16px rgba(64, 227, 120, 0.35)' : 'none',
               transition: 'all 0.18s ease',
             }}
             title={isScreenSharing ? 'Stop Screen Share' : 'Share Screen'}
           >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
               <line x1="8" y1="21" x2="16" y2="21" />
               <line x1="12" y1="17" x2="12" y2="21" />
@@ -995,7 +988,12 @@ export default function ChatterAudioSpaceModal({
   );
 }
 
-function ScreenSharePlayer({ stream, isLocal, sharerName, isMaximized, onToggleMaximize, onStopSharing }) {
+/**
+ * ScreenSharePlayer
+ * Minimal, zero-distraction screen player.
+ * All text banners/writers removed; clean icon button for expand/fullscreen only.
+ */
+function ScreenSharePlayer({ stream, isLocal, isMaximized, onToggleMaximize, onStopSharing }) {
   const videoRef = useRef(null);
 
   useEffect(() => {
@@ -1046,100 +1044,107 @@ function ScreenSharePlayer({ stream, isLocal, sharerName, isMaximized, onToggleM
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
-        border: isMaximized ? 'none' : '2px solid rgba(64, 227, 120, 0.5)',
+        border: isMaximized ? 'none' : '2px solid rgba(64, 227, 120, 0.4)',
         boxShadow: isMaximized ? 'none' : '0 12px 40px rgba(0,0,0,0.7)',
         margin: isMaximized ? 0 : '0 auto 20px',
       }}
     >
-      {/* Floating Header Overlay */}
+      {/* Sleek Minimal Floating Overlay (Icon-only, no distracting text) */}
       <div
         style={{
           position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          padding: '12px 18px',
-          background: 'linear-gradient(to bottom, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0) 100%)',
+          top: 12,
+          right: 12,
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
+          gap: 8,
           zIndex: 10,
           pointerEvents: 'auto',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span
-            style={{
-              background: 'var(--chatter-primary)',
-              color: '#0E0E0E',
-              fontSize: 12,
-              fontWeight: 800,
-              padding: '3px 10px',
-              borderRadius: 12,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-            }}
-          >
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#0E0E0E' }} />
-            LIVE SCREEN
-          </span>
-          <span style={{ fontSize: 14.5, fontWeight: 700, color: '#fff', textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>
-            🖥️ {sharerName}{isLocal ? ' (You)' : ''}&apos;s Screen
-          </span>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {isLocal && onStopSharing && (
-            <button
-              type="button"
-              onClick={onStopSharing}
-              style={{
-                background: 'rgba(239, 68, 68, 0.9)',
-                border: 'none',
-                color: '#fff',
-                borderRadius: 12,
-                padding: '6px 14px',
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                boxShadow: '0 2px 8px rgba(239, 68, 68, 0.3)',
-                transition: 'background 0.15s ease',
-              }}
-            >
-              <span>⏹</span> Stop Sharing
-            </button>
-          )}
-
+        {isLocal && onStopSharing && (
           <button
             type="button"
-            onClick={onToggleMaximize}
-            title={isMaximized ? 'Exit Fullscreen (Esc)' : 'Maximize Screen'}
+            onClick={onStopSharing}
+            title="Stop Sharing Screen"
+            aria-label="Stop Sharing Screen"
             style={{
-              background: isMaximized ? 'var(--chatter-primary)' : 'rgba(0, 0, 0, 0.7)',
-              border: isMaximized ? 'none' : '1px solid rgba(255, 255, 255, 0.25)',
-              color: isMaximized ? '#0E0E0E' : '#fff',
-              borderRadius: 12,
-              padding: '6px 14px',
-              fontSize: 13,
-              fontWeight: 700,
+              width: 38,
+              height: 38,
+              borderRadius: 10,
+              background: 'rgba(239, 68, 68, 0.88)',
+              border: 'none',
+              color: '#fff',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: 6,
+              justifyContent: 'center',
               backdropFilter: 'blur(8px)',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.4)',
               transition: 'all 0.15s ease',
             }}
           >
-            <span style={{ fontSize: 16 }}>{isMaximized ? '⤢' : '⛶'}</span>
-            <span>{isMaximized ? 'Exit Fullscreen' : 'Maximize'}</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="5" y="5" width="14" height="14" rx="2" />
+            </svg>
           </button>
-        </div>
+        )}
+
+        <button
+          type="button"
+          onClick={onToggleMaximize}
+          title={isMaximized ? 'Exit Fullscreen' : 'Expand / Fullscreen'}
+          aria-label={isMaximized ? 'Exit Fullscreen' : 'Expand / Fullscreen'}
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 10,
+            background: isMaximized ? 'var(--chatter-primary)' : 'rgba(0, 0, 0, 0.65)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            color: isMaximized ? '#0E0E0E' : '#fff',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backdropFilter: 'blur(8px)',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.4)',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          {isMaximized ? (
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="4 14 10 14 10 20" />
+              <polyline points="20 10 14 10 14 4" />
+              <line x1="14" y1="10" x2="21" y2="3" />
+              <line x1="3" y1="21" x2="10" y2="14" />
+            </svg>
+          ) : (
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="15 3 21 3 21 9" />
+              <polyline points="9 21 3 21 3 15" />
+              <line x1="21" y1="3" x2="14" y2="10" />
+              <line x1="3" y1="21" x2="10" y2="14" />
+            </svg>
+          )}
+        </button>
       </div>
 
       {/* Screen Video Frame */}
@@ -1168,169 +1173,6 @@ function ScreenSharePlayer({ stream, isLocal, sharerName, isMaximized, onToggleM
             display: 'block',
           }}
         />
-      </div>
-    </div>
-  );
-}
-
-function RemoteVideoTile({ remoteUserId, stream, participant, isSpeaking, totalVideos = 1, isHandRaised = false, compact = false }) {
-  const videoRef = useRef(null);
-  const [hasVideo, setHasVideo] = useState(false);
-
-  useEffect(() => {
-    if (!stream) {
-      setHasVideo(false);
-      return;
-    }
-
-    const checkVideo = () => {
-      const vTracks = stream.getVideoTracks ? stream.getVideoTracks() : [];
-      const live = vTracks.some((t) => t.enabled && t.readyState === 'live');
-      setHasVideo(live);
-    };
-
-    checkVideo();
-
-    stream.addEventListener?.('addtrack', checkVideo);
-    stream.addEventListener?.('removetrack', checkVideo);
-
-    const interval = setInterval(checkVideo, 1000);
-
-    return () => {
-      stream.removeEventListener?.('addtrack', checkVideo);
-      stream.removeEventListener?.('removetrack', checkVideo);
-      clearInterval(interval);
-    };
-  }, [stream]);
-
-  useEffect(() => {
-    if (videoRef.current && stream && hasVideo) {
-      videoRef.current.srcObject = stream;
-      videoRef.current.play?.().catch(() => {});
-    }
-  }, [stream, hasVideo]);
-
-  const participantName =
-    participant?.name && participant.name !== 'Scholar' && participant.name !== 'User'
-      ? participant.name
-      : (participant?.username || 'Study Partner');
-
-  return (
-    <div
-      className="chatter-video-tile"
-      style={{
-        position: 'relative',
-        borderRadius: compact ? 16 : 20,
-        overflow: 'hidden',
-        background: '#141414',
-        border: isSpeaking ? '2px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
-        boxShadow: isSpeaking ? '0 0 16px rgba(64, 227, 120, 0.4)' : 'none',
-        aspectRatio: compact ? '16/9' : (totalVideos === 1 ? '16/10' : '4/3'),
-        maxWidth: compact ? '100%' : (totalVideos === 1 ? '540px' : '100%'),
-        margin: '0 auto',
-        width: '100%',
-        minHeight: compact ? undefined : (totalVideos === 1 ? 260 : 180),
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        style={{
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
-          objectPosition: 'center center',
-          display: hasVideo ? 'block' : 'none',
-        }}
-      />
-
-      {!hasVideo && (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: compact ? 6 : 10 }}>
-          {participant?.avatar_url ? (
-            <img
-              src={participant.avatar_url}
-              alt={participantName}
-              style={{ width: compact ? 44 : 64, height: compact ? 44 : 64, borderRadius: '50%', objectFit: 'cover' }}
-            />
-          ) : (
-            <div
-              style={{
-                width: compact ? 44 : 64,
-                height: compact ? 44 : 64,
-                borderRadius: '50%',
-                background: '#252525',
-                color: 'var(--chatter-primary)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: compact ? 18 : 24,
-                fontWeight: 700,
-              }}
-            >
-              {participantName?.[0]?.toUpperCase() || 'P'}
-            </div>
-          )}
-          <span style={{ fontSize: compact ? 13 : 15.5, color: '#fff', fontWeight: 600 }}>{participantName}</span>
-        </div>
-      )}
-
-      {/* Hand Raised indicator badge */}
-      {isHandRaised && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 8,
-            right: 8,
-            background: 'rgba(64, 227, 120, 0.95)',
-            color: '#0E0E0E',
-            padding: '3px 8px',
-            borderRadius: 10,
-            fontSize: 11.5,
-            fontWeight: 800,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-            zIndex: 3,
-          }}
-        >
-          <span>✋</span> Hand Raised
-        </div>
-      )}
-
-      <div
-        style={{
-          position: 'absolute',
-          bottom: 8,
-          left: 8,
-          background: 'rgba(0,0,0,0.65)',
-          backdropFilter: 'blur(4px)',
-          padding: '3px 8px',
-          borderRadius: 8,
-          fontSize: compact ? 12 : 13.5,
-          fontWeight: 600,
-          color: '#fff',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 5,
-        }}
-      >
-        <span>{participantName}</span>
-        {isSpeaking && (
-          <span
-            style={{
-              width: 7,
-              height: 7,
-              borderRadius: '50%',
-              background: 'var(--chatter-primary)',
-              display: 'inline-block',
-            }}
-          />
-        )}
       </div>
     </div>
   );

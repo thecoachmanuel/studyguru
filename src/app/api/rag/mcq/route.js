@@ -332,12 +332,18 @@ export async function POST(req) {
     const iteration = parseInt(body.iteration, 10) || Math.floor(Math.random() * 1000);
     const isRegenerate = Boolean(body.regenerate || body.forceRefresh || body.fresh || requestedCount);
     const topic = (body.topic || body.prompt || body.message || '').trim();
+    const hasSpecificTopic = Boolean(
+      topic &&
+      !topic.toLowerCase().includes('core academic concepts') &&
+      !topic.toLowerCase().includes('the active study session') &&
+      !topic.toLowerCase().includes('the active document')
+    );
 
     const userId = session.user.id;
     const db = await getDatabase();
 
-    // High-concurrency cache hit: Serve existing MCQs ONLY when NOT regenerating and no specific count requested
-    if (!isRegenerate && documentId) {
+    // High-concurrency cache hit: Serve existing MCQs ONLY when NOT regenerating, no specific topic specified, and no specific count requested
+    if (!isRegenerate && documentId && !hasSpecificTopic) {
       try {
         const cached = await db.collection('rag_study_outputs').findOne({
           document_id: documentId,
@@ -366,11 +372,11 @@ export async function POST(req) {
       }
     }
 
-    // Resolve document text if documentId is provided
+    // Resolve document text if documentId is provided (only when no specific separate topic is requested)
     let contextText = '';
     const clientText = String(body.documentText || body.docText || body.text || '').trim();
 
-    if (documentId) {
+    if (documentId && !hasSpecificTopic) {
       const safeId = safeObjectId(documentId);
       let doc = await db.collection('rag_documents').findOne({
         $or: [{ _id: safeId }, { id: documentId }, { document_id: documentId }],
@@ -411,14 +417,38 @@ export async function POST(req) {
       } else if (chunks.length > 0) {
         contextText = chunks.join('\n\n---\n\n');
       }
-    } else if (clientText && clientText.length > 20) {
+    } else if (clientText && clientText.length > 20 && !hasSpecificTopic) {
       contextText = clientText;
     }
 
     const variationSeed = Date.now() + '-' + iteration + '-' + Math.floor(Math.random() * 1000);
     let prompt = '';
 
-    if (contextText && contextText.trim().length >= 15) {
+    if (hasSpecificTopic) {
+      // User explicitly specified a topic (e.g. "ecology", "trauma", "cardiology"). Strict topic focus!
+      prompt = `Generate EXACTLY ${count} high-yield, challenging, non-repetitive multiple choice revision quiz questions strictly on the topic: "${topic}".
+CRITICAL SUBJECT DIRECTIVE (Seed #${variationSeed}):
+- Every single question must be 100% focused on "${topic}".
+- Do NOT generate questions about previous topics, old queries, or unrelated documents.
+- Each question must be rigorous, factually accurate, and test deep conceptual understanding of "${topic}".
+
+Return ONLY valid JSON matching this exact structure:
+{
+  "questions": [
+    {
+      "question": "Clear, precise academic question text strictly concerning ${topic}",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correct_answer": "Option A",
+      "explanation": "Clear explanation of why this answer is correct"
+    }
+  ]
+}
+
+CRITICAL RULES:
+1. "options" must be an array of exactly 4 distinct choice strings.
+2. "correct_answer" MUST be a string that exactly matches one of the choices in "options".
+3. Never use em-dashes ('—') or double hyphens ('--') in questions, options, or explanations.`;
+    } else if (contextText && contextText.trim().length >= 15) {
       // Offset the text window for long documents so subsequent quizzes pull from alternate chapters/sections
       let textSlice = contextText;
       if (contextText.length > 10000) {

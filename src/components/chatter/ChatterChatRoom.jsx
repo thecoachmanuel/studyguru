@@ -89,7 +89,6 @@ export default function ChatterChatRoom({
   partnerLastSeen = null,
   onBack,
   onStartAudioCall,
-  onStartVideoCall,
   onStartDM,
   onLeaveRoom,
 }) {
@@ -221,6 +220,10 @@ export default function ChatterChatRoom({
         }
         if (mounted && Array.isArray(data)) {
           setMessages(data.map((m) => normalizeMessage(m, userId)).filter(Boolean));
+          const readEndpoint = isDM
+            ? `/api/conversations/${encodeURIComponent(channelId)}/read`
+            : `/api/channels/${encodeURIComponent(channelId)}/read`;
+          fetch(readEndpoint, { method: 'POST' }).catch(() => {});
         }
       } catch (err) {
         console.warn('Failed to load channel messages:', err);
@@ -299,6 +302,10 @@ export default function ChatterChatRoom({
 
             // 4. Otherwise append peer message & play incoming message sound chime
             playMessageChime();
+            const readEndpoint = isDM
+              ? `/api/conversations/${encodeURIComponent(channelId)}/read`
+              : `/api/channels/${encodeURIComponent(channelId)}/read`;
+            fetch(readEndpoint, { method: 'POST' }).catch(() => {});
             return [...prev, newMsg];
           });
         };
@@ -711,30 +718,6 @@ export default function ChatterChatRoom({
               <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
               <line x1="12" y1="19" x2="12" y2="23" />
               <line x1="8" y1="23" x2="16" y2="23" />
-            </svg>
-          </button>
-
-          <button
-            type="button"
-            onClick={onStartVideoCall}
-            title="Start Video Session"
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: '50%',
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: 'none',
-              color: 'var(--chatter-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              transition: 'background 0.15s ease',
-            }}
-          >
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="23 7 16 12 23 17 23 7" />
-              <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
             </svg>
           </button>
         </div>

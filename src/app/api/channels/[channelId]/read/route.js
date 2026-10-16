@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getDatabase } from '@/lib/mongodb';
+import { getPusherServer } from '@/lib/pusherServer';
 
 export async function POST(req, { params }) {
   try {
@@ -37,7 +38,28 @@ export async function POST(req, { params }) {
         },
         { upsert: true }
       );
+
+      // Mark messages in channel as read
+      await db.collection('messages').updateMany(
+        { channel_id: channelId, user_id: { $ne: userId } },
+        {
+          $addToSet: { read_by: userId },
+          $set: { is_read: true, read_at: now },
+        }
+      );
     }
+
+    // Broadcast messages-read event via Pusher so sender UI immediately updates to ✓✓
+    try {
+      const pusher = getPusherServer();
+      if (pusher) {
+        await pusher.trigger(`channel-${channelId}`, 'messages-read', {
+          channelId,
+          readBy: userId,
+          readAt: now.toISOString(),
+        });
+      }
+    } catch {}
 
     return NextResponse.json({
       success: true,

@@ -99,6 +99,23 @@ export default function DashboardPage() {
     };
   }, [user?.id]);
 
+  // Dynamic Viewport Height Normalizer (--app-height) to prevent mobile browser jumps
+  useEffect(() => {
+    const updateAppHeight = () => {
+      if (typeof window !== 'undefined') {
+        const vh = window.innerHeight;
+        document.documentElement.style.setProperty('--app-height', `${vh}px`);
+      }
+    };
+    updateAppHeight();
+    window.addEventListener('resize', updateAppHeight, { passive: true });
+    window.addEventListener('orientationchange', updateAppHeight, { passive: true });
+    return () => {
+      window.removeEventListener('resize', updateAppHeight);
+      window.removeEventListener('orientationchange', updateAppHeight);
+    };
+  }, []);
+
   // ---------- profile ----------
   const profile = useMemo(() => {
     if (!user) return null;
@@ -681,6 +698,13 @@ export default function DashboardPage() {
     }
   }, [user?.id, activeChannelType]);
 
+  // Auto-mark room / channel messages as read whenever entering active conversation or room
+  useEffect(() => {
+    if (activeChannelId) {
+      handleMarkChannelRead(activeChannelId);
+    }
+  }, [activeChannelId, handleMarkChannelRead]);
+
   // Load unread counts across channels and direct messages
   useEffect(() => {
     if (!user?.id) return;
@@ -1119,66 +1143,12 @@ export default function DashboardPage() {
 
 
 
-  // ── Native iOS & Android Horizontal Swipe Navigation between primary tabs ──
   const CHATTER_TABS = ['feed', 'rooms', 'guru', 'chats', 'profile'];
-  const tabTouchStartRef = useRef(null);
-
-  const handleDashboardTouchStart = (e) => {
-    // Only capture when not in an active chat room and no modal/sheet is open
-    if (activeChannelId) return;
-    if (searchModalOpen || newDMSheetOpen || serverActionModal || audioSpaceModalOpen || userProfileModalTarget || settingsOpen || userStatusModalOpen) return;
-    if (e.touches && e.touches[0]) {
-      const target = e.target;
-      if (target.closest('input, textarea, select, button, .chatter-tabbar, .chatter-notes-strip, [data-no-swipe="true"]')) {
-        return;
-      }
-      tabTouchStartRef.current = {
-        x: e.touches[0].clientX,
-        y: e.touches[0].clientY,
-        time: Date.now(),
-      };
-    }
-  };
-
-  const handleDashboardTouchEnd = (e) => {
-    if (!tabTouchStartRef.current || !e.changedTouches || !e.changedTouches[0]) return;
-    const start = tabTouchStartRef.current;
-    const end = {
-      x: e.changedTouches[0].clientX,
-      y: e.changedTouches[0].clientY,
-      time: Date.now(),
-    };
-    tabTouchStartRef.current = null;
-
-    const deltaX = end.x - start.x;
-    const deltaY = end.y - start.y;
-    const duration = end.time - start.time;
-
-    // Fast horizontal swipe with horizontal dominance
-    if (duration < 550 && Math.abs(deltaX) >= 65 && Math.abs(deltaX) > Math.abs(deltaY) * 1.4) {
-      const currentIndex = CHATTER_TABS.indexOf(chatterTab);
-      if (currentIndex === -1) return;
-
-      if (deltaX < 0 && currentIndex < CHATTER_TABS.length - 1) {
-        // Swipe Left -> next tab
-        const nextTab = CHATTER_TABS[currentIndex + 1];
-        setChatterTab(nextTab);
-        if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-      } else if (deltaX > 0 && currentIndex > 0) {
-        // Swipe Right -> previous tab
-        const prevTab = CHATTER_TABS[currentIndex - 1];
-        setChatterTab(prevTab);
-        if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-      }
-    }
-  };
 
   return (
     <div
       className={shellClasses}
       id="dashboard-shell"
-      onTouchStart={handleDashboardTouchStart}
-      onTouchEnd={handleDashboardTouchEnd}
       suppressHydrationWarning
     >
       {/* ── Unified Toast Notification (Faster auto-dismiss, tap/swipe to dismiss) ── */}
@@ -1357,18 +1327,6 @@ export default function DashboardPage() {
                   const targetServerId = activeServerId || 'direct-space';
                   voiceSession?.handleJoin?.(targetChannelId, targetChannelName, targetServerId);
                 }}
-                onStartVideoCall={async () => {
-                  setAudioSpaceModalOpen(true);
-                  const targetChannelId = activeChannelId || activeServerId || 'general-study';
-                  const targetChannelName = activeChannelName || 'Study Room';
-                  const targetServerId = activeServerId || 'direct-space';
-                  await voiceSession?.handleJoin?.(targetChannelId, targetChannelName, targetServerId);
-                  setTimeout(() => {
-                    if (!voiceSession?.cameraEnabled) {
-                      voiceSession?.toggleCamera?.();
-                    }
-                  }, 300);
-                }}
               />
             </div>
           ) : (
@@ -1517,18 +1475,6 @@ export default function DashboardPage() {
                   const targetServerId = activeServerId || 'direct-space';
                   voiceSession?.handleJoin?.(targetChannelId, targetChannelName, targetServerId);
                 }}
-                onStartVideoCall={async () => {
-                  setAudioSpaceModalOpen(true);
-                  const targetChannelId = activeChannelId || activeServerId || 'general-study';
-                  const targetChannelName = activeChannelName || 'Study Room';
-                  const targetServerId = activeServerId || 'direct-space';
-                  await voiceSession?.handleJoin?.(targetChannelId, targetChannelName, targetServerId);
-                  setTimeout(() => {
-                    if (!voiceSession?.cameraEnabled) {
-                      voiceSession?.toggleCamera?.();
-                    }
-                  }, 300);
-                }}
               />
             </div>
           ) : (
@@ -1578,6 +1524,11 @@ export default function DashboardPage() {
           voiceSession={voiceSession}
           channelName={activeVoiceChannelName || activeChannelName}
           serverName={activeServerName}
+          roomOwnerId={
+            activeServer?.owner_id ||
+            servers.find((s) => s.id === (voiceSession?.joinedServerId || activeServerId))?.owner_id ||
+            null
+          }
           onClose={() => setAudioSpaceModalOpen(false)}
           userId={user?.id}
           profile={profile}

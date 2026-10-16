@@ -89,16 +89,19 @@ export async function addOrUpdateParticipant({ channelId, serverId, user, isMute
     const pusher = getPusherServer();
     await pusher.trigger(`voice-channel-${channelId}`, 'participant-joined', participant);
     const liveCount = participantsByChannel.get(channelId)?.size || 1;
+    const activeSpeakers = getActiveSpeakersList(channelId);
     if (serverId) {
       await pusher.trigger(`voice-counts-${serverId}`, 'voice-counts-updated', {
         channelId,
         count: liveCount,
+        speakers: activeSpeakers,
       });
       if (liveCount === 1) {
         await pusher.trigger(`server-${serverId}`, 'space-started', {
           channelId,
           serverId,
           caller: participant.profiles,
+          speakers: activeSpeakers,
         });
       }
     }
@@ -107,6 +110,7 @@ export async function addOrUpdateParticipant({ channelId, serverId, user, isMute
       serverId: serverId || null,
       count: liveCount,
       caller: participant.profiles,
+      speakers: activeSpeakers,
     });
 
     // Check if channel is a direct message conversation to notify recipient of incoming call
@@ -176,17 +180,20 @@ export async function removeParticipant({ channelId, userId, serverId, userName 
       user_id: sUserId,
       user_name: participantName || 'A scholar',
     });
+    const activeSpeakers = getActiveSpeakersList(channelId);
     const liveCount = participantsByChannel.get(channelId)?.size || 0;
     if (serverId) {
       await pusher.trigger(`voice-counts-${serverId}`, 'voice-counts-updated', {
         channelId,
         count: liveCount,
+        speakers: activeSpeakers,
       });
     }
     await pusher.trigger('voice-counts-global', 'voice-counts-updated', {
       channelId,
       serverId: serverId || null,
       count: liveCount,
+      speakers: activeSpeakers,
     });
   } catch {}
 
@@ -220,6 +227,11 @@ export async function updateParticipantState({ channelId, userId, isMuted, touch
       await pusher.trigger(`voice-channel-${channelId}`, 'participant-updated', {
         user_id: userId,
         is_muted: isMuted,
+      });
+      await pusher.trigger('voice-counts-global', 'voice-counts-updated', {
+        channelId,
+        count: participantsByChannel.get(channelId)?.size || 1,
+        speakers: getActiveSpeakersList(channelId),
       });
     } catch {}
   }
@@ -255,15 +267,33 @@ export async function getChannelParticipants(channelId) {
   return inMemory;
 }
 
+export function getActiveSpeakersList(channelId) {
+  const userMap = participantsByChannel.get(channelId);
+  if (!userMap) return [];
+  return Array.from(userMap.values()).map((p) => ({
+    userId: String(p.user_id),
+    name: p.profiles?.full_name || p.profiles?.name || p.name || 'Scholar',
+    avatar_url: p.profiles?.avatar_url || null,
+    is_muted: Boolean(p.is_muted),
+  }));
+}
+
 export async function getServerVoiceCounts(serverId) {
   cleanupStale();
   const counts = {};
+  const speakers = {};
 
   for (const [chanId, userMap] of participantsByChannel.entries()) {
     if (userMap.size > 0) {
       const first = userMap.values().next().value;
       if (!serverId || serverId === 'all' || first?.server_id === serverId) {
         counts[chanId] = userMap.size;
+        speakers[chanId] = Array.from(userMap.values()).map((p) => ({
+          userId: String(p.user_id),
+          name: p.profiles?.full_name || p.profiles?.name || p.name || 'Scholar',
+          avatar_url: p.profiles?.avatar_url || null,
+          is_muted: Boolean(p.is_muted),
+        }));
       }
     }
   }
@@ -279,11 +309,23 @@ export async function getServerVoiceCounts(serverId) {
       .find(query)
       .toArray();
     for (const r of rows) {
-      counts[r.channel_id] = (counts[r.channel_id] || 0) + 1;
+      if (!counts[r.channel_id]) {
+        counts[r.channel_id] = 0;
+        speakers[r.channel_id] = [];
+      }
+      if (!speakers[r.channel_id].some((sp) => sp.userId === String(r.user_id))) {
+        counts[r.channel_id] += 1;
+        speakers[r.channel_id].push({
+          userId: String(r.user_id),
+          name: r.profiles?.full_name || r.profiles?.name || r.name || 'Scholar',
+          avatar_url: r.profiles?.avatar_url || null,
+          is_muted: Boolean(r.is_muted),
+        });
+      }
     }
   } catch {}
 
-  return counts;
+  return { counts, speakers };
 }
 
 export async function pushSignal({ senderId, receiverId, channelId, signalType, signalData }) {

@@ -42,6 +42,7 @@ export default function ChatterRoomsView({
   const [newSpaceTitle, setNewSpaceTitle] = useState('');
   const [newSpaceCategory, setNewSpaceCategory] = useState('Computer Science');
   const [liveVoiceCounts, setLiveVoiceCounts] = useState({});
+  const [liveSpeakersByChannel, setLiveSpeakersByChannel] = useState({});
 
   // 1. Fetch all community study rooms from MongoDB across all users
   const fetchAllCommunityRooms = useCallback(async () => {
@@ -73,8 +74,13 @@ export default function ChatterRoomsView({
         const res = await fetch('/api/voice/active-counts');
         if (res.ok) {
           const data = await res.json();
-          if (mounted && data?.counts) {
-            setLiveVoiceCounts((prev) => ({ ...prev, ...data.counts }));
+          if (mounted) {
+            if (data?.counts) {
+              setLiveVoiceCounts((prev) => ({ ...prev, ...data.counts }));
+            }
+            if (data?.speakers) {
+              setLiveSpeakersByChannel((prev) => ({ ...prev, ...data.speakers }));
+            }
           }
         }
       } catch {}
@@ -91,12 +97,18 @@ export default function ChatterRoomsView({
       try {
         // Voice counts channel
         voiceChannel = pusher.subscribe('voice-counts-global');
-        voiceChannel.bind('voice-counts-updated', ({ channelId, count }) => {
+        voiceChannel.bind('voice-counts-updated', ({ channelId, count, speakers }) => {
           if (channelId && typeof count === 'number') {
             setLiveVoiceCounts((prev) => ({
               ...prev,
               [channelId]: count,
             }));
+            if (Array.isArray(speakers)) {
+              setLiveSpeakersByChannel((prev) => ({
+                ...prev,
+                [channelId]: speakers,
+              }));
+            }
           }
         });
 
@@ -308,6 +320,7 @@ export default function ChatterRoomsView({
         .filter((ch) => ch.type === 'voice')
         .map((ch) => {
           const liveCount = liveVoiceCounts[ch.id] ?? 0;
+          const liveSpeakers = liveSpeakersByChannel[ch.id] || [];
           return {
             id: ch.id,
             serverId: srv.id,
@@ -317,11 +330,11 @@ export default function ChatterRoomsView({
             tags: [`#${(srv.category || getServerCategory(srv)).replace(/\s+/g, '')}`, '#LiveStudy'],
             listenersCount: liveCount,
             isLiveNow: liveCount > 0,
-            speakers: [],
+            speakers: liveSpeakers,
           };
         })
     );
-  }, [combinedRooms, liveVoiceCounts]);
+  }, [combinedRooms, liveVoiceCounts, liveSpeakersByChannel]);
 
   // Filter study rooms based on Tab ('all' vs 'joined') and academic category
   const filteredServers = useMemo(() => {
@@ -843,14 +856,55 @@ export default function ChatterRoomsView({
                   </div>
                 </div>
 
-                {/* Overlapping Speaker Avatars */}
+                {/* Overlapping Real-Time Speaker Avatars */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
-                  <div className="chatter-speaker-stack">
-                    <span style={{ fontSize: 13.5, color: 'var(--chatter-light-text)', fontWeight: 500 }}>
-                      {space.isLiveNow
-                        ? `${space.listenersCount} scholar${space.listenersCount > 1 ? 's' : ''} in discussion`
-                        : 'Drop-in voice room'}
-                    </span>
+                  <div className="chatter-speaker-stack" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {space.speakers && space.speakers.length > 0 ? (
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        {space.speakers.slice(0, 4).map((sp, idx) => (
+                          <div
+                            key={sp.userId || idx}
+                            style={{
+                              width: 30,
+                              height: 30,
+                              borderRadius: '50%',
+                              marginLeft: idx === 0 ? 0 : -8,
+                              border: '2px solid var(--chatter-black)',
+                              background: '#222',
+                              overflow: 'hidden',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: 11.5,
+                              fontWeight: 700,
+                              color: 'var(--chatter-primary)',
+                              zIndex: 4 - idx,
+                            }}
+                            title={sp.name}
+                          >
+                            {sp.avatar_url ? (
+                              <img
+                                src={sp.avatar_url}
+                                alt={sp.name}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              />
+                            ) : (
+                              sp.name?.[0]?.toUpperCase() || 'P'
+                            )}
+                          </div>
+                        ))}
+                        <span style={{ fontSize: 13, color: 'var(--chatter-light-text)', marginLeft: 8, fontWeight: 500 }}>
+                          {space.speakers.map((s) => s.name?.split(' ')[0] || s.name).slice(0, 2).join(', ')}
+                          {space.speakers.length > 2 ? ` +${space.speakers.length - 2} more` : ''}
+                        </span>
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: 13.5, color: 'var(--chatter-light-text)', fontWeight: 500 }}>
+                        {space.isLiveNow
+                          ? `${space.listenersCount} scholar${space.listenersCount > 1 ? 's' : ''} in discussion`
+                          : 'Drop-in voice room'}
+                      </span>
+                    )}
                   </div>
 
                   <button

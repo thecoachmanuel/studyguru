@@ -81,6 +81,11 @@ export async function GET(req, { params }) {
 
     const formattedMessages = messages.map(msg => {
       const author = userMap.get(msg.user_id);
+      const isRead = Boolean(
+        msg.is_read ||
+        msg.read_at ||
+        (Array.isArray(msg.read_by) && msg.read_by.length > 0)
+      );
       return {
         id: msg._id.toString(),
         channel_id: msg.channel_id,
@@ -89,6 +94,7 @@ export async function GET(req, { params }) {
         attachments: msg.attachments || [],
         reactions: msg.reactions || [],
         is_pinned: !!msg.is_pinned,
+        is_read: isRead,
         created_at: msg.created_at,
         profiles: {
           id: msg.user_id,

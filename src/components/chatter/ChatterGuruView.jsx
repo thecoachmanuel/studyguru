@@ -129,6 +129,48 @@ export default function ChatterGuruView({
   const inputRef = useRef(null);
   const quizGenCountRef = useRef(0);
   const flashcardsGenCountRef = useRef(0);
+  const lastQuizTopicRef = useRef('');
+  const lastFlashcardTopicRef = useRef('');
+
+  // Extract clean academic topic from user request (e.g. "on ecology for me" -> "ecology", "for trauma" -> "trauma")
+  const extractTopicFromPrompt = (promptText) => {
+    if (!promptText || typeof promptText !== 'string') return '';
+    const clean = promptText.trim();
+
+    const p1 = /(?:questions?|quiz|mcq|flashcards?|cards?|test|assessment)\s+(?:on|about|for|regarding|covering|in|of)\s+([^.,?!]+)/i;
+    const p2 = /(?:on|about|covering|regarding|topic\s*(?:of|:)?)\s+([^.,?!]+)/i;
+    const p3 = /\bfor\s+([^.,?!]+)/i;
+
+    let candidate = '';
+    const m1 = clean.match(p1);
+    if (m1 && m1[1]) {
+      candidate = m1[1].trim();
+    } else {
+      const m2 = clean.match(p2);
+      if (m2 && m2[1]) {
+        candidate = m2[1].trim();
+      } else {
+        const m3 = clean.match(p3);
+        if (m3 && m3[1]) {
+          candidate = m3[1].trim();
+        }
+      }
+    }
+
+    if (!candidate) return '';
+
+    candidate = candidate.replace(/\s+(?:for\s+me|for\s+us|for\s+myself|to\s+me|please|now|questions?|flashcards?|quiz|mcq|cards?)$/i, '').trim();
+    candidate = candidate.replace(/^(?:the|a|an|new|fresh|more|some)\s+/i, '').trim();
+
+    if (
+      candidate.length >= 2 &&
+      !/^(?:me|us|myself|notes?|document|doc|pdf|lecture|upload|file|material|everything|this|it|more|practice|study)$/i.test(candidate)
+    ) {
+      return candidate;
+    }
+
+    return '';
+  };
 
   // Load persisted AI guru messages on initial mount with strict isolation
   useEffect(() => {
@@ -528,11 +570,17 @@ export default function ChatterGuruView({
     const isFree = aiModeRef.current === 'free';
     setLoading(true);
     setDocsPanelOpen(false);
-    const activeDoc = isFree ? null : (uploadedDocs.find((d) => (d.doc_id || d.id) === (docId || selectedDocId)) || (selectedDocId === null ? uploadedDocs[0] : null));
-    const targetDocId = isFree ? null : (docId || selectedDocId || activeDoc?.doc_id || activeDoc?.id || null);
-    const targetDocName = isFree
-      ? (customTopic || 'Core Academic Concepts')
-      : (docName || activeDoc?.filename || customTopic || 'the active study session');
+
+    const hasExplicitTopic = Boolean(customTopic && customTopic.trim());
+    if (hasExplicitTopic) {
+      lastQuizTopicRef.current = customTopic.trim();
+    }
+
+    const activeDoc = (isFree || hasExplicitTopic) ? null : (uploadedDocs.find((d) => (d.doc_id || d.id) === (docId || selectedDocId)) || (selectedDocId === null ? uploadedDocs[0] : null));
+    const targetDocId = (isFree || hasExplicitTopic) ? null : (docId || selectedDocId || activeDoc?.doc_id || activeDoc?.id || null);
+    const targetDocName = hasExplicitTopic
+      ? customTopic.trim()
+      : (isFree ? 'Core Academic Concepts' : (docName || activeDoc?.filename || 'the active study session'));
 
     const count = customCount && customCount > 0 ? customCount : 5;
     const isRegen = quizGenCountRef.current > 0;
@@ -565,7 +613,7 @@ export default function ChatterGuruView({
           documentId: targetDocId,
           documentText: activeDoc?.extractedText || activeDoc?.text || activeDoc?.summary || '',
           count,
-          topic: customTopic || targetDocName,
+          topic: targetDocName,
           regenerate: true,
           fresh: true,
           iteration: currentIteration,
@@ -667,11 +715,17 @@ export default function ChatterGuruView({
     const isFree = aiModeRef.current === 'free';
     setLoading(true);
     setDocsPanelOpen(false);
-    const activeDoc = isFree ? null : (uploadedDocs.find((d) => (d.doc_id || d.id) === (docId || selectedDocId)) || (selectedDocId === null ? uploadedDocs[0] : null));
-    const targetDocId = isFree ? null : (docId || selectedDocId || activeDoc?.doc_id || activeDoc?.id || null);
-    const targetDocName = isFree
-      ? (customTopic || 'Core Subject Definitions & Facts')
-      : (docName || activeDoc?.filename || customTopic || 'the active study session');
+
+    const hasExplicitTopic = Boolean(customTopic && customTopic.trim());
+    if (hasExplicitTopic) {
+      lastFlashcardTopicRef.current = customTopic.trim();
+    }
+
+    const activeDoc = (isFree || hasExplicitTopic) ? null : (uploadedDocs.find((d) => (d.doc_id || d.id) === (docId || selectedDocId)) || (selectedDocId === null ? uploadedDocs[0] : null));
+    const targetDocId = (isFree || hasExplicitTopic) ? null : (docId || selectedDocId || activeDoc?.doc_id || activeDoc?.id || null);
+    const targetDocName = hasExplicitTopic
+      ? customTopic.trim()
+      : (isFree ? 'Core Subject Definitions & Facts' : (docName || activeDoc?.filename || 'the active study session'));
 
     const count = customCount && customCount > 0 ? customCount : 8;
     const isRegen = flashcardsGenCountRef.current > 0;
@@ -702,7 +756,7 @@ export default function ChatterGuruView({
         body: JSON.stringify({
           documentId: targetDocId,
           count,
-          topic: customTopic || targetDocName,
+          topic: targetDocName,
           regenerate: true,
           fresh: true,
         }),
@@ -813,28 +867,35 @@ export default function ChatterGuruView({
     const parsedCount = extractRequestedCount(text);
 
     // Extract clean topic if user specified "on X" or "about X" or "for X"
-    let extractedTopic = '';
-    const topicMatch = text.match(/(?:on|about|for|regarding|covering)\s+(.+?)(?:[.,?!]|$)/i);
-    if (topicMatch) {
-      extractedTopic = topicMatch[1].trim();
-    }
+    const specificTopic = extractTopicFromPrompt(text);
 
     const mentionsDocExplicitly = /\b(notes?|document|doc|pdf|lecture|upload|file|material)\b/i.test(text);
     const hasActiveDoc = Boolean(selectedDocId || uploadedDocs.length > 0);
-    const useDoc = selectedDocId || mentionsDocExplicitly || (hasActiveDoc && !extractedTopic);
+    const useDoc = selectedDocId || mentionsDocExplicitly || (hasActiveDoc && !specificTopic);
 
     // Route to Flashcards generator
     if (isFlashcardRequest && !isQuizRequest) {
       const targetCount = parsedCount && parsedCount > 0 ? parsedCount : 8;
       setInputText('');
-      const activeDoc = useDoc ? (uploadedDocs.find((d) => (d.doc_id || d.id) === selectedDocId) || uploadedDocs[0]) : null;
-      handleGenerateFlashcards(
-        activeDoc?.doc_id || activeDoc?.id || null,
-        activeDoc?.filename || null,
-        targetCount,
-        extractedTopic || (activeDoc ? activeDoc.filename : text),
-        text
-      );
+
+      if (specificTopic) {
+        lastFlashcardTopicRef.current = specificTopic;
+        handleGenerateFlashcards(null, null, targetCount, specificTopic, text);
+      } else {
+        const existingTopic = lastFlashcardTopicRef.current;
+        if (existingTopic && !mentionsDocExplicitly) {
+          handleGenerateFlashcards(null, null, targetCount, existingTopic, text);
+        } else {
+          const activeDoc = useDoc ? (uploadedDocs.find((d) => (d.doc_id || d.id) === selectedDocId) || uploadedDocs[0]) : null;
+          handleGenerateFlashcards(
+            activeDoc?.doc_id || activeDoc?.id || null,
+            activeDoc?.filename || null,
+            targetCount,
+            activeDoc ? activeDoc.filename : 'Core Subject Definitions & Facts',
+            text
+          );
+        }
+      }
       return;
     }
 
@@ -842,15 +903,26 @@ export default function ChatterGuruView({
     if (isQuizRequest) {
       const targetCount = parsedCount && parsedCount > 0 ? parsedCount : 5;
       setInputText('');
-      const activeDoc = useDoc ? (uploadedDocs.find((d) => (d.doc_id || d.id) === selectedDocId) || uploadedDocs[0]) : null;
-      handleGenerateMCQ(
-        activeDoc?.doc_id || activeDoc?.id || null,
-        activeDoc?.filename || null,
-        null,
-        targetCount,
-        extractedTopic || (activeDoc ? activeDoc.filename : text),
-        text
-      );
+
+      if (specificTopic) {
+        lastQuizTopicRef.current = specificTopic;
+        handleGenerateMCQ(null, null, null, targetCount, specificTopic, text);
+      } else {
+        const existingTopic = lastQuizTopicRef.current;
+        if (existingTopic && !mentionsDocExplicitly) {
+          handleGenerateMCQ(null, null, null, targetCount, existingTopic, text);
+        } else {
+          const activeDoc = useDoc ? (uploadedDocs.find((d) => (d.doc_id || d.id) === selectedDocId) || uploadedDocs[0]) : null;
+          handleGenerateMCQ(
+            activeDoc?.doc_id || activeDoc?.id || null,
+            activeDoc?.filename || null,
+            null,
+            targetCount,
+            activeDoc ? activeDoc.filename : 'Core Academic Concepts',
+            text
+          );
+        }
+      }
       return;
     }
 

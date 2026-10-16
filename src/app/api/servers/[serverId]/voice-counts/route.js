@@ -10,11 +10,13 @@ export async function GET(req, { params }) {
     }
 
     const { serverId } = await params;
-    const counts = await getServerVoiceCounts(serverId);
+    const result = await getServerVoiceCounts(serverId);
+    const counts = result?.counts || result || {};
+    const speakers = result?.speakers || {};
 
-    return NextResponse.json({ counts });
+    return NextResponse.json({ counts, speakers });
   } catch (error) {
     console.error('Error in GET /api/servers/[serverId]/voice-counts:', error);
-    return NextResponse.json({ counts: {} });
+    return NextResponse.json({ counts: {}, speakers: {} });
   }
 }
