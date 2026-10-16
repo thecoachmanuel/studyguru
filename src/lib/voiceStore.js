@@ -12,7 +12,7 @@ const participantsByChannel = new Map();
 // userId -> array of pending signals [{ sender_id, receiver_id, channel_id, signal_type, signal_data, timestamp }]
 const pendingSignalsByUser = new Map();
 
-const STALE_PARTICIPANT_TIMEOUT_MS = 12000;
+const STALE_PARTICIPANT_TIMEOUT_MS = 45000;
 const SIGNAL_TTL_MS = 25000;
 
 export function getBaseUserId(raw) {
