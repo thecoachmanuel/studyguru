@@ -414,6 +414,99 @@ export default function ChatterGuruView({
     ]);
   };
 
+  // Immediate Guided Document Analysis & Tutoring Roadmap Generator
+  const triggerGuidedStudyAnalysis = async (docObj, docText) => {
+    const analysisAiMsgId = `g-analysis-${Date.now()}`;
+    const initialPrompt = `I have uploaded "${docObj.filename}". Please generate a comprehensive guided study report:
+1. Document Overview & Scope (summarize what this material covers)
+2. Core Topics & Structure Breakdown (detail each section, chapter, or slide found)
+3. Essential Definitions, Formulas, & Key Principles to Master
+4. Step-by-Step Guided Tutoring Roadmap (suggest where we should start and how to study this together)
+5. Actionable Next Steps (suggest quick prompts for quizzes, flashcards, or deep dives)`;
+
+    setGuidedMessages((prev) => [
+      ...prev,
+      {
+        id: analysisAiMsgId,
+        role: 'assistant',
+        chatMode: 'guided',
+        content: `Analyzing **${docObj.filename}** and building your personal guided study roadmap...`,
+        timestamp: 'Just now',
+      },
+    ]);
+
+    setLoading(true);
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    try {
+      const res = await fetch('/api/rag/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream, application/json',
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          message: initialPrompt,
+          stream: true,
+          mode: 'guided',
+          serverId,
+          channelName,
+          documentId: docObj.doc_id || docObj.id,
+          documentTitle: docObj.filename,
+          documentText: (docText || '').slice(0, 20000),
+          history: [],
+        }),
+      });
+
+      if (!res.ok) throw new Error('Guided study analysis response error');
+
+      if (res.body) {
+        const reader = res.body.getReader();
+        activeReaderRef.current = reader;
+        const decoder = new TextDecoder();
+        let accumulated = '';
+
+        while (true) {
+          if (controller.signal.aborted) break;
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          accumulated += chunk;
+          setGuidedMessages((prev) =>
+            prev.map((m) => (m.id === analysisAiMsgId ? { ...m, content: accumulated } : m))
+          );
+        }
+      } else {
+        const data = await res.json();
+        const replyText = data.reply || data.answer;
+        if (replyText) {
+          setGuidedMessages((prev) =>
+            prev.map((m) => (m.id === analysisAiMsgId ? { ...m, content: replyText } : m))
+          );
+        }
+      }
+    } catch (analysisErr) {
+      if (analysisErr?.name === 'AbortError' || controller.signal.aborted) return;
+      console.warn('Guided analysis notice:', analysisErr?.message);
+      const fallbackAnalysis = `### 📖 Guided Study Overview: ${docObj.filename}\n\n` +
+        `I have thoroughly read and indexed your document **"${docObj.filename}"** (${docObj.chunksCount} study sections).\n\n` +
+        `#### 🎯 How We Will Master This Material Together:\n` +
+        `1. **Core Concept Mastery**: We break down each topic into intuitive, step-by-step principles.\n` +
+        `2. **Active Recall Testing**: Whenever you're ready, tap **"📝 Generate 5-Question Quiz"** to evaluate your understanding.\n` +
+        `3. **Key Terms & Flashcards**: Tap **"🃏 Create Study Flashcards"** for instant memory retention drill.\n\n` +
+        `💡 **Where should we begin?** Ask me any question, type *"teach me topic 1"*, or ask *"summarize the key formulas"*.`;
+
+      setGuidedMessages((prev) =>
+        prev.map((m) => (m.id === analysisAiMsgId ? { ...m, content: fallbackAnalysis } : m))
+      );
+    } finally {
+      activeReaderRef.current = null;
+      setLoading(false);
+    }
+  };
+
   // Handle Document Upload to /api/rag/upload with strict size & quantity restrictions
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -499,6 +592,13 @@ export default function ChatterGuruView({
       });
       setSelectedDocId(newDoc.doc_id);
 
+      // Automatically switch to Guided Study mode on upload
+      setAiMode('guided');
+      aiModeRef.current = 'guided';
+      try {
+        localStorage.setItem('studycord_guru_mode', 'guided');
+      } catch {}
+
       // Add assistant confirmation message in chat
       setGuidedMessages((prev) => [
         ...prev,
@@ -510,6 +610,9 @@ export default function ChatterGuruView({
           timestamp: 'Just now',
         },
       ]);
+
+      // Automatically trigger guided document report & tutoring plan
+      triggerGuidedStudyAnalysis(newDoc, resolvedText);
     } catch (err) {
       console.warn('Doc upload fallback notice:', err.message);
       const newDoc = {
@@ -527,6 +630,14 @@ export default function ChatterGuruView({
         return updated;
       });
       setSelectedDocId(newDoc.doc_id);
+
+      // Automatically switch to Guided Study mode on upload
+      setAiMode('guided');
+      aiModeRef.current = 'guided';
+      try {
+        localStorage.setItem('studycord_guru_mode', 'guided');
+      } catch {}
+
       setGuidedMessages((prev) => [
         ...prev,
         {
@@ -537,6 +648,9 @@ export default function ChatterGuruView({
           timestamp: 'Just now',
         },
       ]);
+
+      // Automatically trigger guided document report & tutoring plan
+      triggerGuidedStudyAnalysis(newDoc, localText);
     } finally {
       setUploadingDoc(false);
       setUploadFileName('');
@@ -1457,7 +1571,7 @@ export default function ChatterGuruView({
           <input
             ref={docFileInputRef}
             type="file"
-            accept=".pdf,.docx,.txt,.md"
+            accept=".pdf,.pptx,.ppt,.docx,.doc,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,text/plain,text/markdown"
             style={{ display: 'none' }}
             onChange={handleFileUpload}
           />
@@ -1766,7 +1880,7 @@ export default function ChatterGuruView({
                 cursor: (uploadingDoc || uploadedDocs.length >= MAX_DOCS) ? 'not-allowed' : 'pointer',
               }}
             >
-              {uploadedDocs.length >= MAX_DOCS ? `Max Limit (${MAX_DOCS}/${MAX_DOCS})` : '+ Upload File (.pdf, .docx)'}
+              {uploadedDocs.length >= MAX_DOCS ? `Max Limit (${MAX_DOCS}/${MAX_DOCS})` : '+ Upload File (.pdf, .pptx, .docx)'}
             </button>
           </div>
 
@@ -1906,7 +2020,7 @@ export default function ChatterGuruView({
               Guided Document Study Mode
             </div>
             <div style={{ fontSize: 14, color: '#A0A0A0', lineHeight: 1.55, maxWidth: 440 }}>
-              Upload your lecture notes, textbook chapters, or syllabus (.pdf, .docx, .txt). AI Guru will generate guided explanations, custom 5-question assessments, and active recall flashcards directly from your text.
+              Upload your lecture notes, PowerPoint slides, textbook chapters, or syllabus (.pdf, .pptx, .docx, .txt). AI Guru will generate comprehensive guided study reports, step-by-step tutoring, custom assessments, and active recall flashcards directly from your text.
             </div>
             <div style={{ fontSize: 13, color: 'var(--chatter-primary)', fontWeight: 600 }}>
               Restriction: Max {MAX_DOCS} documents (up to 15MB each)
@@ -2355,7 +2469,7 @@ export default function ChatterGuruView({
               alignItems: 'center',
               justifyContent: 'center',
             }}
-            title={aiMode === 'guided' ? "Upload Study Notes (.pdf, .docx, .txt)" : "Switch to Guided Mode & Upload Document"}
+            title={aiMode === 'guided' ? "Upload Study Notes or Slides (.pdf, .pptx, .docx, .txt)" : "Switch to Guided Mode & Upload Document"}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />

@@ -2712,7 +2712,7 @@ export default function RightPanel({
               ref={fileInputRef}
               style={{ display: 'none' }}
               onChange={handleFileChange}
-              accept=".pdf,.txt,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,text/plain"
+              accept=".pdf,.pptx,.ppt,.docx,.doc,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,text/plain,text/markdown"
             />
             <button
               type="button"

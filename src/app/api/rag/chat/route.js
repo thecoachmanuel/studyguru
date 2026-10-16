@@ -212,12 +212,12 @@ export async function POST(req) {
       docTitle = clientDocTitle;
     }
 
-function extractFastRelevantPassages(text, query, maxChars = 15000) {
+function extractFastRelevantPassages(text, query, maxChars = 22000) {
   if (!text || text.length <= maxChars) return text || '';
   const queryWords = query.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length > 2);
   
-  const paragraphs = text.split(/\n\s*\n/).map((p) => p.trim()).filter((p) => p.length > 20);
-  if (paragraphs.length <= 4) {
+  const paragraphs = text.split(/\n\s*\n/).map((p) => p.trim()).filter((p) => p.length > 15);
+  if (paragraphs.length <= 6) {
     return text.slice(0, maxChars);
   }
 
@@ -227,15 +227,17 @@ function extractFastRelevantPassages(text, query, maxChars = 15000) {
     for (const w of queryWords) {
       if (pLower.includes(w)) score += 3;
     }
-    // Strongly preserve introductory chapters, syllabus, and outline (first 2 paragraphs)
-    if (idx === 0) score += 4;
-    if (idx === 1) score += 2;
+    // Strongly preserve introductory chapters, syllabus, outline, and early slides
+    if (idx === 0) score += 5;
+    if (idx === 1) score += 3;
+    if (idx === 2) score += 2;
+    if (pLower.includes('slide') || pLower.includes('chapter') || pLower.includes('section') || pLower.includes('topic')) score += 2;
     return { p, score, idx };
   });
 
   scored.sort((a, b) => b.score - a.score);
-  // Pick top 12 relevant paragraphs to cover the document deeply
-  const selected = scored.slice(0, 12);
+  // Pick top 20 relevant paragraphs/slides to cover the document comprehensively
+  const selected = scored.slice(0, 20);
   // Re-sort chronologically so natural document flow is maintained
   selected.sort((a, b) => a.idx - b.idx);
   
@@ -251,7 +253,7 @@ function extractFastRelevantPassages(text, query, maxChars = 15000) {
     if (!isFreeChat && !fullDocumentText && (doc?._id || documentId)) {
       try {
         const chunkSearchQuery = isTeachingQuery
-          ? `${message} ${docTitle} overview introduction core concepts summary`
+          ? `${message} ${docTitle} overview introduction core concepts summary slides topics`
           : `${message} ${docTitle}`;
 
         contextChunks = await Promise.race([
@@ -259,7 +261,7 @@ function extractFastRelevantPassages(text, query, maxChars = 15000) {
             query: chunkSearchQuery,
             documentId: doc?._id?.toString() || documentId,
             userId,
-            limit: isTeachingQuery ? 6 : 4,
+            limit: isTeachingQuery ? 8 : 4,
           }),
           new Promise((resolve) => setTimeout(() => resolve([]), 400)),
         ]);
@@ -273,7 +275,7 @@ function extractFastRelevantPassages(text, query, maxChars = 15000) {
     }
 
     if (fullDocumentText) {
-      const relevantPassages = extractFastRelevantPassages(fullDocumentText, message, isTeachingQuery ? 18000 : 14000);
+      const relevantPassages = extractFastRelevantPassages(fullDocumentText, message, isTeachingQuery ? 22000 : 16000);
       contextText += `Document Material & Key Insights:\n${relevantPassages}\n\n`;
     } else if (contextChunks.length > 0) {
       contextText += `Relevant Document Passages:\n${contextChunks.join('\n\n---\n\n')}`;
@@ -302,12 +304,16 @@ ${isFreeChat ? `FREE CHAT MODE (UNRESTRICTED ACADEMIC TUTOR):
 • Freely answer the student's questions across ALL subjects: Computer Science, Software Engineering, Mathematics, Physics, Chemistry, Biology, Medicine, History, Philosophy, Literature, Languages, Code Debugging, Logic, or Exam Preparation.
 • Provide deep, direct, crystal-clear answers from first principles without referring to any document.` : isGuidedMode ? `GUIDED STUDY TUTORING MODE (STRICT DOCUMENT-GROUNDED LEARNING):
 • Target Document: "${docTitle || 'Uploaded Study Notes'}"
-• PRIMARY DIRECTIVE: Actively and strictly guide the student through their study journey based on their uploaded document:
-  1. Base your teachings, chapter walk-throughs, definitions, formulas, and examples directly on the contents and structure of "${docTitle || 'the uploaded document'}".
-  2. Walk the student step-by-step through the topics covered in their uploaded document. Never jump ahead or wander off into unrelated external trivia unless the student asks.
-  3. When explaining concepts, quote or reference the specific sections, terms, and principles from the document so the student can easily follow along with their notes.
-  4. Break the document into clear, digestible learning milestones: outline the core sections, explain the current section thoroughly, and check the student's understanding before moving to the next section.
-  5. If the student asks "guide me", "start guided study", "teach me", or "overview", provide a structured syllabus/roadmap directly from their document, teach the first foundational concept, and offer actionable next steps.
+• PRIMARY DIRECTIVE: Actively and strictly guide the student through their study journey based on their uploaded document (PDF, PowerPoint slides, Word, or Notes):
+  1. Base your teachings, chapter walk-throughs, slide breakdowns, definitions, formulas, and examples directly on the contents and structure of "${docTitle || 'the uploaded document'}".
+  2. If the student has uploaded a document or asks for an analysis, overview, or guided study report:
+     - Provide a pedagogical report and analysis of what is found in the document, covering its chapters, sections, or slides.
+     - Highlight essential definitions, core equations/principles, and foundational takeaways.
+     - Establish a clear step-by-step tutoring roadmap so the student knows exactly how to study and master each section.
+  3. Walk the student step-by-step through the topics covered in their uploaded document. Never jump ahead or wander off into unrelated external trivia unless the student asks.
+  4. When explaining concepts, quote or reference the specific sections, slides, terms, and principles from the document so the student can easily follow along with their notes.
+  5. Break the document into clear, digestible learning milestones: outline the core sections, explain the current section thoroughly, and check the student's understanding before moving to the next section.
+  6. If the student asks "guide me", "start guided study", "teach me", or "overview", provide a structured syllabus/roadmap directly from their document, teach the first foundational concept, and offer actionable next steps.
 
 Document Material:
 ${contextText || (docTitle ? `Document: ${docTitle}. (Ground your tutoring strictly in this material).` : 'Please upload your study document or lecture notes to begin guided study!')}` : hasActiveDoc ? `ACTIVE STUDY DOCUMENT & TOPIC:

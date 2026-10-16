@@ -15,36 +15,7 @@ export default function DirectMessagesModal({ currentUserId, onClose, initialRec
   const [newRecipientId, setNewRecipientId] = useState(initialRecipientId || '');
   const [startingChat, setStartingChat] = useState(false);
   const [chatError, setChatError] = useState('');
-  const [isMobile, setIsMobile] = useState(false);
-  const [vvHeight, setVvHeight] = useState(null);
   const messagesEndRef = useRef(null);
-
-  // Mobile virtual keyboard handling: dynamic visualViewport resizing prevents keypad from overlapping compose bar
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(typeof window !== 'undefined' && window.innerWidth <= 768);
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-
-    const handleVV = () => {
-      if (typeof window !== 'undefined' && window.visualViewport) {
-        setVvHeight(window.visualViewport.height);
-      }
-    };
-
-    if (typeof window !== 'undefined' && window.visualViewport) {
-      window.visualViewport.addEventListener('resize', handleVV);
-      window.visualViewport.addEventListener('scroll', handleVV);
-      handleVV();
-    }
-
-    return () => {
-      window.removeEventListener('resize', checkMobile);
-      window.visualViewport?.removeEventListener('resize', handleVV);
-      window.visualViewport?.removeEventListener('scroll', handleVV);
-    };
-  }, []);
 
   const fetchConversations = useCallback(async () => {
     setLoading(true);
@@ -52,7 +23,7 @@ export default function DirectMessagesModal({ currentUserId, onClose, initialRec
       const data = await apiRequest('/api/conversations');
       if (Array.isArray(data)) {
         setConversations(data);
-        if (data.length > 0 && !activeConv && !initialRecipientId && typeof window !== 'undefined' && window.innerWidth > 768) {
+        if (data.length > 0 && !activeConv && !initialRecipientId) {
           setActiveConv(data[0]);
         }
       }
@@ -200,17 +171,15 @@ export default function DirectMessagesModal({ currentUserId, onClose, initialRec
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 250 }}>
+    <div className="modal-overlay" onClick={onClose}>
       <div
         className="modal-card"
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: isMobile ? '100%' : '90%',
-          maxWidth: isMobile ? '100%' : '800px',
-          height: isMobile ? (vvHeight ? `${vvHeight}px` : '100dvh') : '75vh',
-          maxHeight: isMobile ? (vvHeight ? `${vvHeight}px` : '100dvh') : '650px',
-          borderRadius: isMobile ? 0 : '18px',
-          margin: 0,
+          width: '90%',
+          maxWidth: '800px',
+          height: '75vh',
+          maxHeight: '650px',
           padding: 0,
           display: 'flex',
           flexDirection: 'row',
@@ -220,31 +189,18 @@ export default function DirectMessagesModal({ currentUserId, onClose, initialRec
         {/* Left Side: Conversation List */}
         <div
           style={{
-            width: isMobile ? '100%' : '260px',
-            borderRight: isMobile ? 'none' : '1px solid var(--border)',
+            width: '260px',
+            borderRight: '1px solid var(--border)',
             background: 'var(--bg-panel1)',
-            display: isMobile ? (activeConv ? 'none' : 'flex') : 'flex',
+            display: 'flex',
             flexDirection: 'column',
-            height: '100%',
           }}
         >
-          <div className="dm-sidebar-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700 }}>Direct Messages</h3>
-              <span style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>
-                {conversations.length} {conversations.length === 1 ? 'chat' : 'chats'}
-              </span>
-            </div>
-            {isMobile && (
-              <button
-                type="button"
-                className="settings-mini-btn"
-                onClick={onClose}
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            )}
+          <div className="dm-sidebar-header">
+            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700 }}>Direct Messages</h3>
+            <span style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>
+              {conversations.length} {conversations.length === 1 ? 'chat' : 'chats'}
+            </span>
           </div>
 
           <div style={{ flex: 1, overflowY: 'auto', padding: '6px 0' }}>
@@ -325,15 +281,7 @@ export default function DirectMessagesModal({ currentUserId, onClose, initialRec
         </div>
 
         {/* Right Side: Message Chat Area */}
-        <div
-          style={{
-            flex: 1,
-            display: isMobile ? (activeConv ? 'flex' : 'none') : 'flex',
-            flexDirection: 'column',
-            background: 'var(--bg-surface)',
-            height: '100%',
-          }}
-        >
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg-surface)' }}>
           {activeConv ? (
             <>
               {/* Chat Header */}
@@ -345,31 +293,9 @@ export default function DirectMessagesModal({ currentUserId, onClose, initialRec
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  flexShrink: 0,
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  {isMobile && (
-                    <button
-                      type="button"
-                      onClick={() => setActiveConv(null)}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--primary)',
-                        fontWeight: 700,
-                        fontSize: '14.5px',
-                        cursor: 'pointer',
-                        padding: '4px 6px',
-                        marginRight: '2px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '2px',
-                      }}
-                    >
-                      ← Back
-                    </button>
-                  )}
                   <span style={{ fontSize: '15.5px', fontWeight: 700, color: 'var(--text-primary)' }}>
                     @{activeConv.other_user?.username || activeConv.other_user?.name || 'Study Partner'}
                   </span>
@@ -436,12 +362,10 @@ export default function DirectMessagesModal({ currentUserId, onClose, initialRec
               <form
                 onSubmit={handleSendMessage}
                 style={{
-                  padding: isMobile ? '10px 14px calc(10px + env(safe-area-inset-bottom, 0px)) 14px' : '12px 16px',
+                  padding: '12px 16px',
                   borderTop: '1px solid var(--border)',
                   display: 'flex',
                   gap: '8px',
-                  flexShrink: 0,
-                  background: 'var(--bg-panel1)',
                 }}
               >
                 <input
@@ -450,19 +374,14 @@ export default function DirectMessagesModal({ currentUserId, onClose, initialRec
                   placeholder="Message study partner…"
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
-                  onFocus={(e) => {
-                    if (isMobile) {
-                      setTimeout(() => e.target.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300);
-                    }
-                  }}
                   disabled={sending}
-                  style={{ flex: 1, fontSize: '16px' }}
+                  style={{ flex: 1 }}
                 />
                 <button
                   type="submit"
                   className="btn btn-primary"
                   disabled={sending || !inputText.trim()}
-                  style={{ width: 'auto', padding: '0 16px', flexShrink: 0 }}
+                  style={{ width: 'auto', padding: '0 16px' }}
                 >
                   Send
                 </button>

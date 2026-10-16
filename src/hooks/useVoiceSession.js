@@ -11,7 +11,9 @@ export const unlockAudioDesktopAndMobile = () => {
   try {
     // 1. LiveKit active room audio unlocking for iOS Safari / Mobile PWA
     if (window.__livekit_active_room) {
-      window.__livekit_active_room.startAudio().catch(() => {});
+      if (!window.__livekit_active_room.canPlayAudio) {
+        window.__livekit_active_room.startAudio().catch(() => {});
+      }
     }
 
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -31,9 +33,9 @@ export const unlockAudioDesktopAndMobile = () => {
       } catch {}
     }
 
-    // Play all mounted audio elements in the document
-    const allAudios = document.querySelectorAll('audio');
-    allAudios.forEach((el) => {
+    // Play all mounted remote-audio elements
+    const remoteAudios = document.querySelectorAll('audio[id^="remote-audio-"]');
+    remoteAudios.forEach((el) => {
       if (el) {
         el.muted = false;
         el.volume = 1.0;
@@ -186,8 +188,6 @@ export function useVoiceSession(userId, profile = null) {
   const negotiatePeerRef = useRef(null);
   const livekitRoomRef = useRef(null);
   const isLiveKitActiveRef = useRef(false);
-  const localIdentityRef = useRef(null);
-  const clientConnIdRef = useRef(null);
 
   useEffect(() => {
     participantsRef.current = participants;
@@ -1797,42 +1797,35 @@ export function useVoiceSession(userId, profile = null) {
           const livekitRemotes = [];
           livekitRoomRef.current.remoteParticipants.forEach((rp) => {
             const pId = String(rp.identity);
-            const isSelfConnection = localIdentityRef.current
-              ? (pId === String(localIdentityRef.current))
-              : (livekitRoomRef.current?.localParticipant && pId === String(livekitRoomRef.current.localParticipant.identity));
-            if (isSelfConnection) return; // skip own connection
-            const baseUserId = pId.includes('__') ? pId.split('__')[0] : pId;
+            if (pId === String(userId)) return; // skip self
             let meta = {};
             try { if (rp.metadata) meta = JSON.parse(rp.metadata); } catch {}
-            const dbEntry = dbProfileMap.get(baseUserId) || dbProfileMap.get(pId);
-            const isSameAccount = baseUserId === String(userId);
+            const dbEntry = dbProfileMap.get(pId);
             const resolvedName =
               rp.name ||
               meta.name ||
               dbEntry?.profiles?.full_name ||
               dbEntry?.profiles?.username ||
               dbEntry?.name ||
-              (isSameAccount ? `${profile?.full_name || 'You'} (2nd Device)` : 'Study Partner');
+              'Study Partner';
             const resolvedAvatar =
               meta.image ||
               dbEntry?.profiles?.avatar_url ||
               dbEntry?.avatar_url ||
-              (isSameAccount ? profile?.avatar_url : null) ||
               null;
             livekitRemotes.push({
               id: `vp-${joinedChannelId}-${pId}`,
               channel_id: joinedChannelId,
               server_id: joinedServerId,
               user_id: pId,
-              base_user_id: baseUserId,
               is_muted: !rp.isMicrophoneEnabled,
               joined_at: dbEntry?.joined_at || new Date().toISOString(),
               last_seen: new Date().toISOString(),
               name: resolvedName,
               user_name: resolvedName,
               profiles: {
-                id: baseUserId,
-                username: rp.name || meta.name || dbEntry?.profiles?.username || (isSameAccount ? `${profile?.username || 'You'} (2nd Device)` : 'Study Partner'),
+                id: pId,
+                username: rp.name || meta.name || dbEntry?.profiles?.username || 'Study Partner',
                 full_name: resolvedName,
                 name: resolvedName,
                 avatar_url: resolvedAvatar,
@@ -1840,26 +1833,13 @@ export function useVoiceSession(userId, profile = null) {
             });
           });
 
-          // Also include any DB participants not yet reflected in LiveKit
-          // (e.g. joined just before LiveKit connection was established)
-          const livekitIds = new Set(livekitRemotes.map((p) => p.user_id));
-          activeRemote
-            .filter((p) => {
-              const pId = String(p.user_id || p.userId);
-              const isSelf = localIdentityRef.current
-                ? (pId === String(localIdentityRef.current))
-                : (pId === String(userId));
-              return !isSelf && !livekitIds.has(pId);
-            })
-            .forEach((p) => {
-              const pId = String(p.user_id || p.userId);
-              livekitRemotes.push({
-                ...p,
-                is_muted: prevMuteMap.has(pId) ? prevMuteMap.get(pId) : (p.is_muted ?? true),
-              });
-            });
+          // When LiveKit is connected, livekitRemotes is the authoritative presence list.
+          // Never re-add participants from DB who have disconnected from LiveKit or explicitly left.
+          const cleanRemotes = livekitRemotes.filter(
+            (p) => !explicitlyLeftRef.current.has(String(p.user_id || p.userId))
+          );
 
-          return [localEntry, ...livekitRemotes];
+          return [localEntry, ...cleanRemotes];
         }
 
         // WebRTC fallback path: use DB list with mute state preservation
@@ -1878,7 +1858,11 @@ export function useVoiceSession(userId, profile = null) {
           },
         };
         const remoteOthers = activeRemote
-          .filter((p) => String(p.user_id || p.userId) !== String(userId))
+          .filter(
+            (p) =>
+              String(p.user_id || p.userId) !== String(userId) &&
+              !explicitlyLeftRef.current.has(String(p.user_id || p.userId))
+          )
           .map((p) => {
             const pId = String(p.user_id || p.userId);
             return {
@@ -1925,11 +1909,6 @@ export function useVoiceSession(userId, profile = null) {
       // 1. Attempt connection via LiveKit SFU (supports 100+ students, low latency audio & screen sharing)
       let livekitSuccess = false;
       try {
-        const clientConnId = typeof window !== 'undefined'
-          ? (window.__studycord_client_conn_id || (window.__studycord_client_conn_id = Math.random().toString(36).slice(2, 9)))
-          : `conn_${Date.now()}`;
-        clientConnIdRef.current = clientConnId;
-
         const tokenData = await apiRequest('/api/livekit/token', {
           method: 'POST',
           body: JSON.stringify({
@@ -1937,15 +1916,13 @@ export function useVoiceSession(userId, profile = null) {
             channelId,
             channelName,
             serverId,
-            connectionId: clientConnId,
             participantName: profile?.full_name || profile?.name || profile?.username || 'Student',
             avatar: profile?.avatar_url || '',
           }),
         });
 
         if (tokenData?.configured && tokenData?.token && tokenData?.url) {
-          localIdentityRef.current = tokenData.identity;
-          console.log('[LiveKit] Connecting to LiveKit SFU room:', channelId, 'as identity:', tokenData.identity);
+          console.log('[LiveKit] Connecting to LiveKit SFU room:', channelId);
           const room = new Room({
             adaptiveStream: true,
             dynacast: true,
@@ -1995,9 +1972,7 @@ export function useVoiceSession(userId, profile = null) {
                 el.setAttribute('webkit-playsinline', 'true');
                 el.muted = false;
                 el.volume = 1.0;
-                // IMPORTANT: iOS Safari refuses to play audio elements with display:none.
-                // Use position:fixed off-screen instead (same as WebRTC path).
-                el.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;opacity:0.01;pointer-events:none;';
+                el.style.display = 'none';
                 document.body.appendChild(el);
               } else {
                 track.attach(el);
@@ -2010,11 +1985,6 @@ export function useVoiceSession(userId, profile = null) {
                 } catch {}
               }
 
-              // Proactively attempt audio context unlock on mobile when a remote track arrives.
-              // room.startAudio() is a no-op if already playing; on iOS it unlocks AudioContext
-              // which is needed for audio elements to autoplay.
-              room.startAudio().catch(() => {});
-              unlockAudioDesktopAndMobile();
               playRemoteMedia(el);
             } else if (track.kind === Track.Kind.Video) {
               const stream = new MediaStream([track.mediaStreamTrack]);
@@ -2082,29 +2052,18 @@ export function useVoiceSession(userId, profile = null) {
           room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
             const activeIds = new Set(speakers.map((s) => String(s.identity)));
             setActiveSpeakerIds(activeIds);
-            const localId = localIdentityRef.current || room.localParticipant?.identity;
-            const isSpeaking = (localId && activeIds.has(String(localId))) || (currentUserIdRef.current && activeIds.has(String(currentUserIdRef.current)));
-            setIsSpeakingLocal(isSpeaking);
+            setIsSpeakingLocal(activeIds.has(String(currentUserIdRef.current)));
 
             const levels = {};
             speakers.forEach((s) => {
-              const sId = String(s.identity);
-              levels[sId] = Math.min(100, Math.round((s.audioLevel || 0.8) * 100));
-              const baseId = sId.includes('__') ? sId.split('__')[0] : sId;
-              if (baseId !== sId) {
-                levels[baseId] = levels[sId];
-              }
+              levels[String(s.identity)] = Math.min(100, Math.round((s.audioLevel || 0.8) * 100));
             });
             setAudioLevels((prev) => ({ ...prev, ...levels }));
           });
 
-          // LiveKit v2 passes a plain boolean to AudioPlaybackChanged, NOT an object.
-          // Destructuring { canPlayAudio } from a boolean always yields undefined.
-          room.on(RoomEvent.AudioPlaybackChanged, (canPlayAudio) => {
+          room.on(RoomEvent.AudioPlaybackChanged, ({ canPlayAudio }) => {
             if (!canPlayAudio) {
               setAutoplayWarning(AUTOPLAY_WARNING);
-              // Attempt immediate unlock — works if there was a recent user gesture
-              room.startAudio().catch(() => {});
               unlockAudioDesktopAndMobile();
             } else {
               setAutoplayWarning('');
@@ -2117,21 +2076,15 @@ export function useVoiceSession(userId, profile = null) {
               if (participant.metadata) meta = JSON.parse(participant.metadata);
             } catch {}
             const pUserId = String(participant.identity);
-            if (pUserId === localIdentityRef.current || (room.localParticipant && pUserId === room.localParticipant.identity)) return;
-            const baseUserId = pUserId.includes('__') ? pUserId.split('__')[0] : pUserId;
-            const isSameAccount = baseUserId === String(currentUserIdRef.current);
-            const joinName = participant.name || meta.name || (isSameAccount ? `${profile?.full_name || 'You'} (2nd Device)` : 'A scholar');
+            const joinName = participant.name || meta.name || 'A scholar';
 
             try {
               new Audio('/sounds/user-join.mp3').play().catch(() => {});
             } catch {}
 
+            explicitlyLeftRef.current.delete(pUserId);
+
             if (typeof window !== 'undefined') {
-              window.dispatchEvent(
-                new CustomEvent('studycord_voice_user_joined', {
-                  detail: { userId: pUserId, name: joinName },
-                })
-              );
               window.dispatchEvent(
                 new CustomEvent('studycord_toast', {
                   detail: `🟢 ${joinName} joined the space`,
@@ -2146,18 +2099,13 @@ export function useVoiceSession(userId, profile = null) {
                 channel_id: channelId,
                 server_id: serverId,
                 user_id: pUserId,
-                base_user_id: baseUserId,
                 is_muted: !participant.isMicrophoneEnabled,
                 joined_at: new Date().toISOString(),
                 last_seen: new Date().toISOString(),
-                name: joinName,
-                user_name: joinName,
                 profiles: {
-                  id: baseUserId,
-                  username: participant.name || meta.name || (isSameAccount ? `${profile?.username || 'You'} (2nd Device)` : 'Scholar'),
-                  full_name: joinName,
-                  name: joinName,
-                  avatar_url: meta.image || (isSameAccount ? profile?.avatar_url : null),
+                  username: participant.name || meta.name || 'Scholar',
+                  full_name: participant.name || meta.name || 'Scholar',
+                  avatar_url: meta.image || null,
                 },
               };
               return [...without, newP];
@@ -2167,6 +2115,7 @@ export function useVoiceSession(userId, profile = null) {
           room.on(RoomEvent.ParticipantDisconnected, (participant) => {
             const pUserId = String(participant.identity);
             const leaveName = participant.name || 'A scholar';
+            explicitlyLeftRef.current.add(pUserId);
 
             try {
               new Audio('/sounds/user-leave.mp3').play().catch(() => {});
@@ -2174,13 +2123,8 @@ export function useVoiceSession(userId, profile = null) {
 
             if (typeof window !== 'undefined') {
               window.dispatchEvent(
-                new CustomEvent('studycord_voice_user_left', {
-                  detail: { userId: pUserId, name: leaveName },
-                })
-              );
-              window.dispatchEvent(
                 new CustomEvent('studycord_toast', {
-                  detail: `${leaveName} left the call`,
+                  detail: `🔴 ${leaveName} left the room`,
                 })
               );
             }
@@ -2191,7 +2135,7 @@ export function useVoiceSession(userId, profile = null) {
 
           // Pre-warm microphone permission BEFORE connect so mobile browsers
           // (Safari/Chrome) have audio context unlocked via the user gesture that
-          // triggered handleJoin.
+          // triggered handleJoin. This is the primary fix for mobile not being heard.
           let prewarmStream = null;
           try {
             prewarmStream = await navigator.mediaDevices.getUserMedia({
@@ -2203,7 +2147,7 @@ export function useVoiceSession(userId, profile = null) {
             });
             console.log('[LiveKit] Microphone pre-warmed successfully');
           } catch (prewarmErr) {
-            console.warn('[LiveKit] Mic pre-warm notice:', prewarmErr?.message);
+            console.warn('[LiveKit] Mic pre-warm failed (will retry after connect):', prewarmErr?.message);
           }
 
           await room.connect(tokenData.url, tokenData.token);
@@ -2212,31 +2156,50 @@ export function useVoiceSession(userId, profile = null) {
           try { await room.startAudio(); } catch {}
           unlockAudioDesktopAndMobile();
 
-          // Enable microphone on LiveKit
+          // Stop pre-warm stream tracks — LiveKit will capture the mic itself
+          if (prewarmStream) {
+            prewarmStream.getTracks().forEach((t) => t.stop());
+          }
+
+          // Enable microphone on LiveKit with retry logic for mobile
+          const enableMicWithRetry = async (retries = 3, delayMs = 800) => {
+            for (let attempt = 1; attempt <= retries; attempt++) {
+              try {
+                await room.localParticipant.setMicrophoneEnabled(!isLocalMutedRef.current);
+                // Verify the mic track was actually published
+                const micPub = room.localParticipant.getTrackPublication(Track.Source.Microphone);
+                if (micPub?.track?.mediaStreamTrack) {
+                  console.log(`[LiveKit] Microphone enabled on attempt ${attempt}`);
+                  return micPub.track.mediaStreamTrack;
+                }
+                // Track not published yet, wait and retry
+                if (attempt < retries) {
+                  await new Promise((r) => setTimeout(r, delayMs));
+                }
+              } catch (err) {
+                console.warn(`[LiveKit] Mic enable attempt ${attempt} failed:`, err?.message);
+                if (attempt < retries) {
+                  await new Promise((r) => setTimeout(r, delayMs));
+                } else {
+                  throw err;
+                }
+              }
+            }
+            return null;
+          };
+
           try {
-            await room.localParticipant.setMicrophoneEnabled(!isLocalMutedRef.current);
+            const micTrack = await enableMicWithRetry();
             setMicConnected(true);
-            const micPub = room.localParticipant.getTrackPublication(Track.Source.Microphone);
-            const micTrack = micPub?.track?.mediaStreamTrack;
             if (micTrack) {
               const localAudioStream = new MediaStream([micTrack]);
               localStreamRef.current = localAudioStream;
               attachAudioAnalyser(currentUserIdRef.current, localAudioStream);
             }
           } catch (micErr) {
-            console.warn('[LiveKit] Initial mic enable notice:', micErr?.message);
-            try {
-              await new Promise((r) => setTimeout(r, 400));
-              await room.localParticipant.setMicrophoneEnabled(!isLocalMutedRef.current);
-              setMicConnected(true);
-            } catch (retryErr) {
-              console.warn('[LiveKit] Second mic attempt notice:', retryErr?.message);
-            }
-          } finally {
-            // Stop pre-warm stream tracks safely after LiveKit initialization
-            if (prewarmStream) {
-              prewarmStream.getTracks().forEach((t) => t.stop());
-            }
+            console.warn('[LiveKit] Could not enable microphone after retries:', micErr);
+            setIsLocalMuted(true);
+            isLocalMutedRef.current = true;
           }
 
           // Listen for local mic track published (fires async on mobile after permission granted)
@@ -2329,7 +2292,6 @@ export function useVoiceSession(userId, profile = null) {
           body: JSON.stringify({
             action: 'join',
             serverId,
-            connectionId: clientConnIdRef.current,
             isMuted: isLocalMutedRef.current,
             userName: profile?.full_name || profile?.name || profile?.username,
             username: profile?.username,
@@ -2354,6 +2316,25 @@ export function useVoiceSession(userId, profile = null) {
     if (!joinedChannelId || !userId) return;
     setError('');
 
+    const leavingChannelId = joinedChannelId;
+    const leavingServerId = joinedServerId;
+
+    setJoinedChannelId(null);
+    setJoinedChannelName(null);
+    setJoinedServerId(null);
+    setParticipants([]);
+
+    // Immediately trigger server leave in parallel so database & Pusher update instantly
+    const leaveApiPromise = fetch(`/api/channels/${leavingChannelId}/voice`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'leave',
+        serverId: leavingServerId,
+      }),
+      keepalive: true,
+    }).catch(() => {});
+
     if (livekitRoomRef.current) {
       try {
         await livekitRoomRef.current.disconnect();
@@ -2376,30 +2357,7 @@ export function useVoiceSession(userId, profile = null) {
     await handleTurnCameraOff();
     cleanupLocalAudio();
     cleanupAllCalls('manual-disconnect');
-
-    const leavingChannelId = joinedChannelId;
-    const leavingServerId = joinedServerId;
-    const leavingConnId = clientConnIdRef.current;
-
-    setJoinedChannelId(null);
-    setJoinedChannelName(null);
-    setJoinedServerId(null);
-    setParticipants([]);
-    localIdentityRef.current = null;
-    clientConnIdRef.current = null;
-
-    try {
-      await apiRequest(`/api/channels/${leavingChannelId}/voice`, {
-        method: 'POST',
-        body: JSON.stringify({
-          action: 'leave',
-          serverId: leavingServerId,
-          connectionId: leavingConnId,
-        }),
-      });
-    } catch (e) {
-      console.warn('Voice leave API warning:', e.message);
-    }
+    await leaveApiPromise;
   };
 
   // ---------- toggle mute ----------
@@ -2453,6 +2411,7 @@ export function useVoiceSession(userId, profile = null) {
 
     isJoinedRef.current = false;
     const channelId = currentChannelIdRef.current;
+    const serverId = currentServerIdRef.current;
     console.log(`[VoicePanel] Cleaning up voice session. Reason: ${reason}`);
 
     if (livekitRoomRef.current) {
@@ -2474,11 +2433,20 @@ export function useVoiceSession(userId, profile = null) {
     cleanupLocalAudio();
     cleanupAllCalls('voice-session-ended');
 
+    // Use sendBeacon or keepalive fetch for guaranteed mobile & desktop delivery on tab close / background
     try {
-      apiRequest(`/api/channels/${channelId}/voice`, {
-        method: 'POST',
-        body: JSON.stringify({ action: 'leave' }),
-      }).catch(() => {});
+      const payload = JSON.stringify({ action: 'leave', serverId });
+      if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+        const blob = new Blob([payload], { type: 'application/json' });
+        navigator.sendBeacon(`/api/channels/${channelId}/voice`, blob);
+      } else {
+        fetch(`/api/channels/${channelId}/voice`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: payload,
+          keepalive: true,
+        }).catch(() => {});
+      }
     } catch {}
   }, [cleanupLocalAudio, cleanupAllCalls]);
 
@@ -2501,14 +2469,16 @@ export function useVoiceSession(userId, profile = null) {
 
   // Clean up all local audio tracks, peer connections, and database row on component unmount or tab close
   useEffect(() => {
-    const handleBeforeUnload = () => {
-      cleanupVoiceSession('tab-close');
+    const handleUnload = () => {
+      cleanupVoiceSession('tab-close-or-pagehide');
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('beforeunload', handleUnload);
+    window.addEventListener('pagehide', handleUnload);
 
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('beforeunload', handleUnload);
+      window.removeEventListener('pagehide', handleUnload);
       cleanupVoiceSession('unmount');
       clearPendingMediaPlayback();
     };
@@ -2582,17 +2552,20 @@ export function useVoiceSession(userId, profile = null) {
             participant.profiles?.username ||
             'A scholar';
 
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(
-              new CustomEvent('studycord_voice_user_joined', {
-                detail: { userId: pUserId, name: joinName },
-              })
-            );
-            window.dispatchEvent(
-              new CustomEvent('studycord_toast', {
-                detail: `🟢 ${joinName} joined the space`,
-              })
-            );
+          explicitlyLeftRef.current.delete(pUserId);
+          const alreadyInLiveKit = livekitRoomRef.current?.remoteParticipants?.has(pUserId);
+
+          if (pUserId !== String(userId) && !alreadyInLiveKit) {
+            try {
+              new Audio('/sounds/user-join.mp3').play().catch(() => {});
+            } catch {}
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(
+                new CustomEvent('studycord_toast', {
+                  detail: `🟢 ${joinName} joined the space`,
+                })
+              );
+            }
           }
           setParticipants((prev) => {
             const without = prev.filter(
@@ -2605,23 +2578,29 @@ export function useVoiceSession(userId, profile = null) {
 
       chan.bind('participant-left', ({ user_id, user_name }) => {
         if (user_id) {
-          if (user_id !== userId) {
+          const sUid = String(user_id);
+          const alreadyProcessed = explicitlyLeftRef.current.has(sUid);
+          explicitlyLeftRef.current.add(sUid);
+
+          if (sUid !== String(userId) && !alreadyProcessed) {
             try {
               new Audio('/sounds/user-leave.mp3').play().catch(() => {});
             } catch {}
-            explicitlyLeftRef.current.add(user_id);
-            const foundName = user_name || participantsRef.current.find((p) => String(p.user_id || p.userId) === String(user_id))?.profiles?.full_name || 'A scholar';
+            const foundName =
+              user_name ||
+              participantsRef.current.find((p) => String(p.user_id || p.userId) === sUid)
+                ?.profiles?.full_name ||
+              'A scholar';
             if (typeof window !== 'undefined') {
-              window.dispatchEvent(new CustomEvent('studycord_voice_user_left', {
-                detail: { userId: user_id, name: foundName },
-              }));
-              window.dispatchEvent(new CustomEvent('studycord_toast', {
-                detail: `${foundName} left the call`,
-              }));
+              window.dispatchEvent(
+                new CustomEvent('studycord_toast', {
+                  detail: `🔴 ${foundName} left the room`,
+                })
+              );
             }
           }
-          setParticipants((prev) => prev.filter((p) => String(p.user_id || p.userId) !== String(user_id)));
-          cleanupPeerConnection(user_id);
+          setParticipants((prev) => prev.filter((p) => String(p.user_id || p.userId) !== sUid));
+          cleanupPeerConnection(sUid);
         }
       });
 

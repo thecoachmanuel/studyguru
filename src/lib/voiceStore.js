@@ -49,15 +49,12 @@ export async function addOrUpdateParticipant({ channelId, serverId, user, isMute
   cleanupStale();
   const nowIso = new Date().toISOString();
   const userId = String(user.id || user._id);
-  const connectionId = user.connectionId ? String(user.connectionId) : null;
-  const participantKey = connectionId ? `${userId}__${connectionId}` : userId;
 
   const participant = {
-    id: `vp-${channelId}-${participantKey}`,
+    id: `vp-${channelId}-${userId}`,
     channel_id: channelId,
     server_id: serverId || null,
-    user_id: participantKey,
-    actual_user_id: userId,
+    user_id: userId,
     is_muted: Boolean(isMuted),
     joined_at: nowIso,
     last_seen: nowIso,
@@ -75,13 +72,13 @@ export async function addOrUpdateParticipant({ channelId, serverId, user, isMute
   if (!participantsByChannel.has(channelId)) {
     participantsByChannel.set(channelId, new Map());
   }
-  participantsByChannel.get(channelId).set(participantKey, participant);
+  participantsByChannel.get(channelId).set(userId, participant);
 
   // Sync to MongoDB if available
   try {
     const db = await getDatabase();
     await db.collection('voice_participants').updateOne(
-      { channel_id: channelId, user_id: participantKey },
+      { channel_id: channelId, user_id: userId },
       { $set: participant },
       { upsert: true }
     );
@@ -191,39 +188,22 @@ export async function removeParticipant({ channelId, userId, serverId, userName 
   let removed = false;
   let participantName = userName || null;
   if (participantsByChannel.has(channelId)) {
-    const channelMap = participantsByChannel.get(channelId);
-    let targetKey = sUserId;
-    let existing = channelMap.get(targetKey);
-    if (!existing) {
-      for (const [k, v] of channelMap.entries()) {
-        if (k.startsWith(`${sUserId}__`) || v.actual_user_id === sUserId) {
-          targetKey = k;
-          existing = v;
-          break;
-        }
-      }
-    }
+    const existing = participantsByChannel.get(channelId).get(sUserId);
     if (existing?.profiles?.full_name || existing?.profiles?.username) {
       participantName = existing.profiles.full_name || existing.profiles.username;
     }
-    removed = channelMap.delete(targetKey);
+    removed = participantsByChannel.get(channelId).delete(sUserId);
   }
 
   try {
     const db = await getDatabase();
     if (!participantName) {
-      const doc = await db.collection('voice_participants').findOne({
-        channel_id: channelId,
-        $or: [{ user_id: sUserId }, { actual_user_id: sUserId }],
-      });
+      const doc = await db.collection('voice_participants').findOne({ channel_id: channelId, user_id: sUserId });
       if (doc?.profiles?.full_name || doc?.profiles?.username) {
         participantName = doc.profiles.full_name || doc.profiles.username;
       }
     }
-    await db.collection('voice_participants').deleteOne({
-      channel_id: channelId,
-      $or: [{ user_id: sUserId }, { actual_user_id: sUserId }],
-    });
+    await db.collection('voice_participants').deleteOne({ channel_id: channelId, user_id: sUserId });
   } catch {}
 
   try {
