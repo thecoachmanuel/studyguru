@@ -78,6 +78,7 @@ export async function POST(req, { params }) {
 
     const user = {
       id: session.user.id,
+      connectionId: body.connectionId || null,
       name: resolvedName,
       username: resolvedUsername,
       full_name: resolvedName,
@@ -99,7 +100,7 @@ export async function POST(req, { params }) {
     if (action === 'leave') {
       await removeParticipant({
         channelId,
-        userId: session.user.id,
+        userId: body.connectionId ? `${session.user.id}__${body.connectionId}` : session.user.id,
         userName: resolvedName,
         serverId,
       });

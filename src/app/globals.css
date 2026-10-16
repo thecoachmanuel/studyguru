@@ -10248,7 +10248,20 @@ input, textarea, [contenteditable="true"], .chat-markdown, .chatter-post-card {
 .chatter-bottom-sheet,
 .chatter-comments-sheet,
 .chatter-search-modal,
+.modal-overlay,
+.modal-card,
 [role="dialog"] {
   z-index: 250 !important;
 }
 
+/* Audio Space pulse animation for autoplay and audio unlock */
+@keyframes chatter-pulse-glow {
+  0%, 100% {
+    transform: translateX(-50%) scale(1);
+    box-shadow: 0 8px 32px rgba(64, 227, 120, 0.45);
+  }
+  50% {
+    transform: translateX(-50%) scale(1.03);
+    box-shadow: 0 12px 36px rgba(64, 227, 120, 0.7);
+  }
+}

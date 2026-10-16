@@ -32,11 +32,13 @@ export async function POST(req) {
     }
 
     const userId = session.user.id || body.participantId || `user-${Date.now()}`;
-    const identity = String(userId);
+    const connectionId = body.connectionId ? String(body.connectionId) : null;
+    const identity = connectionId ? `${userId}__${connectionId}` : String(userId);
     const participantName = String(body.participantName || session.user.name || session.user.email?.split('@')[0] || 'Student').trim();
     
     const metadata = {
-      userId: identity,
+      userId: String(userId),
+      connectionId: connectionId || '',
       name: participantName,
       image: session.user.image || body.avatar || '',
       serverId: body.serverId || null,

@@ -18,6 +18,7 @@ export default function ChatterAudioSpaceModal({
   const [handRaiseNotification, setHandRaiseNotification] = useState(null);
   const [promotedNotification, setPromotedNotification] = useState(null);
   const [isScreenMaximized, setIsScreenMaximized] = useState(false);
+  const [audioUnlocked, setAudioUnlocked] = useState(false);
 
   useEffect(() => {
     const handleUserLeft = (e) => {
@@ -254,11 +255,18 @@ export default function ChatterAudioSpaceModal({
 
   return (
     <div
-      onClick={() => voiceSession?.unlockAudio?.()}
+      onClick={() => {
+        voiceSession?.unlockAudio?.();
+        setAudioUnlocked(true);
+      }}
+      onTouchStart={() => {
+        voiceSession?.unlockAudio?.();
+        setAudioUnlocked(true);
+      }}
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 200,
+        zIndex: 250,
         background: 'var(--chatter-black)',
         display: 'flex',
         flexDirection: 'column',
@@ -417,41 +425,78 @@ export default function ChatterAudioSpaceModal({
           boxSizing: 'border-box',
         }}
       >
-        {/* Desktop 1-Click Audio Enable Banner if browser autoplay is blocked */}
+        {/* Audio unlock banner — shows as fixed bottom sheet on mobile, inline on desktop */}
         {autoplayWarning && (
+          <>
+            {/* Mobile: fixed bottom overlay banner (hard to miss) */}
+            <div
+              onClick={() => {
+                voiceSession?.unlockAudio?.();
+                setAudioUnlocked(true);
+              }}
+              style={{
+                position: 'fixed',
+                bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                zIndex: 9999,
+                width: 'min(360px, calc(100vw - 32px))',
+                padding: '16px 20px',
+                borderRadius: 18,
+                background: 'linear-gradient(135deg, #40E378 0%, #2BC963 100%)',
+                color: '#0E0E0E',
+                fontSize: 15,
+                fontWeight: 800,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 10,
+                cursor: 'pointer',
+                boxShadow: '0 8px 32px rgba(64,227,120,0.45)',
+                animation: 'chatter-pulse-glow 1.8s ease-in-out infinite',
+                userSelect: 'none',
+                WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              <span style={{ fontSize: 22 }}>🔊</span>
+              <span>Tap to hear audio</span>
+            </div>
+          </>
+        )}
+
+        {/* Fallback nudge: when others are present but audio unlock not confirmed yet */}
+        {!autoplayWarning && !audioUnlocked && fullParticipants.length > 1 && (
           <div
-            onClick={() => voiceSession?.unlockAudio?.()}
+            onClick={() => {
+              voiceSession?.unlockAudio?.();
+              setAudioUnlocked(true);
+            }}
             style={{
+              position: 'fixed',
+              bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 9998,
+              width: 'min(360px, calc(100vw - 32px))',
               padding: '12px 18px',
-              borderRadius: 14,
-              background: 'rgba(64, 227, 120, 0.2)',
-              border: '1.5px solid var(--chatter-primary)',
+              borderRadius: 16,
+              background: 'rgba(64,227,120,0.15)',
+              border: '1.5px solid rgba(64,227,120,0.5)',
               color: '#fff',
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: 700,
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: 16,
+              justifyContent: 'center',
+              gap: 8,
               cursor: 'pointer',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+              userSelect: 'none',
+              WebkitTapHighlightColor: 'transparent',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 18 }}>🔊</span>
-              <span>Audio blocked by browser. <strong>Click here to enable sound</strong>.</span>
-            </div>
-            <span
-              style={{
-                background: 'var(--chatter-primary)',
-                color: '#0E0E0E',
-                padding: '5px 12px',
-                borderRadius: 12,
-                fontSize: 12.5,
-                fontWeight: 800,
-              }}
-            >
-              Unmute Room
-            </span>
+            <span style={{ fontSize: 18 }}>🎙️</span>
+            <span>Tap to enable room audio</span>
           </div>
         )}
 

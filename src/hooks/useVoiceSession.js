@@ -11,9 +11,7 @@ export const unlockAudioDesktopAndMobile = () => {
   try {
     // 1. LiveKit active room audio unlocking for iOS Safari / Mobile PWA
     if (window.__livekit_active_room) {
-      if (!window.__livekit_active_room.canPlayAudio) {
-        window.__livekit_active_room.startAudio().catch(() => {});
-      }
+      window.__livekit_active_room.startAudio().catch(() => {});
     }
 
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -33,9 +31,9 @@ export const unlockAudioDesktopAndMobile = () => {
       } catch {}
     }
 
-    // Play all mounted remote-audio elements
-    const remoteAudios = document.querySelectorAll('audio[id^="remote-audio-"]');
-    remoteAudios.forEach((el) => {
+    // Play all mounted audio elements in the document
+    const allAudios = document.querySelectorAll('audio');
+    allAudios.forEach((el) => {
       if (el) {
         el.muted = false;
         el.volume = 1.0;
@@ -188,6 +186,8 @@ export function useVoiceSession(userId, profile = null) {
   const negotiatePeerRef = useRef(null);
   const livekitRoomRef = useRef(null);
   const isLiveKitActiveRef = useRef(false);
+  const localIdentityRef = useRef(null);
+  const clientConnIdRef = useRef(null);
 
   useEffect(() => {
     participantsRef.current = participants;
@@ -1797,35 +1797,42 @@ export function useVoiceSession(userId, profile = null) {
           const livekitRemotes = [];
           livekitRoomRef.current.remoteParticipants.forEach((rp) => {
             const pId = String(rp.identity);
-            if (pId === String(userId)) return; // skip self
+            const isSelfConnection = localIdentityRef.current
+              ? (pId === String(localIdentityRef.current))
+              : (livekitRoomRef.current?.localParticipant && pId === String(livekitRoomRef.current.localParticipant.identity));
+            if (isSelfConnection) return; // skip own connection
+            const baseUserId = pId.includes('__') ? pId.split('__')[0] : pId;
             let meta = {};
             try { if (rp.metadata) meta = JSON.parse(rp.metadata); } catch {}
-            const dbEntry = dbProfileMap.get(pId);
+            const dbEntry = dbProfileMap.get(baseUserId) || dbProfileMap.get(pId);
+            const isSameAccount = baseUserId === String(userId);
             const resolvedName =
               rp.name ||
               meta.name ||
               dbEntry?.profiles?.full_name ||
               dbEntry?.profiles?.username ||
               dbEntry?.name ||
-              'Study Partner';
+              (isSameAccount ? `${profile?.full_name || 'You'} (2nd Device)` : 'Study Partner');
             const resolvedAvatar =
               meta.image ||
               dbEntry?.profiles?.avatar_url ||
               dbEntry?.avatar_url ||
+              (isSameAccount ? profile?.avatar_url : null) ||
               null;
             livekitRemotes.push({
               id: `vp-${joinedChannelId}-${pId}`,
               channel_id: joinedChannelId,
               server_id: joinedServerId,
               user_id: pId,
+              base_user_id: baseUserId,
               is_muted: !rp.isMicrophoneEnabled,
               joined_at: dbEntry?.joined_at || new Date().toISOString(),
               last_seen: new Date().toISOString(),
               name: resolvedName,
               user_name: resolvedName,
               profiles: {
-                id: pId,
-                username: rp.name || meta.name || dbEntry?.profiles?.username || 'Study Partner',
+                id: baseUserId,
+                username: rp.name || meta.name || dbEntry?.profiles?.username || (isSameAccount ? `${profile?.username || 'You'} (2nd Device)` : 'Study Partner'),
                 full_name: resolvedName,
                 name: resolvedName,
                 avatar_url: resolvedAvatar,
@@ -1839,7 +1846,10 @@ export function useVoiceSession(userId, profile = null) {
           activeRemote
             .filter((p) => {
               const pId = String(p.user_id || p.userId);
-              return pId !== String(userId) && !livekitIds.has(pId);
+              const isSelf = localIdentityRef.current
+                ? (pId === String(localIdentityRef.current))
+                : (pId === String(userId));
+              return !isSelf && !livekitIds.has(pId);
             })
             .forEach((p) => {
               const pId = String(p.user_id || p.userId);
@@ -1915,6 +1925,11 @@ export function useVoiceSession(userId, profile = null) {
       // 1. Attempt connection via LiveKit SFU (supports 100+ students, low latency audio & screen sharing)
       let livekitSuccess = false;
       try {
+        const clientConnId = typeof window !== 'undefined'
+          ? (window.__studycord_client_conn_id || (window.__studycord_client_conn_id = Math.random().toString(36).slice(2, 9)))
+          : `conn_${Date.now()}`;
+        clientConnIdRef.current = clientConnId;
+
         const tokenData = await apiRequest('/api/livekit/token', {
           method: 'POST',
           body: JSON.stringify({
@@ -1922,13 +1937,15 @@ export function useVoiceSession(userId, profile = null) {
             channelId,
             channelName,
             serverId,
+            connectionId: clientConnId,
             participantName: profile?.full_name || profile?.name || profile?.username || 'Student',
             avatar: profile?.avatar_url || '',
           }),
         });
 
         if (tokenData?.configured && tokenData?.token && tokenData?.url) {
-          console.log('[LiveKit] Connecting to LiveKit SFU room:', channelId);
+          localIdentityRef.current = tokenData.identity;
+          console.log('[LiveKit] Connecting to LiveKit SFU room:', channelId, 'as identity:', tokenData.identity);
           const room = new Room({
             adaptiveStream: true,
             dynacast: true,
@@ -1978,7 +1995,9 @@ export function useVoiceSession(userId, profile = null) {
                 el.setAttribute('webkit-playsinline', 'true');
                 el.muted = false;
                 el.volume = 1.0;
-                el.style.display = 'none';
+                // IMPORTANT: iOS Safari refuses to play audio elements with display:none.
+                // Use position:fixed off-screen instead (same as WebRTC path).
+                el.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;opacity:0.01;pointer-events:none;';
                 document.body.appendChild(el);
               } else {
                 track.attach(el);
@@ -1991,6 +2010,11 @@ export function useVoiceSession(userId, profile = null) {
                 } catch {}
               }
 
+              // Proactively attempt audio context unlock on mobile when a remote track arrives.
+              // room.startAudio() is a no-op if already playing; on iOS it unlocks AudioContext
+              // which is needed for audio elements to autoplay.
+              room.startAudio().catch(() => {});
+              unlockAudioDesktopAndMobile();
               playRemoteMedia(el);
             } else if (track.kind === Track.Kind.Video) {
               const stream = new MediaStream([track.mediaStreamTrack]);
@@ -2058,18 +2082,29 @@ export function useVoiceSession(userId, profile = null) {
           room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
             const activeIds = new Set(speakers.map((s) => String(s.identity)));
             setActiveSpeakerIds(activeIds);
-            setIsSpeakingLocal(activeIds.has(String(currentUserIdRef.current)));
+            const localId = localIdentityRef.current || room.localParticipant?.identity;
+            const isSpeaking = (localId && activeIds.has(String(localId))) || (currentUserIdRef.current && activeIds.has(String(currentUserIdRef.current)));
+            setIsSpeakingLocal(isSpeaking);
 
             const levels = {};
             speakers.forEach((s) => {
-              levels[String(s.identity)] = Math.min(100, Math.round((s.audioLevel || 0.8) * 100));
+              const sId = String(s.identity);
+              levels[sId] = Math.min(100, Math.round((s.audioLevel || 0.8) * 100));
+              const baseId = sId.includes('__') ? sId.split('__')[0] : sId;
+              if (baseId !== sId) {
+                levels[baseId] = levels[sId];
+              }
             });
             setAudioLevels((prev) => ({ ...prev, ...levels }));
           });
 
-          room.on(RoomEvent.AudioPlaybackChanged, ({ canPlayAudio }) => {
+          // LiveKit v2 passes a plain boolean to AudioPlaybackChanged, NOT an object.
+          // Destructuring { canPlayAudio } from a boolean always yields undefined.
+          room.on(RoomEvent.AudioPlaybackChanged, (canPlayAudio) => {
             if (!canPlayAudio) {
               setAutoplayWarning(AUTOPLAY_WARNING);
+              // Attempt immediate unlock — works if there was a recent user gesture
+              room.startAudio().catch(() => {});
               unlockAudioDesktopAndMobile();
             } else {
               setAutoplayWarning('');
@@ -2082,7 +2117,10 @@ export function useVoiceSession(userId, profile = null) {
               if (participant.metadata) meta = JSON.parse(participant.metadata);
             } catch {}
             const pUserId = String(participant.identity);
-            const joinName = participant.name || meta.name || 'A scholar';
+            if (pUserId === localIdentityRef.current || (room.localParticipant && pUserId === room.localParticipant.identity)) return;
+            const baseUserId = pUserId.includes('__') ? pUserId.split('__')[0] : pUserId;
+            const isSameAccount = baseUserId === String(currentUserIdRef.current);
+            const joinName = participant.name || meta.name || (isSameAccount ? `${profile?.full_name || 'You'} (2nd Device)` : 'A scholar');
 
             try {
               new Audio('/sounds/user-join.mp3').play().catch(() => {});
@@ -2108,13 +2146,18 @@ export function useVoiceSession(userId, profile = null) {
                 channel_id: channelId,
                 server_id: serverId,
                 user_id: pUserId,
+                base_user_id: baseUserId,
                 is_muted: !participant.isMicrophoneEnabled,
                 joined_at: new Date().toISOString(),
                 last_seen: new Date().toISOString(),
+                name: joinName,
+                user_name: joinName,
                 profiles: {
-                  username: participant.name || meta.name || 'Scholar',
-                  full_name: participant.name || meta.name || 'Scholar',
-                  avatar_url: meta.image || null,
+                  id: baseUserId,
+                  username: participant.name || meta.name || (isSameAccount ? `${profile?.username || 'You'} (2nd Device)` : 'Scholar'),
+                  full_name: joinName,
+                  name: joinName,
+                  avatar_url: meta.image || (isSameAccount ? profile?.avatar_url : null),
                 },
               };
               return [...without, newP];
@@ -2148,7 +2191,7 @@ export function useVoiceSession(userId, profile = null) {
 
           // Pre-warm microphone permission BEFORE connect so mobile browsers
           // (Safari/Chrome) have audio context unlocked via the user gesture that
-          // triggered handleJoin. This is the primary fix for mobile not being heard.
+          // triggered handleJoin.
           let prewarmStream = null;
           try {
             prewarmStream = await navigator.mediaDevices.getUserMedia({
@@ -2160,7 +2203,7 @@ export function useVoiceSession(userId, profile = null) {
             });
             console.log('[LiveKit] Microphone pre-warmed successfully');
           } catch (prewarmErr) {
-            console.warn('[LiveKit] Mic pre-warm failed (will retry after connect):', prewarmErr?.message);
+            console.warn('[LiveKit] Mic pre-warm notice:', prewarmErr?.message);
           }
 
           await room.connect(tokenData.url, tokenData.token);
@@ -2169,50 +2212,31 @@ export function useVoiceSession(userId, profile = null) {
           try { await room.startAudio(); } catch {}
           unlockAudioDesktopAndMobile();
 
-          // Stop pre-warm stream tracks — LiveKit will capture the mic itself
-          if (prewarmStream) {
-            prewarmStream.getTracks().forEach((t) => t.stop());
-          }
-
-          // Enable microphone on LiveKit with retry logic for mobile
-          const enableMicWithRetry = async (retries = 3, delayMs = 800) => {
-            for (let attempt = 1; attempt <= retries; attempt++) {
-              try {
-                await room.localParticipant.setMicrophoneEnabled(!isLocalMutedRef.current);
-                // Verify the mic track was actually published
-                const micPub = room.localParticipant.getTrackPublication(Track.Source.Microphone);
-                if (micPub?.track?.mediaStreamTrack) {
-                  console.log(`[LiveKit] Microphone enabled on attempt ${attempt}`);
-                  return micPub.track.mediaStreamTrack;
-                }
-                // Track not published yet, wait and retry
-                if (attempt < retries) {
-                  await new Promise((r) => setTimeout(r, delayMs));
-                }
-              } catch (err) {
-                console.warn(`[LiveKit] Mic enable attempt ${attempt} failed:`, err?.message);
-                if (attempt < retries) {
-                  await new Promise((r) => setTimeout(r, delayMs));
-                } else {
-                  throw err;
-                }
-              }
-            }
-            return null;
-          };
-
+          // Enable microphone on LiveKit
           try {
-            const micTrack = await enableMicWithRetry();
+            await room.localParticipant.setMicrophoneEnabled(!isLocalMutedRef.current);
             setMicConnected(true);
+            const micPub = room.localParticipant.getTrackPublication(Track.Source.Microphone);
+            const micTrack = micPub?.track?.mediaStreamTrack;
             if (micTrack) {
               const localAudioStream = new MediaStream([micTrack]);
               localStreamRef.current = localAudioStream;
               attachAudioAnalyser(currentUserIdRef.current, localAudioStream);
             }
           } catch (micErr) {
-            console.warn('[LiveKit] Could not enable microphone after retries:', micErr);
-            setIsLocalMuted(true);
-            isLocalMutedRef.current = true;
+            console.warn('[LiveKit] Initial mic enable notice:', micErr?.message);
+            try {
+              await new Promise((r) => setTimeout(r, 400));
+              await room.localParticipant.setMicrophoneEnabled(!isLocalMutedRef.current);
+              setMicConnected(true);
+            } catch (retryErr) {
+              console.warn('[LiveKit] Second mic attempt notice:', retryErr?.message);
+            }
+          } finally {
+            // Stop pre-warm stream tracks safely after LiveKit initialization
+            if (prewarmStream) {
+              prewarmStream.getTracks().forEach((t) => t.stop());
+            }
           }
 
           // Listen for local mic track published (fires async on mobile after permission granted)
@@ -2305,6 +2329,7 @@ export function useVoiceSession(userId, profile = null) {
           body: JSON.stringify({
             action: 'join',
             serverId,
+            connectionId: clientConnIdRef.current,
             isMuted: isLocalMutedRef.current,
             userName: profile?.full_name || profile?.name || profile?.username,
             username: profile?.username,
@@ -2354,11 +2379,14 @@ export function useVoiceSession(userId, profile = null) {
 
     const leavingChannelId = joinedChannelId;
     const leavingServerId = joinedServerId;
+    const leavingConnId = clientConnIdRef.current;
 
     setJoinedChannelId(null);
     setJoinedChannelName(null);
     setJoinedServerId(null);
     setParticipants([]);
+    localIdentityRef.current = null;
+    clientConnIdRef.current = null;
 
     try {
       await apiRequest(`/api/channels/${leavingChannelId}/voice`, {
@@ -2366,6 +2394,7 @@ export function useVoiceSession(userId, profile = null) {
         body: JSON.stringify({
           action: 'leave',
           serverId: leavingServerId,
+          connectionId: leavingConnId,
         }),
       });
     } catch (e) {
