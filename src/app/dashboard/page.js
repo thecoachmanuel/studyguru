@@ -1852,6 +1852,17 @@ export default function DashboardPage() {
             setUnreadNotificationsCount(activeLiveSpaces.length);
           } catch {}
         }}
+        onClearAll={async () => {
+          try {
+            await fetch('/api/notifications', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'clear-all' }),
+            });
+            setNotificationsList([]);
+            setUnreadNotificationsCount(activeLiveSpaces.length);
+          } catch {}
+        }}
         onRefresh={fetchNotificationsData}
       />
     </div>

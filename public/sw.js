@@ -96,3 +96,63 @@ self.addEventListener('fetch', (event) => {
   // Default network pass-through
   event.respondWith(fetch(req).catch(() => caches.match(req)));
 });
+
+// --- PWA Web Push Notification Handlers ---
+self.addEventListener('push', (event) => {
+  let payload = {
+    title: 'StudyCord',
+    body: 'New activity in your study spaces.',
+    url: '/dashboard',
+    tag: 'studycord-general',
+  };
+
+  if (event.data) {
+    try {
+      const parsed = event.data.json();
+      payload = { ...payload, ...parsed };
+    } catch {
+      payload.body = event.data.text() || payload.body;
+    }
+  }
+
+  const notificationOptions = {
+    body: payload.body,
+    icon: payload.icon || '/android-chrome-192x192.png',
+    badge: payload.badge || '/favicon-32x32.png',
+    data: {
+      url: payload.url || '/dashboard',
+      ...payload.data,
+    },
+    vibrate: [120, 60, 120],
+    tag: payload.tag || 'studycord-push',
+    renotify: true,
+    requireInteraction: false,
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(payload.title, notificationOptions)
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || '/dashboard';
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      // If a StudyCord window or PWA standalone instance is already open, focus it
+      for (const client of windowClients) {
+        if ('focus' in client) {
+          if (targetUrl && client.navigate) {
+            client.navigate(targetUrl);
+          }
+          return client.focus();
+        }
+      }
+      // If no window is open, open a new one
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
+  );
+});

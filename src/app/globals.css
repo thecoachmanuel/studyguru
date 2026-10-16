@@ -9728,8 +9728,13 @@ body {
   .chatter-chat-room-pane {
     position: fixed;
     inset: 0;
-    z-index: 70;
+    z-index: 120 !important;
     background: var(--chatter-black);
+    height: 100dvh;
+    max-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
 }
 
@@ -10022,30 +10027,43 @@ input, textarea, [contenteditable="true"], .chat-markdown, .chatter-post-card {
   transform: translateZ(0) !important;
 }
 
-/* 5. Mobile Tab Navigation: Strictly pinned flush to the bottom of the viewport without gaps */
-.chatter-tabbar {
-  position: fixed !important;
-  bottom: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  width: 100% !important;
-  min-height: calc(52px + env(safe-area-inset-bottom, 0px)) !important;
-  height: calc(52px + env(safe-area-inset-bottom, 0px)) !important;
-  padding-top: 4px !important;
-  padding-bottom: env(safe-area-inset-bottom, 0px) !important;
-  padding-left: max(8px, env(safe-area-inset-left, 0px)) !important;
-  padding-right: max(8px, env(safe-area-inset-right, 0px)) !important;
-  box-sizing: border-box !important;
-  display: flex !important;
-  align-items: center !important;
-  background: rgba(14, 14, 14, 0.98) !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
-  backdrop-filter: blur(16px) !important;
-  z-index: 99 !important;
-  -webkit-transform: translateZ(0) !important;
-  transform: translateZ(0) !important;
-  contain: layout style;
+/* 5. Mobile Tab Navigation: Strictly pinned flush to the bottom of the viewport on mobile screens only (<= 768px) */
+@media (max-width: 768px) {
+  .chatter-tabbar {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    min-height: calc(52px + env(safe-area-inset-bottom, 0px)) !important;
+    height: calc(52px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-top: 4px !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    padding-left: max(8px, env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(8px, env(safe-area-inset-right, 0px)) !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    background: rgba(14, 14, 14, 0.98) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    backdrop-filter: blur(16px) !important;
+    z-index: 99 !important;
+    -webkit-transform: translateZ(0) !important;
+    transform: translateZ(0) !important;
+    contain: layout style;
+  }
+}
+
+@media (min-width: 769px) {
+  .chatter-tabbar {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    opacity: 0 !important;
+  }
 }
 
 /* 6. Standalone PWA Fullscreen Support: App occupies 100% and bottom nav flush */
@@ -10214,5 +10232,23 @@ input, textarea, [contenteditable="true"], .chat-markdown, .chatter-post-card {
   .studycord-hide-mobile-sm {
     display: none !important;
   }
+}
+
+/* Responsive Mobile Audio Space Header Button Labels */
+@media (max-width: 768px) {
+  .chatter-audio-back-label,
+  .chatter-audio-minimize-label {
+    display: none !important;
+  }
+}
+
+/* Ensure all bottom sheets, modals, and backdrop overlays are strictly above the mobile bottom nav (z-index: 99) */
+.chatter-sheet-overlay,
+.chatter-modal-overlay,
+.chatter-bottom-sheet,
+.chatter-comments-sheet,
+.chatter-search-modal,
+[role="dialog"] {
+  z-index: 250 !important;
 }
 

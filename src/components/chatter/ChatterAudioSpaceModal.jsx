@@ -193,9 +193,22 @@ export default function ChatterAudioSpaceModal({
   }
 
   const fullParticipants = Array.from(participantsMap.values());
-  // The host, current active speakers, unmuted users, and local participant are anchored to Stage
-  const speakers = fullParticipants.filter((p) => p.isHost || !p.isMuted || p.isLocal);
-  const listeners = fullParticipants.filter((p) => !speakers.some((s) => s.userId === p.userId));
+  // The host, unmuted participants, and actively speaking users are anchored to Stage
+  // Stably sort speakers (host first, then local user, then alphabetically) so elements never flicker or swap positions
+  const speakers = fullParticipants
+    .filter((p) => p.isHost || !p.isMuted || p.speaking)
+    .sort((a, b) => {
+      if (a.isHost) return -1;
+      if (b.isHost) return 1;
+      if (a.isLocal) return -1;
+      if (b.isLocal) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+
+  const speakerIds = new Set(speakers.map((s) => s.userId));
+  const listeners = fullParticipants
+    .filter((p) => !speakerIds.has(p.userId))
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
   const onToggleScreenShare = async () => {
     if (screenShareBusy) return;
@@ -265,17 +278,20 @@ export default function ChatterAudioSpaceModal({
           borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
         }}
       >
+        {/* Left: Back button (on mobile, arrow back alone) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button
             type="button"
             onClick={onClose}
             title="Back to Study Room (keep audio & screen active)"
+            aria-label="Back"
             style={{
               background: 'rgba(255, 255, 255, 0.08)',
               border: '1px solid rgba(255, 255, 255, 0.12)',
               color: 'var(--chatter-primary)',
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: 5,
               cursor: 'pointer',
               fontSize: 14,
@@ -296,41 +312,14 @@ export default function ChatterAudioSpaceModal({
             >
               <polyline points="15 18 9 12 15 6" />
             </svg>
-            <span>Back</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onClose}
-            title="Minimize call (stay connected in background)"
-            style={{
-              background: 'rgba(64, 227, 120, 0.12)',
-              border: '1px solid rgba(64, 227, 120, 0.3)',
-              color: 'var(--chatter-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-              cursor: 'pointer',
-              fontSize: 13,
-              fontWeight: 700,
-              padding: '6px 12px',
-              borderRadius: 16,
-            }}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="4 14 10 14 10 20" />
-              <polyline points="20 10 14 10 14 4" />
-              <line x1="14" y1="10" x2="21" y2="3" />
-              <line x1="3" y1="21" x2="10" y2="14" />
-            </svg>
-            <span>Minimize</span>
+            <span className="chatter-audio-back-label">Back</span>
           </button>
         </div>
 
-        <div style={{ textAlign: 'center', maxWidth: '60%', overflow: 'hidden' }}>
+        <div style={{ textAlign: 'center', maxWidth: '50%', overflow: 'hidden' }}>
           <h2
             style={{
-              fontSize: 20,
+              fontSize: 19,
               fontWeight: 800,
               margin: '0 0 3px 0',
               whiteSpace: 'nowrap',
@@ -340,12 +329,13 @@ export default function ChatterAudioSpaceModal({
           >
             {channelName || 'Live Study Space'}
           </h2>
-          <div style={{ fontSize: 13.5, color: 'var(--chatter-primary)', fontWeight: 600 }}>
+          <div style={{ fontSize: 13, color: 'var(--chatter-primary)', fontWeight: 600 }}>
             {serverName || 'Study Room'} · 🔴 LIVE SPACE
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        {/* Right: Speakers, Listeners (headset icon), and Minimize icon directly after */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {/* Speakers count */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 14, color: '#D4D4D4' }}>
             <svg
@@ -364,7 +354,7 @@ export default function ChatterAudioSpaceModal({
             <span>{speakers.length}</span>
           </div>
 
-          {/* Listeners count */}
+          {/* Listeners count (Headset eye icon) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 14, color: '#D4D4D4' }}>
             <svg
               width="17"
@@ -381,6 +371,37 @@ export default function ChatterAudioSpaceModal({
             </svg>
             <span>{listeners.length}</span>
           </div>
+
+          {/* Minimize Call Icon Button: placed directly after the headset icon */}
+          <button
+            type="button"
+            onClick={onClose}
+            title="Minimize call (stay connected in background)"
+            aria-label="Minimize call"
+            style={{
+              background: 'rgba(64, 227, 120, 0.12)',
+              border: '1px solid rgba(64, 227, 120, 0.3)',
+              color: 'var(--chatter-primary)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 5,
+              cursor: 'pointer',
+              fontSize: 13,
+              fontWeight: 700,
+              padding: '6px 10px',
+              borderRadius: 16,
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="4 14 10 14 10 20" />
+              <polyline points="20 10 14 10 14 4" />
+              <line x1="14" y1="10" x2="21" y2="3" />
+              <line x1="3" y1="21" x2="10" y2="14" />
+            </svg>
+            <span className="chatter-audio-minimize-label">Minimize</span>
+          </button>
         </div>
       </header>
 

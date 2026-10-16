@@ -122,6 +122,28 @@ export default function ChatterChatRoom({
   const [confirmLeaveOpen, setConfirmLeaveOpen] = useState(false);
   const messagesEndRef = useRef(null);
   const touchStartRef = useRef(null);
+  const chatRoomContainerRef = useRef(null);
+
+  // Mobile virtual keyboard handling: dynamic visualViewport resizing prevents keypad from overlapping compose bar
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) return;
+
+    const handleVisualResize = () => {
+      if (chatRoomContainerRef.current && window.innerWidth <= 768) {
+        const vvHeight = window.visualViewport.height;
+        chatRoomContainerRef.current.style.height = `${vvHeight}px`;
+        chatRoomContainerRef.current.style.maxHeight = `${vvHeight}px`;
+      }
+    };
+
+    window.visualViewport.addEventListener('resize', handleVisualResize);
+    window.visualViewport.addEventListener('scroll', handleVisualResize);
+
+    return () => {
+      window.visualViewport?.removeEventListener('resize', handleVisualResize);
+      window.visualViewport?.removeEventListener('scroll', handleVisualResize);
+    };
+  }, []);
 
   const handleTouchStart = (e) => {
     if (e.touches && e.touches[0]) {
@@ -507,6 +529,7 @@ export default function ChatterChatRoom({
 
   return (
     <div
+      ref={chatRoomContainerRef}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       style={{
@@ -985,12 +1008,16 @@ export default function ChatterChatRoom({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* ── 3. Chatter Compose Bar ── */}
+      {/* ── 3. Chatter Compose Bar (Sticky & Protected from Keyboard Overlap) ── */}
       <div
         style={{
           padding: '10px max(16px, env(safe-area-inset-right, 0px)) max(12px, calc(10px + env(safe-area-inset-bottom, 0px))) max(16px, env(safe-area-inset-left, 0px))',
           background: 'var(--chatter-sheet)',
           borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+          position: 'sticky',
+          bottom: 0,
+          flexShrink: 0,
+          zIndex: 10,
         }}
       >
         {/* Attached image preview */}
@@ -1151,6 +1178,27 @@ export default function ChatterChatRoom({
           {/* Text Input */}
           <input
             type="text"
+            onFocus={(e) => {
+              if (typeof window !== 'undefined' && window.visualViewport && window.innerWidth <= 768) {
+                setTimeout(() => {
+                  if (chatRoomContainerRef.current) {
+                    chatRoomContainerRef.current.style.height = `${window.visualViewport.height}px`;
+                  }
+                  messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                  e.target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, 280);
+              }
+            }}
+            onBlur={() => {
+              if (typeof window !== 'undefined' && chatRoomContainerRef.current && window.innerWidth <= 768) {
+                setTimeout(() => {
+                  if (chatRoomContainerRef.current) {
+                    chatRoomContainerRef.current.style.height = '100%';
+                    chatRoomContainerRef.current.style.maxHeight = '100%';
+                  }
+                }, 150);
+              }
+            }}
             disabled={channelType === 'dm' && dmRequestStatus === 'pending' && requestedBy && String(requestedBy) === String(userId) && messages.length >= 1}
             placeholder={
               channelType === 'dm' && dmRequestStatus === 'pending' && requestedBy && String(requestedBy) === String(userId) && messages.length >= 1

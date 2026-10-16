@@ -62,7 +62,19 @@ export async function GET(req) {
       });
     }
 
-    // 2. Fetch notifications for user from MongoDB
+    // Automatic storage protection: prune expired notifications (>14 days old, or read >7 days old)
+    try {
+      const cutoff14d = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+      const cutoffRead7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      db.collection('notifications').deleteMany({
+        $or: [
+          { createdAt: { $lt: cutoff14d } },
+          { read: true, createdAt: { $lt: cutoffRead7d } },
+        ],
+      }).catch(() => {});
+    } catch {}
+
+    // 2. Fetch notifications for user from MongoDB (capped at latest 40 to protect storage and memory)
     const notifications = await db
       .collection('notifications')
       .find({
@@ -125,6 +137,21 @@ export async function POST(req) {
       return NextResponse.json({ success: true });
     }
 
+    if (action === 'clear-all' || action === 'wipe-all') {
+      await db.collection('notifications').deleteMany({
+        $or: [{ recipient_id: userId }, { user_id: userId }],
+      });
+      return NextResponse.json({ success: true, wiped: true });
+    }
+
+    if (action === 'delete' && notificationId) {
+      await db.collection('notifications').deleteOne({
+        $or: [{ _id: notificationId }, { id: notificationId }],
+        $or: [{ recipient_id: userId }, { user_id: userId }],
+      });
+      return NextResponse.json({ success: true });
+    }
+
     if (action === 'mark-read' && notificationId) {
       await db.collection('notifications').updateOne(
         {
@@ -136,7 +163,7 @@ export async function POST(req) {
       return NextResponse.json({ success: true });
     }
 
-    // Custom notification creation
+    // Custom notification creation with storage cap protection (max 50 notifications per user)
     if (action === 'create' && body.notification) {
       const newNotif = {
         ...body.notification,
@@ -145,6 +172,20 @@ export async function POST(req) {
         createdAt: new Date().toISOString(),
       };
       const insertResult = await db.collection('notifications').insertOne(newNotif);
+
+      // Storage preservation: prune excess user notifications beyond latest 50
+      try {
+        const excess = await db.collection('notifications')
+          .find({ recipient_id: newNotif.recipient_id })
+          .sort({ createdAt: -1 })
+          .skip(50)
+          .toArray();
+        if (excess.length > 0) {
+          const idsToDelete = excess.map((e) => e._id);
+          await db.collection('notifications').deleteMany({ _id: { $in: idsToDelete } });
+        }
+      } catch {}
+
       return NextResponse.json({ success: true, id: insertResult.insertedId });
     }
 

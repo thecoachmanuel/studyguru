@@ -10,9 +10,7 @@ export default function ChatterRoomActionModal({
   onRoomJoined,
 }) {
   const [roomName, setRoomName] = useState('');
-  const [category, setCategory] = useState('Computer Science');
-  const [isCustomCategory, setIsCustomCategory] = useState(false);
-  const [customCategory, setCustomCategory] = useState('');
+  const [topic, setTopic] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -30,9 +28,7 @@ export default function ChatterRoomActionModal({
     setError('');
 
     try {
-      const finalCategory = isCustomCategory
-        ? (customCategory.trim() || 'General Study')
-        : category;
+      const finalCategory = topic.trim() || null;
 
       // Create Study Room
       const res = await fetch('/api/servers', {
@@ -188,83 +184,26 @@ export default function ChatterRoomActionModal({
             </div>
 
             <div style={{ marginBottom: 20 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                <label style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--chatter-light-text)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Subject Category
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setIsCustomCategory((prev) => !prev)}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--chatter-primary)',
-                    fontSize: 12.5,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    padding: 0,
-                  }}
-                >
-                  {isCustomCategory ? '← Choose preset' : '+ Type custom subject'}
-                </button>
-              </div>
-
-              {!isCustomCategory ? (
-                <select
-                  value={category}
-                  onChange={(e) => {
-                    if (e.target.value === '__custom__') {
-                      setIsCustomCategory(true);
-                    } else {
-                      setCategory(e.target.value);
-                    }
-                  }}
-                  style={{
-                    width: '100%',
-                    background: 'var(--chatter-black)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: 14,
-                    padding: '12px 14px',
-                    color: '#fff',
-                    fontSize: 15,
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <option value="Computer Science">Computer Science</option>
-                  <option value="Mathematics">Mathematics</option>
-                  <option value="Medicine">Medicine</option>
-                  <option value="Biology">Biology</option>
-                  <option value="Physics">Physics</option>
-                  <option value="Law">Law</option>
-                  <option value="General Study">General Study</option>
-                  <option value="Engineering">Engineering</option>
-                  <option value="Psychology">Psychology</option>
-                  <option value="Economics">Economics</option>
-                  <option value="__custom__">✏️ Type custom subject...</option>
-                </select>
-              ) : (
-                <input
-                  type="text"
-                  placeholder="e.g. Organic Chemistry, Architecture, Neuroscience..."
-                  value={customCategory}
-                  onChange={(e) => setCustomCategory(e.target.value)}
-                  autoFocus
-                  required
-                  style={{
-                    width: '100%',
-                    background: 'var(--chatter-black)',
-                    border: '1.5px solid var(--chatter-primary)',
-                    borderRadius: 14,
-                    padding: '12px 14px',
-                    color: '#fff',
-                    fontSize: 15,
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                  }}
-                />
-              )}
+              <label style={{ display: 'block', fontSize: 13.5, fontWeight: 700, color: 'var(--chatter-light-text)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
+                Topic / Subject <span style={{ opacity: 0.6, textTransform: 'none', fontWeight: 500 }}>(Optional)</span>
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Organic Chemistry, Algorithms (Optional)"
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                style={{
+                  width: '100%',
+                  background: 'var(--chatter-black)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: 14,
+                  padding: '12px 14px',
+                  color: '#fff',
+                  fontSize: 15,
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
             </div>
 
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>

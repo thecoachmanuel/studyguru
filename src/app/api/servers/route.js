@@ -35,7 +35,7 @@ export async function GET(req) {
           role: 'owner',
           is_member: true,
           member_count: 1,
-          category: 'Computer Science',
+          category: null,
           created_at: new Date().toISOString(),
           channels: [
             { id: 'ch-general', server_id: 'server-demo-1', name: 'general', type: 'text', position: 0 },
@@ -52,7 +52,7 @@ export async function GET(req) {
           role: 'member',
           is_member: true,
           member_count: 3,
-          category: 'Computer Science',
+          category: null,
           created_at: new Date().toISOString(),
           channels: [
             { id: 'ch-algos', server_id: 'server-demo-2', name: 'algorithms', type: 'text', position: 0 },
@@ -140,7 +140,7 @@ export async function GET(req) {
       return {
         id: srvIdStr,
         name: srv.name,
-        category: srv.category || 'Computer Science',
+        category: srv.category ? String(srv.category).trim() : null,
         icon_url: srv.icon_url || null,
         owner_id: srv.owner_id,
         invite_code: srv.invite_code,
@@ -187,7 +187,7 @@ export async function POST(req) {
 
     const newServer = {
       name: name.trim(),
-      category: category || 'Computer Science',
+      category: category && String(category).trim() ? String(category).trim() : null,
       owner_id: userId,
       icon_url: null,
       invite_code: inviteCode,

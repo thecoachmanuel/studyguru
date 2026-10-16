@@ -15,10 +15,27 @@ export default function ChatterNotificationsModal({
   notifications = [],
   onJoinSpace,
   onMarkAllRead,
+  onClearAll,
   onRefresh,
 }) {
   const [activeTab, setActiveTab] = useState('all'); // 'all' | 'live' | 'alerts'
   const [isMarking, setIsMarking] = useState(false);
+  const [isWiping, setIsWiping] = useState(false);
+  const [pushPermission, setPushPermission] = useState(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      return Notification.permission;
+    }
+    return 'unsupported';
+  });
+
+  const unreadAlerts = notifications.filter((n) => !n.read);
+
+  // Auto-read notifications immediately upon opening modal so users never have to manually clear badges
+  React.useEffect(() => {
+    if (isOpen && unreadAlerts.length > 0) {
+      onMarkAllRead?.();
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -28,6 +45,38 @@ export default function ChatterNotificationsModal({
       await onMarkAllRead?.();
     } finally {
       setIsMarking(false);
+    }
+  };
+
+  const handleWipeAll = async () => {
+    if (notifications.length === 0) return;
+    if (window.confirm('Clear all notifications? This will wipe your notification history from the database to save storage.')) {
+      setIsWiping(true);
+      try {
+        await onClearAll?.();
+      } finally {
+        setIsWiping(false);
+      }
+    }
+  };
+
+  const handleRequestPush = async () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+    try {
+      const permission = await Notification.requestPermission();
+      setPushPermission(permission);
+      if (permission === 'granted' && 'serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.ready;
+        if (reg) {
+          reg.showNotification('StudyCord Notifications Active', {
+            body: 'You will now receive instant alerts when classmates start a space or send a message!',
+            icon: '/android-chrome-192x192.png',
+            badge: '/favicon-32x32.png',
+          }).catch(() => {});
+        }
+      }
+    } catch (e) {
+      console.warn('Push permission request error:', e);
     }
   };
 
@@ -46,18 +95,16 @@ export default function ChatterNotificationsModal({
     return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   };
 
-  const unreadAlerts = notifications.filter((n) => !n.read);
-
   return (
     <div
       onClick={onClose}
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 220,
-        background: 'rgba(0, 0, 0, 0.75)',
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
+        zIndex: 250,
+        background: 'rgba(0, 0, 0, 0.78)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -117,12 +164,32 @@ export default function ChatterNotificationsModal({
               <div style={{ fontSize: 12.5, color: 'var(--chatter-light-text)' }}>
                 {activeSpaces.length > 0
                   ? `🔴 ${activeSpaces.length} live space${activeSpaces.length > 1 ? 's' : ''} ongoing now`
-                  : 'Stay up to date with your study spaces'}
+                  : 'Auto-synced and auto-cleaned to save DB storage'}
               </div>
             </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {notifications.length > 0 && (
+              <button
+                type="button"
+                onClick={handleWipeAll}
+                disabled={isWiping}
+                title="Wipe notification history from database"
+                style={{
+                  background: 'rgba(255, 59, 48, 0.12)',
+                  border: '1px solid rgba(255, 59, 48, 0.25)',
+                  color: 'var(--chatter-red, #ff453a)',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  padding: '5px 9px',
+                  borderRadius: 10,
+                }}
+              >
+                {isWiping ? 'Clearing...' : 'Wipe All'}
+              </button>
+            )}
             {unreadAlerts.length > 0 && (
               <button
                 type="button"
@@ -162,6 +229,45 @@ export default function ChatterNotificationsModal({
             </button>
           </div>
         </div>
+
+        {/* ── PWA Push Notification Enable Banner ── */}
+        {pushPermission !== 'granted' && pushPermission !== 'unsupported' && (
+          <div
+            style={{
+              padding: '10px 18px',
+              background: 'linear-gradient(135deg, rgba(64, 227, 120, 0.12), rgba(0, 0, 0, 0.4))',
+              borderBottom: '1px solid rgba(64, 227, 120, 0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
+              <span style={{ fontSize: 16 }}>🔔</span>
+              <span style={{ fontSize: 13, color: '#e0e0e0', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                Enable push alerts for live study spaces & chats on mobile PWA
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleRequestPush}
+              style={{
+                background: 'var(--chatter-primary)',
+                border: 'none',
+                color: '#0E0E0E',
+                fontSize: 12,
+                fontWeight: 800,
+                padding: '5px 12px',
+                borderRadius: 12,
+                cursor: 'pointer',
+                flexShrink: 0,
+              }}
+            >
+              Turn On
+            </button>
+          </div>
+        )}
 
         {/* ── Filter Tabs ── */}
         <div

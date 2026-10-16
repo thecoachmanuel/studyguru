@@ -137,7 +137,7 @@ export default function ChatterSearchModal({
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 90,
+        zIndex: 250,
         background: 'rgba(0, 0, 0, 0.75)',
         backdropFilter: 'blur(8px)',
         display: 'flex',

@@ -1753,6 +1753,19 @@ export function useVoiceSession(userId, profile = null) {
       }
 
       setParticipants((prev) => {
+        const prevMuteMap = new Map();
+        prev.forEach((p) => {
+          const id = String(p.user_id || p.userId);
+          if (p.is_muted !== undefined) prevMuteMap.set(id, p.is_muted);
+        });
+
+        if (livekitRoomRef.current) {
+          livekitRoomRef.current.remoteParticipants.forEach((rp) => {
+            const rpId = String(rp.identity);
+            prevMuteMap.set(rpId, !rp.isMicrophoneEnabled);
+          });
+        }
+
         const localEntry = {
           id: `vp-${joinedChannelId}-${userId}`,
           channel_id: joinedChannelId,
@@ -1767,7 +1780,15 @@ export function useVoiceSession(userId, profile = null) {
             avatar_url: profile?.avatar_url || null,
           },
         };
-        const remoteOthers = activeRemote.filter((p) => String(p.user_id || p.userId) !== String(userId));
+        const remoteOthers = activeRemote
+          .filter((p) => String(p.user_id || p.userId) !== String(userId))
+          .map((p) => {
+            const pId = String(p.user_id || p.userId);
+            return {
+              ...p,
+              is_muted: prevMuteMap.has(pId) ? prevMuteMap.get(pId) : (p.is_muted ?? true),
+            };
+          });
         return [localEntry, ...remoteOthers];
       });
     } catch (err) {
@@ -1922,6 +1943,28 @@ export function useVoiceSession(userId, profile = null) {
               } else {
                 setRemoteCameraStates((prev) => ({ ...prev, [pId]: false }));
               }
+            }
+          });
+
+          room.on(RoomEvent.TrackMuted, (publication, participant) => {
+            if (publication?.kind === Track.Kind.Audio) {
+              const pUserId = String(participant.identity);
+              setParticipants((prev) =>
+                prev.map((p) =>
+                  String(p.user_id || p.userId) === pUserId ? { ...p, is_muted: true } : p
+                )
+              );
+            }
+          });
+
+          room.on(RoomEvent.TrackUnmuted, (publication, participant) => {
+            if (publication?.kind === Track.Kind.Audio) {
+              const pUserId = String(participant.identity);
+              setParticipants((prev) =>
+                prev.map((p) =>
+                  String(p.user_id || p.userId) === pUserId ? { ...p, is_muted: false } : p
+                )
+              );
             }
           });
 

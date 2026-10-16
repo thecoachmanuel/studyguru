@@ -21,29 +21,22 @@ export default function ChatterRoomsView({
   const [creatingSpace, setCreatingSpace] = useState(false);
 
   // Dynamically compute all interests including custom categories created by users
+  // Dynamically compute user-created topics if any exist, without hardcoded presets
   const interests = useMemo(() => {
-    const base = ['All', 'Computer Science', 'Mathematics', 'Biology', 'Medicine', 'Physics', 'Law', 'General Study'];
     const custom = new Set();
     [...communityRooms, ...servers].forEach((s) => {
       const cat = s?.category?.trim();
-      if (cat && cat !== 'All' && !base.includes(cat)) {
+      if (cat && cat !== 'All') {
         custom.add(cat);
       }
     });
-    return [...base, ...Array.from(custom)];
+    const customList = Array.from(custom);
+    return customList.length > 0 ? ['All', ...customList] : [];
   }, [communityRooms, servers]);
 
-  // Categorize study servers dynamically
+  // Only return the subject/topic if explicitly set by the room creator
   const getServerCategory = (server) => {
-    if (server.category && server.category !== 'All') return server.category;
-    const name = (server.name || '').toLowerCase();
-    if (name.includes('math') || name.includes('calc') || name.includes('algebra')) return 'Mathematics';
-    if (name.includes('code') || name.includes('cs') || name.includes('comp') || name.includes('algo') || name.includes('prog')) return 'Computer Science';
-    if (name.includes('bio') || name.includes('med')) return 'Medicine';
-    if (name.includes('chem')) return 'Biology';
-    if (name.includes('phys')) return 'Physics';
-    if (name.includes('law')) return 'Law';
-    return server.category || 'General Study';
+    return server?.category ? String(server.category).trim() : '';
   };
 
   const [copiedServerId, setCopiedServerId] = useState(null);
@@ -52,9 +45,7 @@ export default function ChatterRoomsView({
   const [createSpaceModalOpen, setCreateSpaceModalOpen] = useState(false);
   const [userFollowers, setUserFollowers] = useState(0);
   const [newSpaceTitle, setNewSpaceTitle] = useState('');
-  const [newSpaceCategory, setNewSpaceCategory] = useState('Computer Science');
-  const [isCustomCategory, setIsCustomCategory] = useState(false);
-  const [customCategory, setCustomCategory] = useState('');
+  const [newSpaceTopic, setNewSpaceTopic] = useState('');
   const [liveVoiceCounts, setLiveVoiceCounts] = useState({});
   const [liveSpeakersByChannel, setLiveSpeakersByChannel] = useState({});
 
@@ -227,9 +218,7 @@ export default function ChatterRoomsView({
     e.preventDefault();
     if (!newSpaceTitle.trim() || creatingSpace) return;
 
-    const finalCategory = isCustomCategory
-      ? (customCategory.trim() || 'General Study')
-      : newSpaceCategory;
+    const finalCategory = newSpaceTopic.trim() || null;
 
     setCreatingSpace(true);
     try {
@@ -346,8 +335,8 @@ export default function ChatterRoomsView({
             serverId: srv.id,
             serverName: srv.name,
             title: srv.is_audio_space ? srv.name : `${srv.name} – ${ch.name}`,
-            category: srv.category || getServerCategory(srv),
-            tags: [`#${(srv.category || getServerCategory(srv)).replace(/\s+/g, '')}`, '#LiveStudy'],
+            category: srv.category ? String(srv.category).trim() : null,
+            tags: srv.category ? [`#${String(srv.category).trim().replace(/\s+/g, '')}`, '#LiveStudy'] : ['#LiveStudy'],
             listenersCount: liveCount,
             isLiveNow: liveCount > 0,
             speakers: liveSpeakers,
@@ -481,30 +470,32 @@ export default function ChatterRoomsView({
           </button>
         </div>
 
-        {/* Academic Subject Pills */}
-        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 10, marginBottom: 14, scrollbarWidth: 'none' }}>
-          {interests.map((cat) => (
-            <button
-              key={cat}
-              type="button"
-              onClick={() => setSelectedInterest(cat)}
-              style={{
-                padding: '6px 14px',
-                borderRadius: 20,
-                background: selectedInterest === cat ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.04)',
-                border: selectedInterest === cat ? '1px solid rgba(255, 255, 255, 0.25)' : '1px solid rgba(255, 255, 255, 0.06)',
-                color: selectedInterest === cat ? '#fff' : 'var(--chatter-light-text)',
-                fontSize: 13,
-                fontWeight: selectedInterest === cat ? 700 : 500,
-                whiteSpace: 'nowrap',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              #{cat}
-            </button>
-          ))}
-        </div>
+        {/* Academic Subject Pills (only rendered if user-created topics exist) */}
+        {interests.length > 1 && (
+          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 10, marginBottom: 14, scrollbarWidth: 'none' }}>
+            {interests.map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setSelectedInterest(cat)}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 20,
+                  background: selectedInterest === cat ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.04)',
+                  border: selectedInterest === cat ? '1px solid rgba(255, 255, 255, 0.25)' : '1px solid rgba(255, 255, 255, 0.06)',
+                  color: selectedInterest === cat ? '#fff' : 'var(--chatter-light-text)',
+                  fontSize: 13,
+                  fontWeight: selectedInterest === cat ? 700 : 500,
+                  whiteSpace: 'nowrap',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                #{cat}
+              </button>
+            ))}
+          </div>
+        )}
 
         {filteredServers.length === 0 ? (
           <div
@@ -619,9 +610,11 @@ export default function ChatterRoomsView({
                             </span>
                           )}
                         </div>
-                        <div style={{ fontSize: 13, color: 'var(--chatter-hashtag)', fontWeight: 600, marginTop: 2 }}>
-                          #{getServerCategory(server)}
-                        </div>
+                        {getServerCategory(server) ? (
+                          <div style={{ fontSize: 13, color: 'var(--chatter-hashtag)', fontWeight: 600, marginTop: 2 }}>
+                            #{getServerCategory(server)}
+                          </div>
+                        ) : null}
                       </div>
                     </div>
 
@@ -1197,82 +1190,27 @@ export default function ChatterRoomsView({
               </div>
 
               <div style={{ marginBottom: 22 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <label style={{ fontSize: 14, fontWeight: 700, color: '#b5b5b5' }}>
-                    Subject Category
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setIsCustomCategory((prev) => !prev)}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: 'var(--chatter-primary)',
-                      fontSize: 13,
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      padding: 0,
-                    }}
-                  >
-                    {isCustomCategory ? '← Choose from list' : '+ Type custom category'}
-                  </button>
-                </div>
-
-                {!isCustomCategory ? (
-                  <select
-                    value={newSpaceCategory}
-                    onChange={(e) => {
-                      if (e.target.value === '__custom__') {
-                        setIsCustomCategory(true);
-                      } else {
-                        setNewSpaceCategory(e.target.value);
-                      }
-                    }}
-                    disabled={creatingSpace}
-                    style={{
-                      width: '100%',
-                      padding: '12px 14px',
-                      borderRadius: 14,
-                      background: 'var(--chatter-black)',
-                      border: '1px solid rgba(255, 255, 255, 0.12)',
-                      color: '#fff',
-                      fontSize: 16,
-                      outline: 'none',
-                      boxSizing: 'border-box',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <option value="Computer Science">Computer Science</option>
-                    <option value="Mathematics">Mathematics</option>
-                    <option value="Medicine">Medicine</option>
-                    <option value="Biology">Biology</option>
-                    <option value="Physics">Physics</option>
-                    <option value="Law">Law</option>
-                    <option value="General Study">General Study</option>
-                    <option value="__custom__">✏️ Type custom category...</option>
-                  </select>
-                ) : (
-                  <input
-                    type="text"
-                    placeholder="e.g. Organic Chemistry, Trauma, Architecture..."
-                    value={customCategory}
-                    onChange={(e) => setCustomCategory(e.target.value)}
-                    disabled={creatingSpace}
-                    autoFocus
-                    required
-                    style={{
-                      width: '100%',
-                      padding: '12px 14px',
-                      borderRadius: 14,
-                      background: 'var(--chatter-black)',
-                      border: '1.5px solid var(--chatter-primary)',
-                      color: '#fff',
-                      fontSize: 16,
-                      outline: 'none',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                )}
+                <label style={{ display: 'block', fontSize: 14, fontWeight: 700, color: '#b5b5b5', marginBottom: 8 }}>
+                  Topic / Subject <span style={{ opacity: 0.6, fontWeight: 500 }}>(Optional)</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Organic Chemistry, Algorithms (Optional)"
+                  value={newSpaceTopic}
+                  onChange={(e) => setNewSpaceTopic(e.target.value)}
+                  disabled={creatingSpace}
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    borderRadius: 14,
+                    background: 'var(--chatter-black)',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    color: '#fff',
+                    fontSize: 16,
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
               </div>
 
               <div style={{ display: 'flex', gap: 10 }}>
