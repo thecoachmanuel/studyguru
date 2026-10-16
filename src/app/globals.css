@@ -9794,9 +9794,9 @@ body {
 }
 
 .chatter-desktop-right-sidebar {
-  width: 350px;
-  min-width: 320px;
-  max-width: 380px;
+  width: 410px;
+  min-width: 375px;
+  max-width: 450px;
   height: 100dvh;
   position: sticky;
   top: 0;
@@ -9805,11 +9805,18 @@ body {
   -ms-overflow-style: none;
   background: var(--chatter-black);
   border-left: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 18px 20px 48px;
+  padding: 18px 22px 48px;
   display: flex;
   flex-direction: column;
   gap: 18px;
   flex-shrink: 0;
+}
+
+@media (min-width: 1440px) {
+  .chatter-desktop-right-sidebar {
+    width: 440px;
+    max-width: 480px;
+  }
 }
 
 .chatter-desktop-right-sidebar::-webkit-scrollbar {
