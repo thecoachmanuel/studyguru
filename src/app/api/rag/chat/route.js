@@ -212,12 +212,12 @@ export async function POST(req) {
       docTitle = clientDocTitle;
     }
 
-function extractFastRelevantPassages(text, query, maxChars = 3500) {
+function extractFastRelevantPassages(text, query, maxChars = 15000) {
   if (!text || text.length <= maxChars) return text || '';
   const queryWords = query.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length > 2);
   
-  const paragraphs = text.split(/\n\s*\n/).map((p) => p.trim()).filter((p) => p.length > 25);
-  if (paragraphs.length <= 2) {
+  const paragraphs = text.split(/\n\s*\n/).map((p) => p.trim()).filter((p) => p.length > 20);
+  if (paragraphs.length <= 4) {
     return text.slice(0, maxChars);
   }
 
@@ -227,12 +227,16 @@ function extractFastRelevantPassages(text, query, maxChars = 3500) {
     for (const w of queryWords) {
       if (pLower.includes(w)) score += 3;
     }
-    if (idx === 0) score += 2; // Keep introductory overview
+    // Strongly preserve introductory chapters, syllabus, and outline (first 2 paragraphs)
+    if (idx === 0) score += 4;
+    if (idx === 1) score += 2;
     return { p, score, idx };
   });
 
   scored.sort((a, b) => b.score - a.score);
-  const selected = scored.slice(0, 4);
+  // Pick top 12 relevant paragraphs to cover the document deeply
+  const selected = scored.slice(0, 12);
+  // Re-sort chronologically so natural document flow is maintained
   selected.sort((a, b) => a.idx - b.idx);
   
   const combined = selected.map((s) => s.p).join('\n\n');
@@ -255,7 +259,7 @@ function extractFastRelevantPassages(text, query, maxChars = 3500) {
             query: chunkSearchQuery,
             documentId: doc?._id?.toString() || documentId,
             userId,
-            limit: isTeachingQuery ? 5 : 3,
+            limit: isTeachingQuery ? 6 : 4,
           }),
           new Promise((resolve) => setTimeout(() => resolve([]), 400)),
         ]);
@@ -269,7 +273,7 @@ function extractFastRelevantPassages(text, query, maxChars = 3500) {
     }
 
     if (fullDocumentText) {
-      const relevantPassages = extractFastRelevantPassages(fullDocumentText, message, isTeachingQuery ? 4000 : 3200);
+      const relevantPassages = extractFastRelevantPassages(fullDocumentText, message, isTeachingQuery ? 18000 : 14000);
       contextText += `Document Material & Key Insights:\n${relevantPassages}\n\n`;
     } else if (contextChunks.length > 0) {
       contextText += `Relevant Document Passages:\n${contextChunks.join('\n\n---\n\n')}`;
@@ -287,6 +291,7 @@ function extractFastRelevantPassages(text, query, maxChars = 3500) {
       .join('\n\n');
 
     // 5. Personal Tutor System Prompt (Grounded in doc if present, versatile academic wisdom overall)
+    const isGuidedMode = !isFreeChat && (body.mode === 'guided' || Boolean(docTitle));
     const hasActiveDoc = !isFreeChat && Boolean(docTitle && (fullDocumentText || contextChunks.length > 0));
 
     const systemPrompt = `You are StudyGuru AI (AI Guru), a brilliant, empathetic, and encouraging Personal Academic Tutor on StudyCord.
@@ -295,7 +300,17 @@ Your mission is to guide the student through their academic questions using an i
 ${isFreeChat ? `FREE CHAT MODE (UNRESTRICTED ACADEMIC TUTOR):
 • You are operating in FREE CHAT MODE. Do NOT read, search, cite, or assume any uploaded document or notes.
 • Freely answer the student's questions across ALL subjects: Computer Science, Software Engineering, Mathematics, Physics, Chemistry, Biology, Medicine, History, Philosophy, Literature, Languages, Code Debugging, Logic, or Exam Preparation.
-• Provide deep, direct, crystal-clear answers from first principles without referring to any document.` : hasActiveDoc ? `ACTIVE STUDY DOCUMENT & TOPIC:
+• Provide deep, direct, crystal-clear answers from first principles without referring to any document.` : isGuidedMode ? `GUIDED STUDY TUTORING MODE (STRICT DOCUMENT-GROUNDED LEARNING):
+• Target Document: "${docTitle || 'Uploaded Study Notes'}"
+• PRIMARY DIRECTIVE: Actively and strictly guide the student through their study journey based on their uploaded document:
+  1. Base your teachings, chapter walk-throughs, definitions, formulas, and examples directly on the contents and structure of "${docTitle || 'the uploaded document'}".
+  2. Walk the student step-by-step through the topics covered in their uploaded document. Never jump ahead or wander off into unrelated external trivia unless the student asks.
+  3. When explaining concepts, quote or reference the specific sections, terms, and principles from the document so the student can easily follow along with their notes.
+  4. Break the document into clear, digestible learning milestones: outline the core sections, explain the current section thoroughly, and check the student's understanding before moving to the next section.
+  5. If the student asks "guide me", "start guided study", "teach me", or "overview", provide a structured syllabus/roadmap directly from their document, teach the first foundational concept, and offer actionable next steps.
+
+Document Material:
+${contextText || (docTitle ? `Document: ${docTitle}. (Ground your tutoring strictly in this material).` : 'Please upload your study document or lecture notes to begin guided study!')}` : hasActiveDoc ? `ACTIVE STUDY DOCUMENT & TOPIC:
 • Subject Document: "${docTitle}"
 • TUTORING DIRECTIVE:
   - If the student's question relates to "${docTitle}", anchor your explanations, analogies, and examples firmly in the document material below.
@@ -303,7 +318,7 @@ ${isFreeChat ? `FREE CHAT MODE (UNRESTRICTED ACADEMIC TUTOR):
 
 Document Context:
 ${contextText}` : `ACADEMIC TUTORING CONTEXT:
-• General Academic Mode: Answer any subject question (STEM, Coding, Medicine, Humanities, Languages, or Exam Prep) with crystal-clear explanations, intuitive analogies, and step-by-step guidance.`}
+• General Academic Mode: Answer any subject question (STEM, Coding, Medicine, Humanities, Languages, or Exam Prep) with crystal-clear explanations, intuitive analogies, and step-by-step guidance.`};
 
 CORE TUTORING PEDAGOGY & ADAPTIVE PACING:
 1. ADAPTIVE RESPONSE LENGTH & DYNAMIC DEPTH:

@@ -277,14 +277,28 @@ export default function ChatterGuruView({
     }
   }, [guidedMessages]);
 
-  // Load real user documents on mount
+  // Load real user documents on mount (cached for offline PWA & online persistence)
   useEffect(() => {
+    try {
+      const cached = localStorage.getItem('studycord_cached_docs');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setUploadedDocs(parsed);
+          setSelectedDocId(parsed[0].doc_id || parsed[0].id);
+        }
+      }
+    } catch {}
+
     fetch('/api/rag/documents')
       .then((r) => (r.ok ? r.json() : []))
       .then((docs) => {
         if (Array.isArray(docs) && docs.length > 0) {
           setUploadedDocs(docs);
           setSelectedDocId(docs[0].doc_id || docs[0].id);
+          try {
+            localStorage.setItem('studycord_cached_docs', JSON.stringify(docs.slice(0, 10)));
+          } catch {}
         }
       })
       .catch((err) => console.warn('Documents load notice:', err));
@@ -392,7 +406,13 @@ export default function ChatterGuruView({
         status: 'Indexed & Ready',
       };
 
-      setUploadedDocs((prev) => [newDoc, ...prev]);
+      setUploadedDocs((prev) => {
+        const updated = [newDoc, ...prev];
+        try {
+          localStorage.setItem('studycord_cached_docs', JSON.stringify(updated.slice(0, 10)));
+        } catch {}
+        return updated;
+      });
       setSelectedDocId(newDoc.doc_id);
 
       // Add assistant confirmation message in chat
@@ -804,6 +824,7 @@ export default function ChatterGuruView({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           documentId: targetDocId,
+          documentText: activeDoc?.extractedText || activeDoc?.extracted_text || activeDoc?.text || '',
           count,
           topic: targetDocName,
           regenerate: true,
@@ -1058,9 +1079,10 @@ export default function ChatterGuruView({
 
     try {
       const activeDoc = isFreeChat ? null : (uploadedDocs.find((d) => (d.doc_id || d.id) === selectedDocId) || (selectedDocId === null ? uploadedDocs[0] : null));
-      const docText = isFreeChat ? '' : (activeDoc?.extractedText ? activeDoc.extractedText.slice(0, 5000) : (uploadedDocs[0]?.extractedText ? uploadedDocs[0].extractedText.slice(0, 5000) : ''));
-      const docTitle = isFreeChat ? '' : (activeDoc?.filename || activeDoc?.title || '');
-      const docIdToSend = isFreeChat ? null : (selectedDocId || activeDoc?.doc_id || activeDoc?.id || null);
+      const rawActiveDocText = activeDoc?.extractedText || activeDoc?.extracted_text || activeDoc?.text || uploadedDocs[0]?.extractedText || uploadedDocs[0]?.extracted_text || uploadedDocs[0]?.text || '';
+      const docText = isFreeChat ? '' : rawActiveDocText.slice(0, 18000);
+      const docTitle = isFreeChat ? '' : (activeDoc?.filename || activeDoc?.title || uploadedDocs[0]?.filename || uploadedDocs[0]?.title || '');
+      const docIdToSend = isFreeChat ? null : (selectedDocId || activeDoc?.doc_id || activeDoc?.id || uploadedDocs[0]?.doc_id || uploadedDocs[0]?.id || null);
 
       const baseHistory = historyToSlice.length > 0 ? historyToSlice : (sendMode === 'free' ? freeMessages : guidedMessages);
       const targetSpaceHistory = baseHistory
@@ -2073,27 +2095,24 @@ export default function ChatterGuruView({
         })}
 
         {loading && (
-          <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-start', paddingLeft: 4 }}>
             <div
+              className="chatter-ai-typing-bubble"
               style={{
                 padding: '12px 18px',
-                borderRadius: '20px 20px 20px 4px',
+                borderRadius: '18px 18px 18px 4px',
                 background: 'var(--chatter-sheet)',
-                color: 'var(--chatter-primary)',
-                fontSize: 14,
-                fontWeight: 600,
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
-                gap: 8,
+                gap: 6,
                 border: '1px solid rgba(255, 255, 255, 0.08)',
+                boxShadow: '0 2px 12px rgba(0, 0, 0, 0.25)',
               }}
+              aria-label="AI is generating response"
             >
-              <span className="chatter-audiospace-live-dot" />
-              <span>
-                {aiMode === 'free'
-                  ? 'StudyCord AI is thinking & composing response...'
-                  : 'StudyCord AI is analyzing notes & synthesizing response...'}
-              </span>
+              <span className="chatter-typing-dot" style={{ animationDelay: '0ms' }} />
+              <span className="chatter-typing-dot" style={{ animationDelay: '200ms' }} />
+              <span className="chatter-typing-dot" style={{ animationDelay: '400ms' }} />
             </div>
           </div>
         )}
