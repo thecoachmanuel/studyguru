@@ -402,7 +402,7 @@ export default function ChatterNotificationsModal({
                             }}
                           />
                           <h4 style={{ fontSize: 15, fontWeight: 800, margin: 0, color: '#fff' }}>
-                            {space.channelName || space.serverName || 'Live Study Space'}
+                            {space.serverName || space.channelName || 'Study Room'}
                           </h4>
                           <span
                             style={{
@@ -418,7 +418,7 @@ export default function ChatterNotificationsModal({
                           </span>
                         </div>
                         <div style={{ fontSize: 13, color: 'var(--chatter-light-text)' }}>
-                          {space.serverName && space.serverName !== space.channelName ? `${space.serverName} · ` : ''}
+                          {space.channelName && space.channelName !== space.serverName ? `${space.channelName} · ` : ''}
                           <strong style={{ color: '#fff' }}>{space.activeCount} scholar{space.activeCount > 1 ? 's' : ''}</strong> in space
                           {space.speakers && space.speakers.length > 0 && (
                             <span> (e.g. {space.speakers.slice(0, 2).map((s) => s.name).join(', ')})</span>

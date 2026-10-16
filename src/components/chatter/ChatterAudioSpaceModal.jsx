@@ -95,28 +95,47 @@ export default function ChatterAudioSpaceModal({
       remoteStreams[id]
   );
 
-  // Deduplicate participants rigorously by unique normalized string ID
+  const getModalBaseUserId = (raw) => {
+    if (!raw) return '';
+    let id = '';
+    if (typeof raw === 'object' && raw !== null) {
+      id = raw.user_id || raw.userId || raw.identity || raw.profiles?.id || raw.id || '';
+    } else {
+      id = raw;
+    }
+    let str = String(id).trim();
+    if (str.startsWith('vp-')) {
+      const withoutVp = str.slice(3);
+      const lastDash = withoutVp.lastIndexOf('-');
+      str = lastDash !== -1 ? withoutVp.slice(lastDash + 1) : withoutVp;
+    }
+    if (str.includes('__')) {
+      str = str.split('__')[0];
+    }
+    return str.trim();
+  };
+
+  // Deduplicate participants rigorously by unique canonical user ID
   const participantsMap = new Map();
-  const effectiveOwnerId = roomOwnerId ? String(roomOwnerId).trim() : null;
-  const isHostMe = effectiveOwnerId ? String(userId || '').trim() === effectiveOwnerId : false;
+  const myBaseId = getModalBaseUserId(userId);
+  const effectiveOwnerId = roomOwnerId ? getModalBaseUserId(roomOwnerId) : null;
+  const isHostMe = effectiveOwnerId ? myBaseId === effectiveOwnerId : false;
 
   for (const p of participants) {
     if (!p) continue;
-
-    let normId = '';
-    if (p.user_id) {
-      normId = String(p.user_id).trim();
-    } else if (p.userId) {
-      normId = String(p.userId).trim();
-    } else if (p.profiles?.id) {
-      normId = String(p.profiles.id).trim();
-    } else if (typeof p.id === 'string') {
-      normId = p.id.startsWith('vp-') ? p.id.split('-').pop().trim() : p.id.trim();
-    }
-
+    const normId = getModalBaseUserId(p);
     if (!normId) continue;
 
-    const isMe = normId === String(userId || '').trim();
+    const isMe = normId === myBaseId;
+
+    // Never show the same user twice in the call room
+    if (participantsMap.has(normId)) {
+      if (isMe && !participantsMap.get(normId).isLocal) {
+        // Local participant instance takes precedence
+      } else {
+        continue;
+      }
+    }
 
     const rawName =
       p.name ||
@@ -156,17 +175,16 @@ export default function ChatterAudioSpaceModal({
   }
 
   const isActuallyJoined = Boolean(voiceSession?.joinedChannelId);
-  const myIdStr = String(userId || '').trim();
-  if (isActuallyJoined && myIdStr && !participantsMap.has(myIdStr)) {
-    const isMeHost = effectiveOwnerId ? myIdStr === effectiveOwnerId : false;
-    const mySpeaking = !isMuted && Boolean(voiceSession?.isSpeaking || activeSpeakerIds.has(myIdStr));
-    participantsMap.set(myIdStr, {
-      userId: myIdStr,
+  if (isActuallyJoined && myBaseId && !participantsMap.has(myBaseId)) {
+    const isMeHost = effectiveOwnerId ? myBaseId === effectiveOwnerId : false;
+    const mySpeaking = !isMuted && Boolean(voiceSession?.isSpeaking || activeSpeakerIds.has(myBaseId));
+    participantsMap.set(myBaseId, {
+      userId: myBaseId,
       name: profile?.full_name || profile?.name || 'You',
       avatar_url: profile?.avatar_url || profile?.image || null,
       speaking: mySpeaking,
       isMuted,
-      audioLevel: audioLevels[myIdStr] || 0,
+      audioLevel: audioLevels[myBaseId] || 0,
       isLocal: true,
       isHost: isMeHost,
     });
@@ -307,10 +325,10 @@ export default function ChatterAudioSpaceModal({
               overflow: 'hidden',
             }}
           >
-            {channelName || 'Live Study Space'}
+            {serverName || channelName || 'Study Room'}
           </h2>
           <div style={{ fontSize: 13, color: 'var(--chatter-primary)', fontWeight: 600 }}>
-            {serverName || 'Study Room'} · 🔴 LIVE SPACE
+            {channelName && channelName !== serverName ? `${channelName} · ` : ''}🔴 LIVE SPACE
           </div>
         </div>
 

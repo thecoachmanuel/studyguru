@@ -44,7 +44,26 @@ export default function ChatterFloatingCallBar({
     }
   }, [activeScreenStream]);
 
-  const participantCount = Math.max(1, (participants?.length || 0) + (voiceSession?.joinedChannelId ? 1 : 0));
+  const uniqueUserIds = new Set();
+  (participants || []).forEach((p) => {
+    let raw = p?.user_id || p?.userId || p?.profiles?.id || p?.id;
+    if (typeof raw === 'string') {
+      if (raw.startsWith('vp-')) {
+        const withoutVp = raw.slice(3);
+        const lastDash = withoutVp.lastIndexOf('-');
+        raw = lastDash !== -1 ? withoutVp.slice(lastDash + 1) : withoutVp;
+      }
+      if (raw.includes('__')) raw = raw.split('__')[0];
+    }
+    const bId = String(raw || '').trim();
+    if (bId) uniqueUserIds.add(bId);
+  });
+  if (voiceSession?.joinedChannelId && voiceSession?.userId) {
+    let selfId = String(voiceSession.userId).trim();
+    if (selfId.includes('__')) selfId = selfId.split('__')[0];
+    if (selfId) uniqueUserIds.add(selfId);
+  }
+  const participantCount = Math.max(1, uniqueUserIds.size);
   const isSomeoneSpeaking = activeSpeakerIds && activeSpeakerIds.size > 0;
 
   return (
@@ -179,7 +198,7 @@ export default function ChatterFloatingCallBar({
               textOverflow: 'ellipsis',
             }}
           >
-            <span>{channelName || serverName || 'Live Study Space'}</span>
+            <span>{serverName || channelName || 'Study Room'}</span>
             {isScreenSharing && (
               <span
                 style={{
@@ -221,11 +240,17 @@ export default function ChatterFloatingCallBar({
               marginTop: 1,
             }}
           >
+            {channelName && channelName !== serverName && (
+              <>
+                <span style={{ color: '#fff', fontWeight: 600 }}>{channelName}</span>
+                <span>·</span>
+              </>
+            )}
             <span style={{ color: isSomeoneSpeaking ? 'var(--chatter-primary)' : 'var(--chatter-light-text)' }}>
               {isSomeoneSpeaking ? '🎙️ Speaking now' : 'Connected to Call'}
             </span>
             <span>·</span>
-            <span>{participantCount} in space</span>
+            <span>{participantCount} in room</span>
           </div>
         </div>
       </div>

@@ -31,12 +31,17 @@ export async function POST(req) {
       );
     }
 
-    const userId = session.user.id || body.participantId || `user-${Date.now()}`;
-    const identity = String(userId);
+    const baseUserId = String(session.user.id || body.participantId || `user-${Date.now()}`).trim();
+    const deviceId = String(body.deviceId || '').trim();
+    // Unique participant connection identity prevents LiveKit duplicate-identity kicks
+    // when a user tests with the same account across desktop and mobile simultaneously.
+    const identity = deviceId ? `${baseUserId}__${deviceId}` : baseUserId;
     const participantName = String(body.participantName || session.user.name || session.user.email?.split('@')[0] || 'Student').trim();
     
     const metadata = {
-      userId: identity,
+      userId: baseUserId,
+      baseUserId,
+      deviceId: deviceId || 'default',
       name: participantName,
       image: session.user.image || body.avatar || '',
       serverId: body.serverId || null,
@@ -70,7 +75,8 @@ export async function POST(req) {
           roomName,
           channelId: roomName,
           channelName: body.channelName || roomName,
-          userId: identity,
+          userId: baseUserId,
+          connectionId: identity,
           username: participantName,
           avatar: session.user.image || '',
           timestamp: new Date().toISOString(),
@@ -85,6 +91,7 @@ export async function POST(req) {
       url: livekitUrl,
       roomName,
       identity,
+      baseUserId,
       name: participantName,
       configured: true,
     });

@@ -854,8 +854,9 @@ export default function DashboardPage() {
       if (!payload) return;
       if (String(payload.caller?.id) === String(user.id)) return;
       playSpaceTone();
-      const callerName = payload.caller?.full_name || payload.caller?.username || payload.caller?.name || 'Study Partner';
-      showToast(`🎙️ ${callerName} started a live study space!`);
+      const callerName = payload.caller?.full_name || payload.caller?.username || payload.caller?.name || 'A classmate';
+      const roomName = payload.serverName || payload.channelName || servers.find((s) => String(s.id) === String(payload.serverId))?.name || 'Study Room';
+      showToast(`🎙️ ${callerName} started a live space in ${roomName}!`);
     };
 
     const handleFollowChanged = (payload) => {
@@ -1203,6 +1204,10 @@ export default function DashboardPage() {
     mobilePanelView === 'chat'
   );
   const activeVoiceChannelName = voiceSession?.joinedChannelName || activeChannelName;
+  const resolvedVoiceServerName =
+    activeServerName ||
+    servers.find((s) => String(s.id) === String(voiceSession?.joinedServerId))?.name ||
+    'Study Room';
 
   // Responsive Layout Classes
   const shellClasses = [
@@ -1610,7 +1615,7 @@ export default function DashboardPage() {
         <ChatterAudioSpaceModal
           voiceSession={voiceSession}
           channelName={activeVoiceChannelName || activeChannelName}
-          serverName={activeServerName}
+          serverName={resolvedVoiceServerName}
           roomOwnerId={
             activeServer?.owner_id ||
             servers.find((s) => s.id === (voiceSession?.joinedServerId || activeServerId))?.owner_id ||
@@ -1627,7 +1632,7 @@ export default function DashboardPage() {
         <ChatterFloatingCallBar
           voiceSession={voiceSession}
           channelName={activeVoiceChannelName || activeChannelName}
-          serverName={activeServerName}
+          serverName={resolvedVoiceServerName}
           onExpand={() => setAudioSpaceModalOpen(true)}
           onLeave={() => leaveVoiceSession?.()}
         />

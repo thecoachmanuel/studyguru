@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { getDatabase } from '@/lib/mongodb';
+import { getDatabase, safeObjectId } from '@/lib/mongodb';
 import { getServerVoiceCounts } from '@/lib/voiceStore';
 
 export async function GET(req) {
@@ -24,9 +24,29 @@ export async function GET(req) {
 
     if (activeChannelIds.length > 0) {
       // Find server & channel metadata for these active channels
+      const channelDocs = await db
+        .collection('channels')
+        .find({
+          $or: [
+            { id: { $in: activeChannelIds } },
+            { _id: { $in: activeChannelIds.map(safeObjectId).filter(Boolean) } },
+          ],
+        })
+        .toArray();
+
+      const serverIdsFromChannels = channelDocs
+        .map((c) => c.server_id)
+        .filter(Boolean);
+
       const servers = await db
         .collection('servers')
-        .find({ 'channels.id': { $in: activeChannelIds } })
+        .find({
+          $or: [
+            { 'channels.id': { $in: activeChannelIds } },
+            { id: { $in: serverIdsFromChannels } },
+            { _id: { $in: serverIdsFromChannels.map(safeObjectId).filter(Boolean) } },
+          ],
+        })
         .toArray();
 
       const channelMap = new Map();
@@ -35,24 +55,41 @@ export async function GET(req) {
           if (activeChannelIds.includes(ch.id)) {
             channelMap.set(ch.id, {
               channelId: ch.id,
-              channelName: ch.name,
-              channelType: ch.type,
-              serverId: srv.id,
-              serverName: srv.name,
-              category: srv.category || srv.subject || 'General Study',
+              channelName: ch.name || 'Study Room',
+              channelType: ch.type || 'voice',
+              serverId: srv.id || String(srv._id),
+              serverName: srv.name || 'Study Room',
+              category: srv.category || srv.subject || 'Study',
             });
           }
         });
       });
 
+      channelDocs.forEach((ch) => {
+        const cId = ch.id || String(ch._id);
+        if (!channelMap.has(cId)) {
+          const srv = servers.find(
+            (s) => String(s.id) === String(ch.server_id) || String(s._id) === String(ch.server_id)
+          );
+          channelMap.set(cId, {
+            channelId: cId,
+            channelName: ch.name || 'Study Room',
+            channelType: ch.type || 'voice',
+            serverId: ch.server_id,
+            serverName: srv?.name || ch.name || 'Study Room',
+            category: srv?.category || 'Study',
+          });
+        }
+      });
+
       activeSpaces = activeChannelIds.map((cId) => {
         const meta = channelMap.get(cId) || {
           channelId: cId,
-          channelName: 'Live Study Space',
+          channelName: 'Study Room',
           channelType: 'voice',
           serverId: null,
-          serverName: 'Study Group',
-          category: 'Live Voice',
+          serverName: 'Study Room',
+          category: 'Study',
         };
         return {
           ...meta,
