@@ -1334,7 +1334,7 @@ export default function DashboardPage() {
       {/* If chatterTab === 'rooms', render ChatterRoomsView with desktop right sidebar or active room chat */}
       {chatterTab === 'rooms' && (
         <div style={{ flex: 1, display: 'flex', height: '100dvh', overflow: 'hidden', background: 'var(--chatter-black)' }}>
-          <div className={`chatter-main-column ${activeChannelId && !activePartnerUser ? 'chatter-chats-list-pane--with-active' : ''}`}>
+          <div className={`chatter-main-column ${activeChannelId && !activePartnerUser && activeChannelType !== 'voice' ? 'chatter-chats-list-pane--with-active' : ''}`}>
             <div className="chatter-center-container">
               <ChatterTopBar
                 onOpenNotifications={() => setNotificationsModalOpen(true)}
@@ -1372,12 +1372,13 @@ export default function DashboardPage() {
                 onCreateServer={() => setServerActionModal('create')}
                 onJoinServer={() => setServerActionModal('join')}
                 onJoinVoiceChannel={(sId, cId, cName) => {
-                  setActiveServerId(sId);
-                  setActiveChannelId(cId);
-                  setActiveChannelName(cName);
+                  if (sId) setActiveServerId(sId);
+                  setActiveChannelId(null);
+                  setActivePartnerUser(null);
+                  setActiveChannelName(cName || 'Study Room');
                   setActiveChannelType('voice');
                   setAudioSpaceModalOpen(true);
-                  voiceSession?.handleJoin?.(cId, cName, sId);
+                  voiceSession?.handleJoin?.(cId, cName || 'Study Room', sId);
                 }}
                 isJoinedInVoiceRoom={isJoinedInVoiceRoom}
                 activeVoiceChannelName={activeVoiceChannelName}
@@ -1385,7 +1386,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {activeChannelId && !activePartnerUser ? (
+          {activeChannelId && !activePartnerUser && activeChannelType !== 'voice' ? (
             <div className="chatter-chat-room-pane">
               <ChatterChatRoom
                 channelId={activeChannelId}
@@ -1839,12 +1840,17 @@ export default function DashboardPage() {
         notifications={notificationsList}
         unreadCount={unreadNotificationsCount}
         onJoinSpace={(sId, cId, cName) => {
-          if (sId) handleSelectServer(sId);
-          setActiveChannelId(cId);
-          setActiveChannelName(cName);
+          setNotificationsModalOpen(false);
+          if (sId) {
+            setActiveServerId(sId);
+          }
+          setActiveChannelId(null);
+          setActivePartnerUser(null);
+          setActiveChannelName(cName || 'Study Room');
           setActiveChannelType('voice');
+          setChatterTab('rooms');
           setAudioSpaceModalOpen(true);
-          voiceSession?.handleJoin?.(cId, cName, sId);
+          voiceSession?.handleJoin?.(cId, cName || 'Study Room', sId);
         }}
         onMarkAllRead={async () => {
           try {

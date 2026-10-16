@@ -12,7 +12,7 @@ const participantsByChannel = new Map();
 // userId -> array of pending signals [{ sender_id, receiver_id, channel_id, signal_type, signal_data, timestamp }]
 const pendingSignalsByUser = new Map();
 
-const STALE_PARTICIPANT_TIMEOUT_MS = 45000;
+const STALE_PARTICIPANT_TIMEOUT_MS = 12000;
 const SIGNAL_TTL_MS = 25000;
 
 export function getBaseUserId(raw) {
@@ -46,13 +46,25 @@ export function getChannelUniqueCount(channelId) {
   return uniqueUsers.size;
 }
 
+async function cleanupStaleDb() {
+  try {
+    const db = await getDatabase();
+    const cutoff = new Date(Date.now() - STALE_PARTICIPANT_TIMEOUT_MS).toISOString();
+    await db.collection('voice_participants').deleteMany({
+      last_seen: { $lt: cutoff }
+    });
+  } catch {}
+}
+
 function cleanupStale() {
   const now = Date.now();
+  let anyRemoved = false;
   for (const [channelId, userMap] of participantsByChannel.entries()) {
     for (const [userId, participant] of userMap.entries()) {
       const lastSeen = new Date(participant.last_seen || 0).getTime();
       if (now - lastSeen > STALE_PARTICIPANT_TIMEOUT_MS) {
         userMap.delete(userId);
+        anyRemoved = true;
       }
     }
     if (userMap.size === 0) {
@@ -69,11 +81,18 @@ function cleanupStale() {
       pendingSignalsByUser.set(userId, valid);
     }
   }
+
+  if (anyRemoved) {
+    cleanupStaleDb().catch(() => {});
+  }
 }
 
-// Periodic cleanup every 15 seconds
+// Periodic cleanup every 10 seconds
 if (typeof setInterval !== 'undefined') {
-  setInterval(cleanupStale, 15000);
+  setInterval(() => {
+    cleanupStale();
+    cleanupStaleDb().catch(() => {});
+  }, 10000);
 }
 
 export async function addOrUpdateParticipant({ channelId, serverId, user, isMuted = false }) {
@@ -229,7 +248,11 @@ export async function removeParticipant({ channelId, userId, serverId, userName 
   if (participantsByChannel.has(channelId)) {
     const channelMap = participantsByChannel.get(channelId);
     for (const [key, existing] of channelMap.entries()) {
-      if (getBaseUserId(key) === sUserId || getBaseUserId(existing?.user_id) === sUserId) {
+      if (
+        getBaseUserId(key) === sUserId ||
+        getBaseUserId(existing?.user_id) === sUserId ||
+        getBaseUserId(existing?.profiles?.id) === sUserId
+      ) {
         if (existing?.profiles?.full_name || existing?.profiles?.username) {
           participantName = existing.profiles.full_name || existing.profiles.username;
         }
@@ -247,7 +270,12 @@ export async function removeParticipant({ channelId, userId, serverId, userName 
     if (!participantName) {
       const doc = await db.collection('voice_participants').findOne({
         channel_id: channelId,
-        $or: [{ user_id: sUserId }, { 'profiles.id': sUserId }],
+        $or: [
+          { user_id: sUserId },
+          { user_id: userId },
+          { 'profiles.id': sUserId },
+          { user_id: { $regex: `^${sUserId}` } },
+        ],
       });
       if (doc?.profiles?.full_name || doc?.profiles?.username) {
         participantName = doc.profiles.full_name || doc.profiles.username;
@@ -255,9 +283,17 @@ export async function removeParticipant({ channelId, userId, serverId, userName 
     }
     await db.collection('voice_participants').deleteMany({
       channel_id: channelId,
-      $or: [{ user_id: sUserId }, { 'profiles.id': sUserId }],
+      $or: [
+        { user_id: sUserId },
+        { user_id: userId },
+        { 'profiles.id': sUserId },
+        { user_id: { $regex: `^${sUserId}` } },
+      ],
     });
   } catch {}
+
+  const activeSpeakers = getActiveSpeakersList(channelId);
+  const liveCount = getChannelUniqueCount(channelId);
 
   try {
     const pusher = getPusherServer();
@@ -265,8 +301,6 @@ export async function removeParticipant({ channelId, userId, serverId, userName 
       user_id: sUserId,
       user_name: participantName || 'A scholar',
     });
-    const activeSpeakers = getActiveSpeakersList(channelId);
-    const liveCount = getChannelUniqueCount(channelId);
     if (serverId) {
       await pusher.trigger(`voice-counts-${serverId}`, 'voice-counts-updated', {
         channelId,
@@ -404,6 +438,9 @@ export async function getServerVoiceCounts(serverId) {
   try {
     const db = await getDatabase();
     const cutoff = new Date(Date.now() - STALE_PARTICIPANT_TIMEOUT_MS).toISOString();
+    // Prune stale DB participants
+    await db.collection('voice_participants').deleteMany({ last_seen: { $lt: cutoff } });
+
     const query = { last_seen: { $gte: cutoff } };
     if (serverId && serverId !== 'all') {
       query.server_id = serverId;
@@ -413,6 +450,10 @@ export async function getServerVoiceCounts(serverId) {
       .toArray();
     for (const r of rows) {
       const chanId = r.channel_id;
+      // If we have active in-memory state for this channel, trust memory to prevent ghost flicker
+      if (participantsByChannel.has(chanId)) {
+        continue;
+      }
       if (!counts[chanId]) {
         counts[chanId] = 0;
         speakers[chanId] = [];

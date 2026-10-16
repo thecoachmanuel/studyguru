@@ -134,6 +134,19 @@ export async function POST(req, { params }) {
       return NextResponse.json({ success: true });
     }
 
+    if (action === 'peer-disconnected') {
+      const targetUserId = body.targetUserId ? String(body.targetUserId) : null;
+      if (targetUserId) {
+        await removeParticipant({
+          channelId,
+          userId: targetUserId,
+          serverId,
+        });
+        return NextResponse.json({ success: true, removed: targetUserId });
+      }
+      return NextResponse.json({ error: 'targetUserId required' }, { status: 400 });
+    }
+
     if (action === 'promote-speaker') {
       const targetUserId = body.targetUserId ? String(body.targetUserId) : null;
       if (targetUserId) {

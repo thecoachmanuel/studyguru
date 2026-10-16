@@ -88,13 +88,6 @@ export default function ChatterAudioSpaceModal({
     else if (handleToggleMute) handleToggleMute();
   };
 
-  // Identify active remote screen sharer
-  const remoteScreenSharerId = Object.keys(remoteScreenShareStates).find(
-    (id) =>
-      (Boolean(remoteScreenShareStates[id]?.enabled) || remoteScreenShareStates[id] === true) &&
-      remoteStreams[id]
-  );
-
   const getModalBaseUserId = (raw) => {
     if (!raw) return '';
     let id = '';
@@ -114,6 +107,13 @@ export default function ChatterAudioSpaceModal({
     }
     return str.trim();
   };
+
+  // Identify active remote screen sharer
+  const remoteScreenSharerId = Object.keys(remoteScreenShareStates).find(
+    (id) =>
+      (Boolean(remoteScreenShareStates[id]?.enabled) || remoteScreenShareStates[id] === true) &&
+      (remoteStreams[id] || remoteStreams[getModalBaseUserId(id)])
+  );
 
   // Deduplicate participants rigorously by unique canonical user ID
   const participantsMap = new Map();
@@ -244,9 +244,9 @@ export default function ChatterAudioSpaceModal({
     : remoteScreenSharerId
     ? {
         isLocal: false,
-        stream: remoteStreams[remoteScreenSharerId],
-        userId: remoteScreenSharerId,
-        name: participantsMap.get(remoteScreenSharerId)?.name || 'Study Partner',
+        stream: remoteStreams[remoteScreenSharerId] || remoteStreams[getModalBaseUserId(remoteScreenSharerId)],
+        userId: getModalBaseUserId(remoteScreenSharerId),
+        name: participantsMap.get(getModalBaseUserId(remoteScreenSharerId))?.name || participantsMap.get(remoteScreenSharerId)?.name || 'Study Partner',
       }
     : null;
 
@@ -1238,13 +1238,22 @@ function ScreenSharePlayer({ stream, isLocal, isMaximized, onToggleMaximize, onS
     const videoElement = videoRef.current;
     if (!videoElement) return;
 
+    videoElement.setAttribute('playsinline', 'true');
+    videoElement.setAttribute('webkit-playsinline', 'true');
+
     const attachAndPlay = () => {
       if (!videoElement) return;
       if (videoElement.srcObject !== (stream || null)) {
         videoElement.srcObject = stream || null;
       }
       if (stream && stream.getTracks().length > 0) {
-        videoElement.play?.().catch(() => {});
+        const p = videoElement.play?.();
+        if (p !== undefined) {
+          p.catch(() => {
+            videoElement.muted = true;
+            videoElement.play?.().catch(() => {});
+          });
+        }
       }
     };
 
@@ -1402,6 +1411,7 @@ function ScreenSharePlayer({ stream, isLocal, isMaximized, onToggleMaximize, onS
           ref={videoRef}
           autoPlay
           playsInline
+          webkit-playsinline="true"
           muted={isLocal}
           style={{
             width: '100%',

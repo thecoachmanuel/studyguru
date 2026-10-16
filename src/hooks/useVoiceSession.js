@@ -1339,29 +1339,57 @@ export function useVoiceSession(userId, profile = null) {
   const handleStartScreenShare = useCallback(async ({ shareSystemAudio = false } = {}) => {
     if (!isJoinedRef.current || screenTrackRef.current || screenShareBusy || cameraBusy) return;
 
+    const isMobileDevice = typeof window !== 'undefined' && (
+      /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+      (navigator.maxTouchPoints > 1 && window.innerWidth < 1024)
+    );
+
     if (livekitRoomRef.current) {
       setScreenShareBusy(true);
       setScreenShareError('');
       try {
-        await livekitRoomRef.current.localParticipant.setScreenShareEnabled(true, {
-          audio: Boolean(shareSystemAudio),
-          resolution: { width: 1920, height: 1080, frameRate: 30 },
-        });
-        const screenPub = livekitRoomRef.current.localParticipant.getTrackPublication(Track.Source.ScreenShare);
-        if (screenPub?.track?.mediaStreamTrack) {
-          const screenStream = new MediaStream([screenPub.track.mediaStreamTrack]);
+        const livekitCaptureOptions = isMobileDevice
+          ? {
+              audio: false,
+              selfBrowserSurface: 'exclude',
+              surfaceSwitching: 'include',
+              systemAudio: 'exclude',
+            }
+          : {
+              audio: Boolean(shareSystemAudio),
+              resolution: { width: 1920, height: 1080, frameRate: 30 },
+              selfBrowserSurface: 'exclude',
+              surfaceSwitching: 'include',
+            };
+
+        let screenPub = null;
+        try {
+          screenPub = await livekitRoomRef.current.localParticipant.setScreenShareEnabled(true, livekitCaptureOptions);
+        } catch (initialErr) {
+          if (initialErr?.name === 'NotAllowedError' || initialErr?.name === 'AbortError') {
+            throw initialErr;
+          }
+          console.warn('[LiveKit] Retrying screen share with unconstrained mobile options:', initialErr?.message);
+          screenPub = await livekitRoomRef.current.localParticipant.setScreenShareEnabled(true, { audio: false });
+        }
+
+        const pub = screenPub || livekitRoomRef.current.localParticipant.getTrackPublication(Track.Source.ScreenShare);
+        const screenTrack = pub?.track?.mediaStreamTrack || pub?.track;
+        if (screenTrack) {
+          const rawTrack = screenTrack.mediaStreamTrack || screenTrack;
+          const screenStream = new MediaStream([rawTrack]);
           screenStreamRef.current = screenStream;
           setLocalScreenStream(screenStream);
           setIsScreenSharing(true);
-          screenTrackRef.current = screenPub.track.mediaStreamTrack;
-          screenPub.track.mediaStreamTrack.onended = () => {
+          screenTrackRef.current = rawTrack;
+          rawTrack.onended = () => {
             stopScreenShareRef.current?.();
           };
         }
       } catch (err) {
         console.error('[LiveKit] Screen sharing error:', err);
         if (err?.name !== 'NotAllowedError' && err?.name !== 'AbortError') {
-          setScreenShareError('Screen sharing could not start.');
+          setScreenShareError('Screen sharing could not start. Please check your browser permissions.');
         }
       } finally {
         setScreenShareBusy(false);
@@ -1387,20 +1415,21 @@ export function useVoiceSession(userId, profile = null) {
     setScreenShareError('');
 
     let screenStream = null;
-    try {
-      try {
-        screenStream = await navigator.mediaDevices.getDisplayMedia({
+    const displayMediaConstraints = isMobileDevice
+      ? { video: true, audio: false }
+      : {
           video: true,
           audio: Boolean(shareSystemAudio),
-        });
-      } catch (captureError) {
-        const audioConstraintUnsupported = Boolean(shareSystemAudio) && [
-          'NotSupportedError',
-          'OverconstrainedError',
-          'TypeError',
-        ].includes(captureError?.name);
-        if (!audioConstraintUnsupported) throw captureError;
+        };
 
+    try {
+      try {
+        screenStream = await navigator.mediaDevices.getDisplayMedia(displayMediaConstraints);
+      } catch (captureError) {
+        if (captureError?.name === 'NotAllowedError' || captureError?.name === 'AbortError') {
+          throw captureError;
+        }
+        // Fallback retry with basic video: true, audio: false
         screenStream = await navigator.mediaDevices.getDisplayMedia({
           video: true,
           audio: false,
@@ -2040,12 +2069,25 @@ export function useVoiceSession(userId, profile = null) {
               }
             } else if (track.kind === Track.Kind.Video) {
               const stream = new MediaStream([track.mediaStreamTrack]);
-              setRemoteStreams((prev) => ({ ...prev, [pId]: stream }));
+              const baseId = getBaseUserId(pId);
+              setRemoteStreams((prev) => ({
+                ...prev,
+                [pId]: stream,
+                ...(baseId ? { [baseId]: stream } : {}),
+              }));
 
               if (track.source === Track.Source.ScreenShare || publication.source === Track.Source.ScreenShare) {
-                setRemoteScreenShareStates((prev) => ({ ...prev, [pId]: true }));
+                setRemoteScreenShareStates((prev) => ({
+                  ...prev,
+                  [pId]: true,
+                  ...(baseId ? { [baseId]: true } : {}),
+                }));
               } else if (track.source === Track.Source.Camera || publication.source === Track.Source.Camera) {
-                setRemoteCameraStates((prev) => ({ ...prev, [pId]: true }));
+                setRemoteCameraStates((prev) => ({
+                  ...prev,
+                  [pId]: true,
+                  ...(baseId ? { [baseId]: true } : {}),
+                }));
               }
             }
           });
@@ -2218,6 +2260,42 @@ export function useVoiceSession(userId, profile = null) {
 
               setParticipants((prev) => prev.filter((p) => getBaseUserId(p) !== pUserId));
               detachAudioAnalyser(pUserId);
+
+              // Instantly clear any remote video streams or screen sharing associated with this participant
+              setRemoteStreams((prev) => {
+                const next = { ...prev };
+                delete next[participant.identity];
+                delete next[pUserId];
+                return next;
+              });
+              setRemoteScreenShareStates((prev) => {
+                const next = { ...prev };
+                delete next[participant.identity];
+                delete next[pUserId];
+                return next;
+              });
+              setRemoteCameraStates((prev) => {
+                const next = { ...prev };
+                delete next[participant.identity];
+                delete next[pUserId];
+                return next;
+              });
+
+              // Instantly notify server of peer disconnect so voiceStore & MongoDB purge them immediately
+              // and Pusher broadcasts updated room counts globally with 0 delay!
+              const activeChan = joinedChannelIdRef.current || channelId;
+              const activeSrv = joinedServerIdRef.current || serverId;
+              if (activeChan) {
+                fetch(`/api/channels/${activeChan}/voice`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    action: 'peer-disconnected',
+                    targetUserId: pUserId,
+                    serverId: activeSrv,
+                  }),
+                }).catch(() => {});
+              }
             }
           });
 
@@ -2665,7 +2743,7 @@ export function useVoiceSession(userId, profile = null) {
           }
           setParticipants((prev) => {
             const without = prev.filter(
-              (p) => String(p.user_id || p.userId || p.profiles?.id || '') !== pUserId
+              (p) => getBaseUserId(p) !== getBaseUserId(pUserId)
             );
             return [...without, participant];
           });
@@ -2674,17 +2752,18 @@ export function useVoiceSession(userId, profile = null) {
 
       chan.bind('participant-left', ({ user_id, user_name }) => {
         if (user_id) {
-          const sUid = String(user_id);
+          const sUid = getBaseUserId(user_id);
+          const myBase = getBaseUserId(userId);
           const alreadyProcessed = explicitlyLeftRef.current.has(sUid);
           explicitlyLeftRef.current.add(sUid);
 
-          if (sUid !== String(userId) && !alreadyProcessed) {
+          if (sUid !== myBase && !alreadyProcessed) {
             try {
               new Audio('/sounds/user-leave.mp3').play().catch(() => {});
             } catch {}
             const foundName =
               user_name ||
-              participantsRef.current.find((p) => String(p.user_id || p.userId) === sUid)
+              participantsRef.current.find((p) => getBaseUserId(p) === sUid)
                 ?.profiles?.full_name ||
               'A scholar';
             if (typeof window !== 'undefined') {
@@ -2695,17 +2774,17 @@ export function useVoiceSession(userId, profile = null) {
               );
             }
           }
-          setParticipants((prev) => prev.filter((p) => String(p.user_id || p.userId) !== sUid));
+          setParticipants((prev) => prev.filter((p) => getBaseUserId(p) !== sUid));
           cleanupPeerConnection(sUid);
         }
       });
 
       chan.bind('participant-updated', ({ user_id, is_muted }) => {
         if (user_id) {
-          const sUid = String(user_id);
+          const sUid = getBaseUserId(user_id);
           setParticipants((prev) =>
             prev.map((p) =>
-              String(p.user_id || p.userId || p.profiles?.id || '') === sUid
+              getBaseUserId(p) === sUid
                 ? { ...p, is_muted }
                 : p
             )
