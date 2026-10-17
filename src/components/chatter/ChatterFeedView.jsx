@@ -124,6 +124,7 @@ export default function ChatterFeedView({
   onSelectTag,
   feedTab = 'forYou',
   onSelectFeedTab,
+  onRequireAuth,
 }) {
   const [internalFeedTab, setInternalFeedTab] = useState('forYou');
   const activeFeedTab = feedTab || internalFeedTab;
@@ -571,7 +572,19 @@ export default function ChatterFeedView({
     };
   }, [userId]);
 
+  const handleOpenCreateModal = () => {
+    if (profile?.isGuest || !userId) {
+      onRequireAuth?.('create study posts and share notes');
+      return;
+    }
+    setCreateModalOpen(true);
+  };
+
   const handleLike = async (id) => {
+    if (profile?.isGuest || !userId) {
+      onRequireAuth?.('like campus posts');
+      return;
+    }
     // Optimistic toggle
     setPosts((prev) =>
       prev.map((post) => {
@@ -615,6 +628,10 @@ export default function ChatterFeedView({
   };
 
   const handleAddComment = async (postId, newComment) => {
+    if (profile?.isGuest || !userId) {
+      onRequireAuth?.('comment on campus posts');
+      return;
+    }
     // Optimistic update
     setPosts((prev) =>
       prev.map((post) => {
@@ -1602,7 +1619,7 @@ export default function ChatterFeedView({
       <button
         type="button"
         className="chatter-fab"
-        onClick={() => setCreateModalOpen(true)}
+        onClick={handleOpenCreateModal}
         aria-label="Create study post"
         title="Create Study Post"
       >

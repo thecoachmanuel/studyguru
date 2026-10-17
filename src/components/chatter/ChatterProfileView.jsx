@@ -617,7 +617,7 @@ export default function ChatterProfileView({
 
         {/* User Info with Verified Badge (Flutter Chatter Gilroy Standard) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-          <h2 style={{ fontSize: 22, fontWeight: 800, color: '#fff', margin: 0, letterSpacing: '-0.02em' }}>
+          <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.02em' }}>
             {displayName || profile?.name || 'Scholar'}
           </h2>
           <TwitterVerifiedBadge />
@@ -634,7 +634,7 @@ export default function ChatterProfileView({
               <div style={{ height: 14, width: '60%', borderRadius: 4, background: 'rgba(255, 255, 255, 0.08)', animation: 'pulse 1.2s infinite ease-in-out' }} />
             </div>
           ) : bioText ? (
-            <p style={{ fontSize: 15.5, color: '#E5E5E5', lineHeight: 1.55, margin: 0 }}>
+            <p style={{ fontSize: 15.5, color: 'var(--text-secondary)', lineHeight: 1.55, margin: 0 }}>
               {bioText}
             </p>
           ) : null}
@@ -656,7 +656,7 @@ export default function ChatterProfileView({
             {!profileLoaded && followersCount === null ? (
               <span style={{ display: 'inline-block', width: 26, height: 16, borderRadius: 4, background: 'rgba(255, 255, 255, 0.15)', animation: 'pulse 1.2s infinite ease-in-out' }} />
             ) : (
-              <strong style={{ color: '#fff', fontWeight: 800, fontSize: 18.5 }}>{followersCount ?? 0}</strong>
+              <strong style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 18.5 }}>{followersCount ?? 0}</strong>
             )}
             <span>Followers</span>
           </div>
@@ -665,7 +665,7 @@ export default function ChatterProfileView({
             {!profileLoaded && followersCount === null ? (
               <span style={{ display: 'inline-block', width: 26, height: 16, borderRadius: 4, background: 'rgba(255, 255, 255, 0.15)', animation: 'pulse 1.2s infinite ease-in-out' }} />
             ) : (
-              <strong style={{ color: '#fff', fontWeight: 800, fontSize: 18.5 }}>{followingCount}</strong>
+              <strong style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 18.5 }}>{followingCount}</strong>
             )}
             <span>Following</span>
           </div>

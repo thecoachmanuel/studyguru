@@ -32,6 +32,7 @@ import ChatterSearchModal from '@/components/chatter/ChatterSearchModal';
 import ChatterNewDMSheet from '@/components/chatter/ChatterNewDMSheet';
 import ChatterRoomActionModal from '@/components/chatter/ChatterRoomActionModal';
 import ChatterRightSidebar from '@/components/chatter/ChatterRightSidebar';
+import GuestAuthModal from '@/components/chatter/GuestAuthModal';
 import { playMessageChime, startCallRingtone, stopCallRingtone, playSpaceTone } from '@/lib/audioNotification';
 
 function moveChannelLocally(channels, channelId, beforeChannelId, afterChannelId) {
@@ -76,6 +77,31 @@ export default function DashboardPage() {
 
   // ---------- live db profile to prevent flickering ----------
   const [dbProfile, setDbProfile] = useState(null);
+
+  // ---------- Guest Mode State (Elite Quiz Flow) ----------
+  const [isGuest, setIsGuest] = useState(false);
+  const [authPromptOpen, setAuthPromptOpen] = useState(false);
+  const [authPromptFeature, setAuthPromptFeature] = useState('access this feature');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const isGuestParam = urlParams.get('guest') === '1';
+      const isGuestStored = sessionStorage.getItem('studycord_guest') === '1' || localStorage.getItem('studycord_guest') === '1';
+      if ((isGuestParam || isGuestStored) && status === 'unauthenticated') {
+        setIsGuest(true);
+      }
+    }
+  }, [status]);
+
+  const requireAuth = useCallback((featureName = 'access this feature') => {
+    if (isGuest || !user) {
+      setAuthPromptFeature(featureName);
+      setAuthPromptOpen(true);
+      return true;
+    }
+    return false;
+  }, [isGuest, user]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -134,6 +160,26 @@ export default function DashboardPage() {
 
   // ---------- profile ----------
   const profile = useMemo(() => {
+    if (isGuest && !user) {
+      return {
+        id: 'guest_user',
+        name: 'Guest Scholar',
+        username: 'guest',
+        full_name: 'Guest Scholar',
+        email: 'guest@studycord.me',
+        avatar_url: null,
+        banner_url: null,
+        bio: 'Exploring StudyCord & Quiz Arena as a Guest Scholar.',
+        followers_count: 0,
+        following_count: 0,
+        study_hours: 0,
+        day_streak: 1,
+        coins: 100,
+        badges: ['Curious Explorer'],
+        isGuest: true,
+        loaded: true,
+      };
+    }
     if (!user) return null;
     return {
       id: user.id,
@@ -150,14 +196,14 @@ export default function DashboardPage() {
       day_streak: typeof dbProfile?.day_streak === 'number' ? dbProfile.day_streak : undefined,
       loaded: Boolean(dbProfile),
     };
-  }, [user, dbProfile]);
+  }, [user, dbProfile, isGuest]);
 
   const voiceSession = useVoiceSession(user?.id, profile);
   const { handleLeave: leaveVoiceSession } = voiceSession;
 
   // ---------- servers ----------
   const [servers, setServers] = useState([]);
-  const [serversLoading, setServersLoading] = useState(true);
+  const [serversLoading, setServersLoading] = useState(false);
   const [serversError, setServersError] = useState(null);
 
   // ---------- channels ----------
@@ -406,14 +452,28 @@ export default function DashboardPage() {
     dismissAllMenus();
   }, [activeServerId, activeChannelId, workspace, settingsOpen, pathname]);
 
-  // Authentication Guard: Preserve joinRoom param for unauthenticated users
+  // Authentication Guard: Allow Guest Mode or redirect unauthenticated users
   useEffect(() => {
     if (status === 'unauthenticated') {
+      if (typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search);
+        const isGuestUser = urlParams.get('guest') === '1' || sessionStorage.getItem('studycord_guest') === '1' || localStorage.getItem('studycord_guest') === '1';
+        if (isGuestUser) {
+          setIsGuest(true);
+          return;
+        }
+      }
       const joinParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('joinRoom') : null;
       if (joinParam) {
         router.push(`/login?joinRoom=${encodeURIComponent(joinParam)}`);
       } else {
         router.push('/login');
+      }
+    } else if (status === 'authenticated') {
+      setIsGuest(false);
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('studycord_guest');
+        localStorage.removeItem('studycord_guest');
       }
     }
   }, [status, router]);
@@ -1231,6 +1291,36 @@ export default function DashboardPage() {
       id="dashboard-shell"
       suppressHydrationWarning
     >
+      {/* ── Guest Mode Header Banner (Elite Quiz Web Guest Experience) ── */}
+      {isGuest && (
+        <div className="guest-banner-bar" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 999 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+            <span style={{ fontSize: 16 }}>👋</span>
+            <span style={{ fontSize: 13, color: '#f3e8f8' }}>
+              <strong>Guest Scholar Mode:</strong> Exploring StudyCord & Quiz Arena.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => requireAuth('sign in to your scholar account')}
+            style={{
+              background: 'linear-gradient(135deg, #c564bb 0%, #903487 100%)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 10,
+              padding: '4px 13px',
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 2px 10px rgba(197, 100, 187, 0.4)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Sign In / Register
+          </button>
+        </div>
+      )}
+
       {/* ── Unified Toast Notification (Faster auto-dismiss, tap/swipe to dismiss) ── */}
       {toast && (
         <div
@@ -1299,6 +1389,8 @@ export default function DashboardPage() {
                 onRandomTopic={() => setChatterTab('rooms')}
                 feedTab={feedTab}
                 onSelectFeedTab={setFeedTab}
+                isGuest={isGuest}
+                onOpenAuthModal={() => requireAuth('access your scholar account')}
               />
               <ChatterFeedView
                 serverId={activeServerId}
@@ -1313,6 +1405,7 @@ export default function DashboardPage() {
                 onSelectTag={setFilterTag}
                 feedTab={feedTab}
                 onSelectFeedTab={setFeedTab}
+                onRequireAuth={requireAuth}
               />
             </div>
           </div>
@@ -1344,6 +1437,8 @@ export default function DashboardPage() {
                 onOpenLiveSpaces={() => setChatterTab('rooms')}
                 onRandomTopic={() => setChatterTab('rooms')}
                 title="Study Rooms"
+                isGuest={isGuest}
+                onOpenAuthModal={() => requireAuth('access your scholar account')}
               />
               <ChatterRoomsView
                 servers={servers}
@@ -1458,9 +1553,9 @@ export default function DashboardPage() {
 
       {/* Quiz Arena Tab (Elite Quiz Web Engine) */}
       {chatterTab === 'quiz' && (
-        <div style={{ flex: 1, display: 'flex', height: '100dvh', overflow: 'hidden', background: '#090029' }}>
+        <div style={{ flex: 1, display: 'flex', height: '100dvh', overflow: 'hidden', background: 'var(--background)' }}>
           <ChatterQuizArenaView
-            user={user}
+            user={user || profile}
             onBack={() => setChatterTab('feed')}
             onOpenGuru={() => setChatterTab('guru')}
           />
@@ -1479,6 +1574,8 @@ export default function DashboardPage() {
                 onOpenLiveSpaces={() => setChatterTab('rooms')}
                 onRandomTopic={() => setChatterTab('rooms')}
                 title="Profile"
+                isGuest={isGuest}
+                onOpenAuthModal={() => requireAuth('access your scholar account')}
               />
               <ChatterProfileView
                 profile={profile}
@@ -1523,6 +1620,8 @@ export default function DashboardPage() {
               onOpenLiveSpaces={() => setChatterTab('rooms')}
               onRandomTopic={() => setChatterTab('rooms')}
               title="Chats"
+              isGuest={isGuest}
+              onOpenAuthModal={() => requireAuth('access your scholar account')}
             />
             <ChatterChatsView
               servers={servers}
@@ -1887,6 +1986,13 @@ export default function DashboardPage() {
           } catch {}
         }}
         onRefresh={fetchNotificationsData}
+      />
+
+      {/* ── Guest Auth Modal (Elite Quiz Sign-in Prompt) ── */}
+      <GuestAuthModal
+        isOpen={authPromptOpen}
+        onClose={() => setAuthPromptOpen(false)}
+        feature={authPromptFeature}
       />
     </div>
   );

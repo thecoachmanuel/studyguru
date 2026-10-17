@@ -7,8 +7,8 @@ import { signIn, useSession } from 'next-auth/react';
 import Seo from '@/components/Seo';
 
 const LOGIN_SEO = {
-  title: 'Sign In – StudyCord',
-  description: 'Sign in to StudyCord, your real-time student collaboration and study group network.',
+  title: 'Login – StudyCord Quiz Arena',
+  description: 'Sign in to StudyCord Quiz Arena, your real-time student collaboration, live quizzes, and AI study group network.',
   path: '/login',
 };
 
@@ -63,6 +63,11 @@ export default function LoginPage() {
       if (result?.error) {
         setError('Invalid email or password. Please try again.');
       } else {
+        // Clear guest flag upon successful real login
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('studycord_guest');
+          localStorage.removeItem('studycord_guest');
+        }
         router.push(targetDashboard);
         router.refresh();
       }
@@ -78,6 +83,10 @@ export default function LoginPage() {
     setError(null);
     setLoadingGoogle(true);
     try {
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('studycord_guest');
+        localStorage.removeItem('studycord_guest');
+      }
       await signIn('google', { callbackUrl: targetDashboard });
     } catch {
       setError('Unable to connect with Google. Please try again.');
@@ -85,26 +94,38 @@ export default function LoginPage() {
     }
   };
 
+  const handleGuestLogin = () => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('studycord_guest', '1');
+      localStorage.setItem('studycord_guest', '1');
+    }
+    router.push('/dashboard?guest=1');
+  };
+
+  const handleFillDemo = () => {
+    setEmail('demo@studycord.me');
+    setPassword('StudyCord2026!');
+  };
+
   if (status === 'authenticated' || (status === 'loading' && hasSessionHint)) {
     return (
       <div
+        className="elite-auth-page"
         style={{
-          minHeight: '100dvh',
-          background: '#0E0E0E',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: '#fff',
         }}
       >
         <Seo {...LOGIN_SEO} />
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
-          <div className="chatter-logo-tag" style={{ fontSize: 28, gap: 7 }}>
-            <span>Study<span style={{ color: 'var(--chatter-primary)' }}>Cord</span></span>
-            <span className="chatter-logo-tag__dot" style={{ width: 8, height: 8 }} />
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+          <div className="chatter-logo-tag" style={{ fontSize: 30, gap: 8 }}>
+            <span>Study<span style={{ color: '#c564bb' }}>Cord</span></span>
+            <span className="chatter-logo-tag__dot" style={{ width: 9, height: 9, background: '#c564bb' }} />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#888', fontSize: 14 }}>
-            <span>Entering study lounge…</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#bbb', fontSize: 15 }}>
+            <span style={{ animation: 'spin 1s linear infinite' }}>⚡</span>
+            <span>Entering study lounge & quiz arena…</span>
           </div>
         </div>
       </div>
@@ -112,102 +133,59 @@ export default function LoginPage() {
   }
 
   return (
-    <div
-      style={{
-        minHeight: '100dvh',
-        background: '#0E0E0E',
-        backgroundImage: 'radial-gradient(circle at 50% 12%, rgba(64, 227, 120, 0.08) 0%, transparent 60%)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '24px 16px',
-        boxSizing: 'border-box',
-        color: '#fff',
-        fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
-      }}
-    >
+    <div className="elite-auth-page">
       <Seo {...LOGIN_SEO} />
 
-      {/* Main Flutter Chatter Card */}
-      <div
-        style={{
-          width: '100%',
-          maxWidth: 420,
-          background: '#141414',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          borderRadius: 24,
-          padding: '36px 28px',
-          boxSizing: 'border-box',
-          boxShadow: '0 24px 60px rgba(0, 0, 0, 0.65)',
-        }}
-      >
+      {/* Main Glassmorphic Card (Elite Quiz morphisam layout) */}
+      <div className="elite-auth-card">
         {/* Brand Header */}
-        <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-            <div className="chatter-logo-tag" style={{ fontSize: 28, gap: 7 }}>
-              <span>Study<span style={{ color: 'var(--chatter-primary)' }}>Cord</span></span>
-              <span className="chatter-logo-tag__dot" style={{ width: 8, height: 8 }} />
-            </div>
+        <div style={{ textAlign: 'center', marginBottom: 26 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '5px 14px', borderRadius: 20, background: 'rgba(197, 100, 187, 0.12)', border: '1px solid rgba(197, 100, 187, 0.25)', marginBottom: 14 }}>
+            <span style={{ fontSize: 12.5, color: '#c564bb', fontWeight: 800, letterSpacing: '0.04em' }}>🏆 QUIZ ARENA & CAMPUS</span>
           </div>
-          <p style={{ fontSize: 14.5, color: '#888', margin: 0, fontWeight: 500 }}>
-            Welcome back! Sign in to your study space.
+          <h1 className="elite-auth-headline">Login</h1>
+          <p style={{ fontSize: 14.5, color: '#918ea0', margin: 0, fontWeight: 500 }}>
+            Welcome back! Sign in to access your study space & battle quizzes.
           </p>
         </div>
 
-        {/* Google One-Tap / Button */}
+        {/* Google OAuth Button */}
         <button
           type="button"
           onClick={handleGoogleLogin}
           disabled={loadingGoogle || loadingLogin}
-          style={{
-            width: '100%',
-            padding: '12px 16px',
-            borderRadius: 14,
-            background: 'rgba(255, 255, 255, 0.06)',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
-            color: '#fff',
-            fontSize: 15,
-            fontWeight: 600,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 10,
-            transition: 'background 0.15s ease',
-            marginBottom: 20,
-          }}
+          className="elite-google-btn"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style={{ flexShrink: 0 }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" style={{ flexShrink: 0 }}>
             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
             <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
             <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
             <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
           </svg>
-          <span>{loadingGoogle ? 'Connecting…' : 'Continue with Google'}</span>
+          <span>{loadingGoogle ? 'Connecting…' : 'Login with Google'}</span>
         </button>
 
-        {/* Divider */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-          <div style={{ flex: 1, height: 1, background: 'rgba(255, 255, 255, 0.08)' }} />
-          <span style={{ fontSize: 12.5, color: '#666', textTransform: 'uppercase', letterSpacing: '0.04em' }}>or email</span>
-          <div style={{ flex: 1, height: 1, background: 'rgba(255, 255, 255, 0.08)' }} />
+        {/* Separator Divider */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '22px 0' }}>
+          <div style={{ flex: 1, height: 1, background: 'rgba(255, 255, 255, 0.1)' }} />
+          <span style={{ fontSize: 13, color: '#918ea0', fontWeight: 500, letterSpacing: '0.01em' }}>or continue with email</span>
+          <div style={{ flex: 1, height: 1, background: 'rgba(255, 255, 255, 0.1)' }} />
         </div>
 
         {/* Error Alert */}
         {error && (
           <div
             style={{
-              padding: '10px 14px',
+              padding: '11px 14px',
               borderRadius: 12,
-              background: 'rgba(239, 68, 68, 0.12)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              color: '#f87171',
+              background: 'rgba(239, 68, 68, 0.15)',
+              border: '1px solid rgba(239, 68, 68, 0.35)',
+              color: '#fca5a5',
               fontSize: 14,
               marginBottom: 16,
               display: 'flex',
               alignItems: 'center',
-              gap: 8,
+              gap: 9,
             }}
           >
             <span>⚠️</span> {error}
@@ -216,133 +194,108 @@ export default function LoginPage() {
 
         {/* Credentials Form */}
         <form onSubmit={handleEmailLogin} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div>
-            <label style={{ fontSize: 14, fontWeight: 600, color: '#bbb', display: 'block', marginBottom: 6 }}>
-              Email address
-            </label>
+          {/* Email Input */}
+          <div className="elite-input-wrapper">
+            <span className="elite-input-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="4" width="20" height="16" rx="2" />
+                <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+              </svg>
+            </span>
             <input
               type="email"
-              placeholder="student@university.edu"
+              placeholder="Enter your email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
               disabled={loadingLogin || loadingGoogle}
-              style={{
-                width: '100%',
-                padding: '12px 14px',
-                borderRadius: 12,
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                color: '#fff',
-                fontSize: 16,
-                outline: 'none',
-                boxSizing: 'border-box',
-                transition: 'border-color 0.15s ease',
-              }}
-              onFocus={(e) => (e.target.style.borderColor = '#40e378')}
-              onBlur={(e) => (e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)')}
+              className="elite-input"
             />
           </div>
 
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <label style={{ fontSize: 14, fontWeight: 600, color: '#bbb' }}>Password</label>
-              <Link href="/forgot" style={{ fontSize: 14, color: '#40e378', textDecoration: 'none', fontWeight: 600 }}>
-                Forgot?
-              </Link>
-            </div>
-            <div style={{ position: 'relative' }}>
-              <input
-                type={showPassword ? 'text' : 'password'}
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={loadingLogin || loadingGoogle}
-                style={{
-                  width: '100%',
-                  padding: '12px 42px 12px 14px',
-                  borderRadius: 12,
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  color: '#fff',
-                  fontSize: 16,
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                  transition: 'border-color 0.15s ease',
-                }}
-                onFocus={(e) => (e.target.style.borderColor = '#40e378')}
-                onBlur={(e) => (e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)')}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                style={{
-                  position: 'absolute',
-                  right: 12,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  color: '#888',
-                  cursor: 'pointer',
-                  padding: 4,
-                }}
-              >
-                {showPassword ? '👁️' : '👁️‍🗨️'}
-              </button>
-            </div>
+          {/* Password Input */}
+          <div className="elite-input-wrapper">
+            <span className="elite-input-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+            </span>
+            <input
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              disabled={loadingLogin || loadingGoogle}
+              className="elite-input"
+              style={{ paddingRight: 44 }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="elite-password-toggle"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              ) : (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                  <line x1="1" y1="1" x2="23" y2="23" />
+                </svg>
+              )}
+            </button>
           </div>
 
+          {/* Forgot Password Link */}
+          <div style={{ textAlign: 'right', marginTop: -4, marginBottom: 4 }}>
+            <Link href="/forgot-password" style={{ fontSize: 13.5, color: '#c564bb', textDecoration: 'none', fontWeight: 600 }}>
+              Forgot Password?
+            </Link>
+          </div>
+
+          {/* Submit Button */}
           <button
             type="submit"
             disabled={loadingLogin || loadingGoogle || !email.trim() || !password}
+            className="elite-btn-primary"
             style={{
-              width: '100%',
-              padding: '13px',
-              borderRadius: 14,
-              background: '#40e378',
-              border: 'none',
-              color: '#0E0E0E',
-              fontSize: 15.5,
-              fontWeight: 800,
+              opacity: loadingLogin || !email.trim() || !password ? 0.65 : 1,
               cursor: loadingLogin || !email.trim() || !password ? 'not-allowed' : 'pointer',
-              opacity: loadingLogin || !email.trim() || !password ? 0.6 : 1,
-              marginTop: 6,
-              transition: 'transform 0.12s ease',
             }}
           >
-            {loadingLogin ? 'Signing in…' : 'Sign In'}
+            {loadingLogin ? 'Please wait…' : 'Login'}
           </button>
 
-          {/* Quick Demo Credentials Pill */}
+          {/* Quick Demo Fill Pill */}
           <div
             style={{
-              padding: '10px 12px',
+              padding: '10px 14px',
               borderRadius: 12,
-              background: 'rgba(64, 227, 120, 0.08)',
-              border: '1px solid rgba(64, 227, 120, 0.2)',
+              background: 'rgba(197, 100, 187, 0.08)',
+              border: '1px solid rgba(197, 100, 187, 0.2)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               fontSize: 13,
-              color: '#bbb',
+              color: '#d1cedb',
             }}
           >
-            <span>⚡ Demo: <strong>demo@studycord.me</strong></span>
+            <span>⚡ Quick Demo: <strong>demo@studycord.me</strong></span>
             <button
               type="button"
-              onClick={() => {
-                setEmail('demo@studycord.me');
-                setPassword('StudyCord2026!');
-              }}
+              onClick={handleFillDemo}
               style={{
-                padding: '3px 8px',
+                padding: '4px 10px',
                 borderRadius: 8,
-                background: 'var(--chatter-primary)',
+                background: '#c564bb',
                 border: 'none',
-                color: '#0E0E0E',
-                fontSize: 12.5,
+                color: '#fff',
+                fontSize: 12,
                 fontWeight: 700,
                 cursor: 'pointer',
               }}
@@ -352,13 +305,30 @@ export default function LoginPage() {
           </div>
         </form>
 
-        {/* Footer Link */}
-        <div style={{ textAlign: 'center', marginTop: 24, fontSize: 14.5, color: '#888' }}>
-          Don&apos;t have an account?{' '}
-          <Link href={joinRoom ? `/signup?joinRoom=${encodeURIComponent(joinRoom)}` : '/signup'} style={{ color: '#40e378', textDecoration: 'none', fontWeight: 700 }}>
-            Create Account
-          </Link>
+        {/* Guest Scholar Exploration Button */}
+        <div style={{ margin: '20px 0 6px 0' }}>
+          <button
+            type="button"
+            onClick={handleGuestLogin}
+            className="elite-btn-guest"
+          >
+            <span>🚀 Explore Platform as Guest Scholar</span>
+          </button>
+          <p style={{ textAlign: 'center', fontSize: 12, color: '#7b788c', margin: '7px 0 0 0' }}>
+            No account required • Browse Quiz Arena, study feeds & preview Guru
+          </p>
         </div>
+
+        {/* Footer Link */}
+        <p style={{ textAlign: 'center', marginTop: 20, fontSize: 14.5, color: '#918ea0', marginBottom: 0 }}>
+          Don&apos;t have an account?{' '}
+          <Link
+            href={joinRoom ? `/signup?joinRoom=${encodeURIComponent(joinRoom)}` : '/signup'}
+            style={{ color: '#c564bb', textDecoration: 'none', fontWeight: 700 }}
+          >
+            Sign Up
+          </Link>
+        </p>
       </div>
     </div>
   );

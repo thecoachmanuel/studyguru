@@ -201,28 +201,29 @@ export default function QuizPlayModal({
         position: 'fixed',
         inset: 0,
         zIndex: 9999,
-        background: 'rgba(9, 0, 41, 0.92)',
+        background: 'rgba(0, 0, 0, 0.75)',
         backdropFilter: 'blur(16px)',
         WebkitBackdropFilter: 'blur(16px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         padding: '16px',
-        color: '#fff',
-        fontFamily: 'Lato, -apple-system, sans-serif',
+        color: 'var(--text-primary)',
+        fontFamily: 'var(--font-family)',
       }}
     >
       <div
         style={{
           width: '100%',
           maxWidth: 680,
-          background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%)',
+          background: 'var(--card)',
           borderRadius: 24,
-          border: '1px solid rgba(255, 255, 255, 0.15)',
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.6), 0 0 30px rgba(197, 100, 187, 0.2)',
+          border: '1px solid var(--border)',
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5), 0 0 30px rgba(197, 100, 187, 0.15)',
           padding: '24px 28px',
           position: 'relative',
           overflow: 'hidden',
+          color: 'var(--text-primary)',
         }}
       >
         {/* Glow Wave Header Accent */}
@@ -426,7 +427,7 @@ export default function QuizPlayModal({
                 lineHeight: 1.5,
                 textAlign: 'center',
                 margin: '15px 0 24px',
-                color: '#fff',
+                color: 'var(--text-primary)',
                 minHeight: 54,
               }}
             >
@@ -459,18 +460,18 @@ export default function QuizPlayModal({
                 const isThisSelected = selectedOption === i;
                 const isCorrect = i === currentQ.answer_index || opt === currentQ.answer;
 
-                let btnBg = 'rgba(255, 255, 255, 0.06)';
-                let btnBorder = '1px solid rgba(255, 255, 255, 0.1)';
-                let btnColor = '#fff';
+                let btnBg = 'var(--bg-hover)';
+                let btnBorder = '1px solid var(--border)';
+                let btnColor = 'var(--text-primary)';
 
                 if (isAnswered) {
                   if (isCorrect) {
                     btnBg = 'rgba(64, 227, 120, 0.2)';
-                    btnBorder = '1px solid #40E378';
+                    btnBorder = '1.5px solid #40E378';
                     btnColor = '#40E378';
                   } else if (isThisSelected) {
                     btnBg = 'rgba(239, 68, 68, 0.25)';
-                    btnBorder = '1px solid #ef4444';
+                    btnBorder = '1.5px solid #ef4444';
                     btnColor = '#ef4444';
                   }
                 }
@@ -633,6 +634,41 @@ export default function QuizPlayModal({
                 </div>
               </div>
             </div>
+
+            {/* Guest Scholar Claim Banner */}
+            {typeof window !== 'undefined' && (sessionStorage.getItem('studycord_guest') === '1' || localStorage.getItem('studycord_guest') === '1') && (
+              <div
+                style={{
+                  background: 'linear-gradient(135deg, rgba(197, 100, 187, 0.16) 0%, rgba(9, 0, 41, 0.6) 100%)',
+                  border: '1px solid rgba(197, 100, 187, 0.35)',
+                  borderRadius: 16,
+                  padding: '14px 18px',
+                  marginBottom: 20,
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ fontSize: 13.5, color: '#f3e8f8', fontWeight: 600, marginBottom: 10 }}>
+                  🎓 <strong>Great Drill, Guest Scholar!</strong> Sign up to claim your <strong>+{coinsEarned} 🪙 coins</strong> and rank on the global leaderboard!
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof window !== 'undefined') window.location.href = '/signup';
+                  }}
+                  className="elite-btn-primary"
+                  style={{
+                    display: 'inline-flex',
+                    width: 'auto',
+                    padding: '8px 20px',
+                    fontSize: 13,
+                    borderRadius: 12,
+                    margin: '0 auto',
+                  }}
+                >
+                  Create Account & Save Score
+                </button>
+              </div>
+            )}
 
             {/* Social Sharing Actions */}
             <div style={{ background: 'rgba(0, 0, 0, 0.25)', borderRadius: 16, padding: 16, marginBottom: 25, border: '1px solid rgba(255, 255, 255, 0.08)' }}>

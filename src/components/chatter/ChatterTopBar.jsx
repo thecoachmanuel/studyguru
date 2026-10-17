@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import ThemeToggle from '@/components/ThemeToggle';
 
 export default function ChatterTopBar({
   onOpenNotifications,
@@ -11,6 +12,8 @@ export default function ChatterTopBar({
   feedTab = null,
   onSelectFeedTab = null,
   title = null,
+  isGuest = false,
+  onOpenAuthModal = null,
 }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const brandHeaderRef = useRef(null);
@@ -96,42 +99,75 @@ export default function ChatterTopBar({
             </button>
           </div>
         ) : title ? (
-          <div className="chatter-topbar-title-text" style={{ fontSize: 18, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em', textAlign: 'center' }}>
+          <div className="chatter-topbar-title-text" style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.01em', textAlign: 'center' }}>
             {title}
           </div>
         ) : (
           <div style={{ flex: 1 }} />
         )}
 
-        {/* Right Action: Search & Live Spaces (desktop only on feed since brand header has search) */}
+        {/* Right Action: Search, Live Spaces, Theme Switcher & Guest Button */}
         <div className={`chatter-topbar__actions chatter-topbar__actions--right ${feedTab ? 'chatter-topbar__actions--desktop-only' : ''}`}>
-          <button
-            type="button"
-            className="chatter-topbar__btn chatter-topbar__btn--desktop-only"
-            onClick={onOpenLiveSpaces}
-            aria-label="Live Audio Study Spaces"
-            title="Live Audio Spaces"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-              <line x1="12" y1="19" x2="12" y2="23" />
-              <line x1="8" y1="23" x2="16" y2="23" />
-            </svg>
-          </button>
+          {isGuest ? (
+            <button
+              type="button"
+              onClick={onOpenAuthModal}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 7,
+                background: 'linear-gradient(135deg, #c564bb 0%, #903487 100%)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 14,
+                padding: '6px 14px',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: 'pointer',
+                boxShadow: '0 2px 12px rgba(197, 100, 187, 0.45)',
+                transition: 'transform 0.15s ease',
+              }}
+              title="Sign in to save your quiz scores and collaborate"
+            >
+              <span>👋 Hello Guest</span>
+              <span style={{ fontSize: 11, background: 'rgba(0, 0, 0, 0.28)', padding: '2px 8px', borderRadius: 8, fontWeight: 800 }}>
+                Login
+              </span>
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="chatter-topbar__btn chatter-topbar__btn--desktop-only"
+                onClick={onOpenLiveSpaces}
+                aria-label="Live Audio Study Spaces"
+                title="Live Audio Spaces"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                  <line x1="12" y1="19" x2="12" y2="23" />
+                  <line x1="8" y1="23" x2="16" y2="23" />
+                </svg>
+              </button>
 
-          <button
-            type="button"
-            className="chatter-topbar__btn"
-            onClick={onOpenSearch}
-            aria-label="Search"
-            title="Search"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-          </button>
+              <button
+                type="button"
+                className="chatter-topbar__btn"
+                onClick={onOpenSearch}
+                aria-label="Search"
+                title="Search"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+              </button>
+            </>
+          )}
+
+          {/* Theme Switcher in Top Bar */}
+          <ThemeToggle className="chatter-topbar__btn" />
         </div>
       </header>
     </>

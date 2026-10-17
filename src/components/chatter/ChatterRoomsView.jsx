@@ -552,7 +552,7 @@ export default function ChatterRoomsView({
                   onClick={() => handleJoinAndEnter(server)}
                   style={{
                     background: 'var(--chatter-sheet)',
-                    border: isCurrent ? '1.5px solid var(--chatter-primary)' : '1px solid rgba(255, 255, 255, 0.08)',
+                    border: isCurrent ? '1.5px solid var(--chatter-primary)' : '1px solid var(--border)',
                     borderRadius: 18,
                     padding: '16px 18px',
                     display: 'flex',
@@ -577,7 +577,7 @@ export default function ChatterRoomsView({
                             width: 48,
                             height: 48,
                             borderRadius: 14,
-                            background: '#242424',
+                            background: 'var(--bg-hover)',
                             color: 'var(--chatter-primary)',
                             display: 'flex',
                             alignItems: 'center',
@@ -595,7 +595,7 @@ export default function ChatterRoomsView({
                           <h4 style={{
                             fontSize: 19,
                             fontWeight: 800,
-                            color: '#fff',
+                            color: 'var(--text-primary)',
                             margin: 0,
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
@@ -605,7 +605,7 @@ export default function ChatterRoomsView({
                             {server.name}
                           </h4>
                           {server.is_audio_space && (
-                            <span style={{ fontSize: 11, background: 'rgba(64, 227, 120, 0.18)', color: 'var(--chatter-primary)', padding: '2px 8px', borderRadius: 10, fontWeight: 800 }}>
+                            <span style={{ fontSize: 11, background: 'rgba(197, 100, 187, 0.18)', color: 'var(--chatter-primary)', padding: '2px 8px', borderRadius: 10, fontWeight: 800 }}>
                               LIVE SPACE
                             </span>
                           )}
@@ -620,19 +620,19 @@ export default function ChatterRoomsView({
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                       {isCurrent ? (
-                        <span style={{ fontSize: 12.5, background: 'rgba(64, 227, 120, 0.16)', color: 'var(--chatter-primary)', padding: '4px 10px', borderRadius: 12, fontWeight: 700 }}>
+                        <span style={{ fontSize: 12.5, background: 'rgba(197, 100, 187, 0.16)', color: 'var(--chatter-primary)', padding: '4px 10px', borderRadius: 12, fontWeight: 700 }}>
                           Active Room
                         </span>
                       ) : isOwner ? (
-                        <span style={{ fontSize: 12.5, background: 'rgba(64, 227, 120, 0.12)', color: 'var(--chatter-primary)', padding: '4px 10px', borderRadius: 12, fontWeight: 700 }}>
+                        <span style={{ fontSize: 12.5, background: 'rgba(197, 100, 187, 0.12)', color: 'var(--chatter-primary)', padding: '4px 10px', borderRadius: 12, fontWeight: 700 }}>
                           Host
                         </span>
                       ) : isMember ? (
-                        <span style={{ fontSize: 12.5, background: 'rgba(255, 255, 255, 0.08)', color: '#d1d1d1', padding: '4px 10px', borderRadius: 12, fontWeight: 600 }}>
+                        <span style={{ fontSize: 12.5, background: 'var(--bg-hover)', color: 'var(--text-secondary)', padding: '4px 10px', borderRadius: 12, fontWeight: 600 }}>
                           Joined
                         </span>
                       ) : (
-                        <span style={{ fontSize: 12.5, background: 'rgba(255, 255, 255, 0.05)', color: 'var(--chatter-light-text)', padding: '4px 10px', borderRadius: 12, fontWeight: 600 }}>
+                        <span style={{ fontSize: 12.5, background: 'var(--bg-hover)', color: 'var(--chatter-light-text)', padding: '4px 10px', borderRadius: 12, fontWeight: 600 }}>
                           Open
                         </span>
                       )}
@@ -641,7 +641,7 @@ export default function ChatterRoomsView({
 
                   {/* Line 2: Followed by members number below */}
                   <div style={{ fontSize: 14.5, color: 'var(--chatter-light-text)', display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 2 }}>
-                    <span style={{ color: '#fff', fontWeight: 600 }}>{server.member_count || 1} members</span>
+                    <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{server.member_count || 1} members</span>
                     <span>·</span>
                     <span style={{ color: isMember ? 'var(--chatter-primary)' : 'var(--chatter-light-text)', fontWeight: 500 }}>
                       {isOwner ? 'Created by you' : isMember ? 'You are a member' : 'Available across all devices'}

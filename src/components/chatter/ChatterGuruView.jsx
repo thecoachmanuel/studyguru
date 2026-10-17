@@ -2355,8 +2355,8 @@ export default function ChatterGuruView({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                boxShadow: '0 2px 12px rgba(0, 0, 0, 0.25)',
+                border: '1px solid var(--border)',
+                boxShadow: '0 2px 12px rgba(0, 0, 0, 0.15)',
               }}
               aria-label="AI is generating response"
             >
@@ -2409,9 +2409,9 @@ export default function ChatterGuruView({
             style={{
               padding: '6px 13px',
               borderRadius: 16,
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              color: 'var(--chatter-light-text)',
+              background: 'var(--bg-hover)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
               fontSize: 13.5,
               fontWeight: 600,
               whiteSpace: 'nowrap',
@@ -2432,7 +2432,7 @@ export default function ChatterGuruView({
             ? '8px max(14px, env(safe-area-inset-right, 0px)) 8px max(14px, env(safe-area-inset-left, 0px))'
             : '8px max(14px, env(safe-area-inset-right, 0px)) max(12px, calc(8px + env(safe-area-inset-bottom, 0px))) max(14px, env(safe-area-inset-left, 0px))',
           background: 'var(--chatter-sheet)',
-          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+          borderTop: '1px solid var(--border)',
           flexShrink: 0,
         }}
       >
@@ -2464,11 +2464,11 @@ export default function ChatterGuruView({
             display: 'flex',
             alignItems: 'center',
             gap: 10,
-            background: 'var(--chatter-black)',
+            background: 'var(--input-bg)',
             borderRadius: 24,
             padding: '6px 8px 6px 14px',
-            border: isWebSearchActive ? '1px solid rgba(64, 227, 120, 0.45)' : '1px solid rgba(255, 255, 255, 0.08)',
-            boxShadow: isWebSearchActive ? '0 0 16px rgba(64, 227, 120, 0.12)' : 'none',
+            border: isWebSearchActive ? '1px solid var(--chatter-primary)' : '1px solid var(--border)',
+            boxShadow: isWebSearchActive ? '0 0 16px rgba(197, 100, 187, 0.25)' : 'none',
             transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
           }}
         >
@@ -2561,7 +2561,7 @@ export default function ChatterGuruView({
               flex: 1,
               background: 'transparent',
               border: 'none',
-              color: '#fff',
+              color: 'var(--text-primary)',
               fontSize: 16,
               outline: 'none',
             }}

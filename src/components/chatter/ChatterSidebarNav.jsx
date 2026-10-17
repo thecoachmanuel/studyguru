@@ -1,5 +1,7 @@
 'use client';
 
+import ThemeToggle from '@/components/ThemeToggle';
+
 export default function ChatterSidebarNav({
   activeTab = 'feed',
   onSelectTab,
@@ -236,7 +238,7 @@ export default function ChatterSidebarNav({
               />
             </div>
             <div style={{ overflow: 'hidden' }}>
-              <div style={{ fontSize: 14.5, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+              <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                 {profile?.name || 'Scholar'}
               </div>
               <div style={{ fontSize: 12.5, color: 'var(--chatter-light-text)' }}>
@@ -246,6 +248,8 @@ export default function ChatterSidebarNav({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <ThemeToggle />
+
             <a
               href="/admin"
               title="Admin Portal"

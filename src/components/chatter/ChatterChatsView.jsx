@@ -352,7 +352,7 @@ export default function ChatterChatsView({
               }}
             >
               <div style={{ fontSize: 32, marginBottom: 12 }}>💬</div>
-              <h4 style={{ fontSize: 18, fontWeight: 700, color: '#fff', marginBottom: 6 }}>
+              <h4 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
                 No Direct Messages Yet
               </h4>
               <p style={{ fontSize: 14, color: 'var(--chatter-light-text)', margin: '0 0 16px 0' }}>
@@ -366,7 +366,7 @@ export default function ChatterChatsView({
                   borderRadius: 16,
                   background: 'var(--chatter-primary)',
                   border: 'none',
-                  color: '#0E0E0E',
+                  color: '#fff',
                   fontSize: 14.5,
                   fontWeight: 700,
                   cursor: 'pointer',
@@ -453,7 +453,7 @@ export default function ChatterChatsView({
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <h4 style={{ fontSize: 15.5, fontWeight: 700, color: '#fff', margin: 0 }}>
+                        <h4 style={{ fontSize: 15.5, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
                           {dm.user.name}
                         </h4>
                         <TwitterVerifiedBadge />
@@ -545,7 +545,7 @@ export default function ChatterChatsView({
                       </div>
 
                       <div>
-                        <h4 style={{ fontSize: 16, fontWeight: 700, color: '#fff', margin: '0 0 2px 0' }}>
+                        <h4 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 2px 0' }}>
                           {room.name}
                         </h4>
                         <div style={{ fontSize: 13.5, color: 'var(--chatter-light-text)' }}>
