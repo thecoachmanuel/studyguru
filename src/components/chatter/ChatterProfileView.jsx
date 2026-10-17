@@ -907,6 +907,11 @@ export default function ChatterProfileView({
                     Ask AI
                   </button>
                 </div>
+              ))
+            )}
+          </div>
+        )}
+
         {/* Tab 2: Quiz Statistics (Elite Quiz Style) */}
         {activeTab === 'quiz' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
