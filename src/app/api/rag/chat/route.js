@@ -308,17 +308,17 @@ function extractFastRelevantPassages(text, query, maxChars = 22000) {
     }
 
     // 4b. If student toggled Web Search or typed web search intent queries
-    const SEARCH_INTENT_REGEX = /\b(?:search (?:the )?web|browse (?:the )?web|look ?up online|search online|live (?:data|facts|results|info|news)|latest news|recent news|current news|find on (?:the )?web|google (?:this|it)?|what is the latest on|what's the latest on|who won the latest|current price of|today's news|live internet)\b/i;
+    const SEARCH_INTENT_REGEX = /\b(?:search (?:the )?web|browse (?:the )?web|look ?up online|search online|live (?:data|facts|results|info|news)|latest news|recent news|current news|find on (?:the )?web|google (?:this|it)?|what is the latest on|what's the latest on|who won the latest|current price of|today's news|live internet|whatsapp|contact (?:info|details|number|numbers|person)|phone number|customer care|customer support|helpline|office address|headquarters|location of|ceo|founder|executives|company figures|annual revenue|market cap|valuation|reviews?|customer feedback|complaint line)\b/i;
     const hasSearchIntent = SEARCH_INTENT_REGEX.test(trimmedMessage);
 
     if ((isWebSearchRequested || hasSearchIntent) && extractedUrls.length === 0) {
       try {
         const cleanSearchQuery = trimmedMessage
-          .replace(/^(?:please\s+)?(?:can you\s+)?(?:search (?:the )?web for|browse (?:the )?web for|look ?up online|search online for|find online|google)\s+/i, '')
+          .replace(/^(?:please\s+)?(?:can you\s+)?(?:search (?:the )?web for|browse (?:the )?web for|look ?up online|search online for|find online|google|extract|get me|find)\s+/i, '')
           .trim();
 
         const searchData = await performWebSearch(cleanSearchQuery || trimmedMessage, {
-          maxResults: 5,
+          maxResults: 6,
           deepScrape: true,
         });
 
@@ -331,7 +331,7 @@ function extractFastRelevantPassages(text, query, maxChars = 22000) {
             liveWebContext += `• [${item.title}](${item.url})\n  Source: ${item.source}\n  Snippet: ${item.snippet}\n\n`;
           }
           if (searchData.scrapedPassages?.length > 0) {
-            liveWebContext += `DEEP WEBPAGE EXCERPTS FROM TOP SEARCH RESULTS:\n`;
+            liveWebContext += `DEEP WEBPAGE EXCERPTS & EXTRACTED INTEL FROM TOP SEARCH RESULTS:\n`;
             for (const passage of searchData.scrapedPassages) {
               liveWebContext += `[${passage.title}](${passage.url}):\n${passage.text}\n\n---\n`;
             }
@@ -357,7 +357,7 @@ function extractFastRelevantPassages(text, query, maxChars = 22000) {
 Your mission is to guide the student through their academic questions using an interactive, adaptive, conversational tutoring approach.
 
 ${isFreeChat ? `FREE CHAT MODE (UNRESTRICTED ACADEMIC TUTOR):
-• You are operating in FREE CHAT MODE. Do NOT read, search, cite, or assume any uploaded document or notes.
+• You are operating in FREE CHAT MODE. Do NOT read, search, cite, or assume any uploaded document or notes unless Web Search is enabled.
 • Freely answer the student's questions across ALL subjects: Computer Science, Software Engineering, Mathematics, Physics, Chemistry, Biology, Medicine, History, Philosophy, Literature, Languages, Code Debugging, Logic, or Exam Preparation.
 • Provide deep, direct, crystal-clear answers from first principles without referring to any document.` : isGuidedMode ? `GUIDED STUDY TUTORING MODE (STRICT DOCUMENT-GROUNDED LEARNING):
 • Target Document: "${docTitle || 'Uploaded Study Notes'}"
@@ -383,10 +383,19 @@ Document Context:
 ${contextText}` : `ACADEMIC TUTORING CONTEXT:
 • General Academic Mode: Answer any subject question (STEM, Coding, Medicine, Humanities, Languages, or Exam Prep) with crystal-clear explanations, intuitive analogies, and step-by-step guidance.`};
 ${liveWebContext ? `
-LIVE INTERNET SEARCH & REAL-TIME WEB DATA ACCESS:
-• You have active access to real-time internet search results and/or live scraped web pages provided below.
+LIVE INTERNET SEARCH, CONTACT SCRAPING & REAL-TIME WEB DATA ACCESS:
+• You have active access to real-time internet search results, verified contact details (WhatsApp, phone, email, addresses), and scraped corporate data provided below.
 • Ground your factual explanations, latest developments, dates, figures, and answers directly in this live web material.
-• Always include helpful, clickable Markdown citations in the standard format [Source Title](url) so the student can verify sources or read further.
+• When the user asks for contacts, WhatsApp numbers, customer care phone numbers, email addresses, office headquarters, executives/founders, company figures (revenue, employees, valuation), or customer reviews/feedback:
+  1. Extract and prominently present all available verified numbers, WhatsApp chat links, email addresses, and phone contacts in an organized layout:
+     - 📱 **WhatsApp / Live Chat**: [Clickable WhatsApp link or numbers]
+     - 📞 **Phone / Helpline**: [Customer care phone numbers]
+     - ✉️ **Email Support**: [Official email addresses]
+     - 🏢 **Physical Headquarters / Address**: [Office locations]
+     - 👥 **Leadership & Figures**: [CEO, Founders, Revenue, Key Metrics]
+     - ⭐ **Customer Reviews & Feedback**: [Ratings and sentiment breakdown]
+  2. Quote exact numbers, addresses, and figures accurately from the extracted intel and search results.
+• Always include helpful, clickable Markdown citations in the standard format [Source Title](url) so the user can verify sources or read further.
 • If the student provided a link, summarize or explain the webpage content thoroughly according to their prompt.` : ''}
 
 CORE TUTORING PEDAGOGY & ADAPTIVE PACING:

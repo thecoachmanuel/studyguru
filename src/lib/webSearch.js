@@ -29,12 +29,12 @@ function resolveDuckDuckGoUrl(rawHref) {
  * 1. Free DuckDuckGo Search (Zero API keys, 100% Free & Live Real-Time Web Data)
  * Uses POST method for ultra-reliable results without bot challenge redirects
  */
-async function searchDuckDuckGo(query, limit = 5, timeoutMs = 6500) {
+async function searchDuckDuckGo(query, limit = 6, timeoutMs = 10000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch('https://html.duckduckgo.com/html/', {
+    let response = await fetch('https://html.duckduckgo.com/html/', {
       method: 'POST',
       signal: controller.signal,
       headers: {
@@ -46,6 +46,19 @@ async function searchDuckDuckGo(query, limit = 5, timeoutMs = 6500) {
       },
       body: `q=${encodeURIComponent(query)}`,
     });
+
+    if (!response.ok) {
+      // Secondary fallback to GET if POST receives challenge
+      response = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`, {
+        signal: controller.signal,
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          Accept: 'text/html,application/xhtml+xml',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+      });
+    }
 
     clearTimeout(timer);
 
@@ -104,7 +117,7 @@ async function searchDuckDuckGo(query, limit = 5, timeoutMs = 6500) {
 /**
  * 2. Free Wikipedia Full-Text Search API (Zero API keys, instant academic grounding)
  */
-async function searchWikipedia(query, limit = 3, timeoutMs = 4500) {
+async function searchWikipedia(query, limit = 3, timeoutMs = 6000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -172,7 +185,7 @@ async function searchWikipedia(query, limit = 3, timeoutMs = 4500) {
 /**
  * 3. Optional Tavily AI Search (if TAVILY_API_KEY is configured in .env)
  */
-async function searchTavily(query, apiKey, limit = 4, timeoutMs = 6000) {
+async function searchTavily(query, apiKey, limit = 5, timeoutMs = 8000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -186,7 +199,7 @@ async function searchTavily(query, apiKey, limit = 4, timeoutMs = 6000) {
       body: JSON.stringify({
         api_key: apiKey,
         query,
-        search_depth: 'basic',
+        search_depth: 'advanced',
         include_answer: true,
         max_results: limit,
       }),
@@ -216,7 +229,7 @@ async function searchTavily(query, apiKey, limit = 4, timeoutMs = 6000) {
 /**
  * 4. Optional Serper Google Search (if SERPER_API_KEY is configured in .env)
  */
-async function searchSerper(query, apiKey, limit = 4, timeoutMs = 6000) {
+async function searchSerper(query, apiKey, limit = 5, timeoutMs = 8000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -256,14 +269,13 @@ async function searchSerper(query, apiKey, limit = 4, timeoutMs = 6000) {
 }
 
 /**
- * Master Hybrid Web Search
- * Automatically selects the best search provider:
- * 1. Tavily / Serper if API key configured
- * 2. DuckDuckGo + Wikipedia (100% Free, zero config)
- * 3. Deep-crawls top 1-2 pages for grounded excerpt text
+ * Master Hybrid Web Search & Corporate/Contact Scraper
+ * Automatically expands queries for WhatsApp, contacts, emails, feedback, and figures.
+ * Deep-scrapes official contact, about, and support pages to extract verified phone numbers,
+ * WhatsApp lines, emails, physical addresses, executive figures, and reviews.
  */
 export async function performWebSearch(query, options = {}) {
-  const { maxResults = 5, deepScrape = true } = options;
+  const { maxResults = 6, deepScrape = true } = options;
   const cleanQuery = query.trim();
   if (!cleanQuery) return { results: [], query: '' };
 
@@ -293,18 +305,31 @@ export async function performWebSearch(query, options = {}) {
     }
   }
 
-  // Free Fallback: Concurrently query DuckDuckGo and Wikipedia
+  // Free Fallback: DuckDuckGo + Wikipedia
   if (searchResults.length === 0) {
-    const [ddgResults, wikiResults] = await Promise.all([
-      searchDuckDuckGo(cleanQuery, maxResults),
-      searchWikipedia(cleanQuery, 2),
+    const isContactOrCorporateQuery = /\b(?:contact|whatsapp|phone|number|email|call|reach|support|care|helpline|address|location|ceo|founder|revenue|valuation|figures|feedback|reviews?|complaint)\b/i.test(cleanQuery);
+
+    const [ddgResults, wikiResults, ddgContactResults] = await Promise.all([
+      searchDuckDuckGo(cleanQuery, maxResults, 10000),
+      searchWikipedia(cleanQuery, 2, 6000),
+      isContactOrCorporateQuery
+        ? searchDuckDuckGo(`${cleanQuery} contact whatsapp phone email address`, 3, 10000)
+        : Promise.resolve([]),
     ]);
 
     const seenUrls = new Set();
     const merged = [];
 
+    // Add contact-targeted results first if looking for contact info
+    for (const r of ddgContactResults) {
+      if (!seenUrls.has(r.url)) {
+        seenUrls.add(r.url);
+        merged.push(r);
+      }
+    }
+
     // Prioritize top Wikipedia hit if relevant for encyclopedia knowledge
-    if (wikiResults.length > 0) {
+    if (wikiResults.length > 0 && !seenUrls.has(wikiResults[0].url)) {
       merged.push(wikiResults[0]);
       seenUrls.add(wikiResults[0].url);
     }
@@ -327,15 +352,23 @@ export async function performWebSearch(query, options = {}) {
     providerUsed = 'DuckDuckGo + Wikipedia (Free Web)';
   }
 
-  // Deep Scrape: fetch full text from top 1 or 2 URLs to provide deep groundings
+  // Deep Scrape: fetch full text from top 3 URLs
+  // Prioritize URLs with /contact, /about, /support, /help, or corporate domains
   let scrapedPassages = [];
   if (deepScrape && searchResults.length > 0) {
-    const scrapeCandidates = searchResults
+    const sortedCandidates = [...searchResults]
       .filter((r) => !r.url.endsWith('.pdf') && !r.url.includes('youtube.com'))
-      .slice(0, 2);
+      .sort((a, b) => {
+        const aHasContact = /\/contact|\/about|\/support|\/help|whatsapp/i.test(a.url);
+        const bHasContact = /\/contact|\/about|\/support|\/help|whatsapp/i.test(b.url);
+        if (aHasContact && !bHasContact) return -1;
+        if (!aHasContact && bHasContact) return 1;
+        return 0;
+      })
+      .slice(0, 3);
 
     const scraped = await Promise.allSettled(
-      scrapeCandidates.map((r) => scrapeWebPage(r.url, 4500))
+      sortedCandidates.map((r) => scrapeWebPage(r.url, 10000))
     );
 
     scrapedPassages = scraped
@@ -343,7 +376,8 @@ export async function performWebSearch(query, options = {}) {
       .map((s) => ({
         url: s.value.url,
         title: s.value.title,
-        text: s.value.text.slice(0, 4500),
+        text: s.value.text.slice(0, 8000),
+        extractedIntel: s.value.extractedIntel,
       }));
   }
 

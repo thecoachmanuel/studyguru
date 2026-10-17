@@ -195,7 +195,20 @@ export default function ChatterGuruView({
 
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isWebSearchActive, setIsWebSearchActive] = useState(false);
+  const [isWebSearchActive, setIsWebSearchActive] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        return localStorage.getItem('studycord_guru_web_search') === 'true';
+      } catch {}
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('studycord_guru_web_search', isWebSearchActive ? 'true' : 'false');
+    } catch {}
+  }, [isWebSearchActive]);
   const [copiedMsgId, setCopiedMsgId] = useState(null);
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editingText, setEditingText] = useState('');
@@ -388,9 +401,10 @@ export default function ChatterGuruView({
   }, [messages, loading]);
 
   const freeChatPrompts = [
+    '📞 Find company contact & WhatsApp',
+    '📊 Company figures & leadership',
     '🌐 Search Web: Latest science news',
     '💡 Explain a concept simply',
-    '🧠 Brainstorm study schedule',
     '💻 Debug code or algorithm',
   ];
 
@@ -2363,7 +2377,7 @@ export default function ChatterGuruView({
                   <line x1="2" y1="12" x2="22" y2="12" />
                   <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
                 </svg>
-                <span>Searching live web & analyzing sources...</span>
+                <span>Searching live web, extracting WhatsApp, contacts & company figures...</span>
               </div>
             )}
             <div
@@ -2408,6 +2422,18 @@ export default function ChatterGuruView({
             key={i}
             type="button"
             onClick={() => {
+              if (p.includes('Find company contact')) {
+                setIsWebSearchActive(true);
+                setInputText('Find the official contact info, WhatsApp number, email, and customer support for ');
+                setTimeout(() => inputRef.current?.focus(), 50);
+                return;
+              }
+              if (p.includes('Company figures')) {
+                setIsWebSearchActive(true);
+                setInputText('Find the company figures, annual revenue, employee count, and founders for ');
+                setTimeout(() => inputRef.current?.focus(), 50);
+                return;
+              }
               if (p.includes('Search Web')) {
                 setIsWebSearchActive(true);
               }
@@ -2490,7 +2516,9 @@ export default function ChatterGuruView({
             background: 'var(--chatter-black)',
             borderRadius: 24,
             padding: '6px 8px 6px 14px',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
+            border: isWebSearchActive ? '1px solid rgba(64, 227, 120, 0.45)' : '1px solid rgba(255, 255, 255, 0.08)',
+            boxShadow: isWebSearchActive ? '0 0 16px rgba(64, 227, 120, 0.12)' : 'none',
+            transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
           }}
         >
           {/* Paperclip Document Upload shortcut */}
@@ -2570,11 +2598,13 @@ export default function ChatterGuruView({
               }, 120);
             }}
             placeholder={
-              aiMode === 'free'
-                ? 'Ask AI Guru anything across any subject...'
-                : uploadedDocs.find((d) => d.doc_id === selectedDocId)
-                  ? `Ask guided questions on ${uploadedDocs.find((d) => d.doc_id === selectedDocId)?.filename}...`
-                  : 'Upload a document or ask questions about your notes...'
+              isWebSearchActive
+                ? 'Search live web, find WhatsApp & contacts, or lookup company figures...'
+                : aiMode === 'free'
+                  ? 'Ask AI Guru anything across any subject...'
+                  : uploadedDocs.find((d) => d.doc_id === selectedDocId)
+                    ? `Ask guided questions on ${uploadedDocs.find((d) => d.doc_id === selectedDocId)?.filename}...`
+                    : 'Upload a document or ask questions about your notes...'
             }
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
