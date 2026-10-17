@@ -1,17 +1,24 @@
 'use client';
 
+import EliteIcon from '@/components/elite/EliteIcon';
+
 export default function ChatterBottomNav({
-  activeTab = 'feed',
+  activeTab = 'quiz',
   onSelectTab,
   unreadChatsCount = 0,
   isHidden = false,
 }) {
   const tabs = [
     {
+      id: 'quiz',
+      label: 'Home',
+      iconName: 'home',
+    },
+    {
       id: 'feed',
       label: 'Feed',
-      icon: (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      customIcon: (active) => (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active ? 'var(--primary-color)' : 'currentColor'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 19l7-7 3 3-7 7-3-3z" />
           <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
           <path d="M2 2l7.586 7.586" />
@@ -20,48 +27,26 @@ export default function ChatterBottomNav({
       ),
     },
     {
-      id: 'rooms',
-      label: 'Rooms',
-      icon: (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-          <circle cx="9" cy="7" r="4" />
-          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-        </svg>
-      ),
-    },
-    {
-      id: 'quiz',
-      label: 'Quiz',
-      icon: (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
-          <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-          <path d="M4 22h16" />
-          <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
-          <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
-          <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-        </svg>
-      ),
-    },
-    {
       id: 'guru',
       label: 'AI Guru',
-      icon: (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10" />
-          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-          <line x1="12" y1="17" x2="12.01" y2="17" />
+      customIcon: (active) => (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active ? 'var(--primary-color)' : 'currentColor'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+          <circle cx="12" cy="12" r="4" fill={active ? 'var(--primary-color)' : 'none'} />
         </svg>
       ),
+    },
+    {
+      id: 'leaderboard',
+      label: 'Rankings',
+      iconName: 'leaderboard',
     },
     {
       id: 'chats',
       label: 'Chats',
       hasBadge: unreadChatsCount > 0,
-      icon: (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      customIcon: (active) => (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active ? 'var(--primary-color)' : 'currentColor'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
         </svg>
       ),
@@ -69,12 +54,7 @@ export default function ChatterBottomNav({
     {
       id: 'profile',
       label: 'Profile',
-      icon: (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-          <circle cx="12" cy="7" r="4" />
-        </svg>
-      ),
+      iconName: 'profile',
     },
   ];
 
@@ -83,7 +63,26 @@ export default function ChatterBottomNav({
   return (
     <nav
       className="chatter-tabbar"
-      aria-label="Chatter Bottom Navigation"
+      aria-label="Elite Quiz & StudyCord Navigation"
+      style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        background: 'var(--card)',
+        borderTop: '1px solid var(--border)',
+        boxShadow: '0 -4px 16px rgba(0, 0, 0, 0.05)',
+        zIndex: 100,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-around',
+        height: 'calc(58px + env(safe-area-inset-bottom, 0px))',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        paddingLeft: 4,
+        paddingRight: 4,
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+      }}
     >
       {tabs.map((tab) => {
         const isActive = activeTab === tab.id;
@@ -94,14 +93,91 @@ export default function ChatterBottomNav({
             className={`chatter-tabbar__item ${isActive ? 'chatter-tabbar__item--active' : ''}`}
             onClick={() => onSelectTab(tab.id)}
             aria-label={tab.label}
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 3,
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '6px 2px',
+              color: isActive ? 'var(--primary-color)' : 'var(--text-secondary)',
+              transition: 'all 0.15s ease',
+              position: 'relative',
+              minWidth: 0,
+            }}
           >
-            <div className="chatter-tabbar__icon">
-              {tab.icon}
-              {tab.hasBadge && <span className="chatter-tabbar__badge" />}
+            <div
+              className="chatter-tabbar__icon"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative',
+                transform: isActive ? 'scale(1.08)' : 'scale(1)',
+                transition: 'transform 0.15s ease',
+              }}
+            >
+              {tab.iconName ? (
+                <EliteIcon
+                  name={tab.iconName}
+                  active={isActive}
+                  size={20}
+                  color={isActive ? 'var(--primary-color)' : 'var(--text-secondary)'}
+                />
+              ) : (
+                tab.customIcon?.(isActive)
+              )}
+
+              {tab.hasBadge && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: -2,
+                    right: -4,
+                    width: 7,
+                    height: 7,
+                    borderRadius: '50%',
+                    backgroundColor: 'var(--error-color)',
+                    boxShadow: '0 0 0 2px var(--card)',
+                  }}
+                />
+              )}
             </div>
-            <span className="chatter-tabbar__label">
+
+            <span
+              className="chatter-tabbar__label"
+              style={{
+                fontSize: 11,
+                fontWeight: isActive ? 800 : 600,
+                color: isActive ? 'var(--primary-color)' : 'var(--text-secondary)',
+                letterSpacing: '-0.01em',
+                lineHeight: 1.1,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                maxWidth: '100%',
+              }}
+            >
               {tab.label}
             </span>
+
+            {/* Subtle active indicator dot matching Elite style */}
+            {isActive && (
+              <span
+                style={{
+                  position: 'absolute',
+                  bottom: 2,
+                  width: 4,
+                  height: 4,
+                  borderRadius: '50%',
+                  backgroundColor: 'var(--primary-color)',
+                }}
+              />
+            )}
           </button>
         );
       })}

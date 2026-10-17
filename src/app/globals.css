@@ -1,5 +1,5 @@
-/* StudyCord — Elite Quiz Theming System (Lato / Nunito Sans Typography & Exact Elite Quiz Palette) */
-@import url('https://fonts.googleapis.com/css2?family=Lato:wght@100;300;400;700;900&family=Nunito+Sans:wght@300;400;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap');
+/* StudyCord — Exact Elite Quiz Flutter Theme (Nunito Typography & Exact Colors) */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700&family=Nunito+Sans:wght@300;400;600;700;800;900&display=swap');
 
 :root {
   /* SAFE AREA VIEW TOKENS */
@@ -12,79 +12,79 @@
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
 
-  /* FONT TOKENS (ELITE QUIZ TYPOGRAPHY) */
-  --font-lato: "Lato", sans-serif;
-  --font-nunito: "Nunito Sans", sans-serif;
-  --font-family: 'Lato', 'Nunito Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-heading: 'Lato', sans-serif;
+  /* FONT TOKENS (ELITE QUIZ NUNITO TYPOGRAPHY) */
+  --font-nunito: 'Nunito', 'Nunito Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-family: 'Nunito', 'Nunito Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-heading: 'Nunito', sans-serif;
 
   /* ELITE QUIZ DESIGN SYSTEM TOKENS - LIGHT MODE */
-  --primary-color: #c564bb;
-  --secondary-color: #f7f5fa;
-  --text-color: #0b012c;
-  --background: #f7f5fa;
-  --background-2: #0900290f;
+  /* From elite_quiz_app-2.3.7/lib/core/config/colors.dart */
+  --primary-color: #ef5388;
+  --primary-hover: #d63f73;
+  --primary-foreground: #ffffff;
+  --secondary-color: #f3f7fa;
+  --text-color: #45536d;
+  --background: #f3f7fa;
+  --background-2: #ffffff;
   --card: #ffffff;
-  --card-foreground: #0b012c;
-  --foreground: #0b012c;
+  --card-foreground: #45536d;
+  --foreground: #45536d;
 
   /* CHATTER / APP LIGHT TOKENS */
-  --chatter-primary: #c564bb;
-  --chatter-pulsing: #e6a0df;
-  --chatter-hashtag: #c564bb;
-  --chatter-green: #c564bb;
-  --chatter-darkgreen: #791c71;
-  --chatter-black: #f7f5fa;
+  --chatter-primary: #ef5388;
+  --chatter-pulsing: #f482a8;
+  --chatter-hashtag: #ef5388;
+  --chatter-green: #5DB760;
+  --chatter-darkgreen: #3d8a40;
+  --chatter-black: #f3f7fa;
   --chatter-sheet: #ffffff;
   --chatter-darkbg: #ffffff;
-  --chatter-audiospace: #f0edf7;
-  --chatter-audiospace-dark: #e8e4f2;
-  --chatter-audiospace-light: #f7f5fa;
-  --chatter-audiospace-text: #212529;
-  --chatter-red: #FF3939;
+  --chatter-audiospace: #ffffff;
+  --chatter-audiospace-dark: #f0f4f8;
+  --chatter-audiospace-light: #ffffff;
+  --chatter-audiospace-text: #45536d;
+  --chatter-red: #FF6169;
   --chatter-bluetick: #1D9BF0;
   --chatter-white: #ffffff;
   --chatter-light-text: #748494;
   --chatter-light-icon: #8e8a9f;
-  --chatter-dark-text: #585566;
-  --chatter-light-bg: #ece9f5;
+  --chatter-dark-text: #45536d;
+  --chatter-light-bg: #ffffff;
 
-  --primary: #c564bb;
-  --primary-hover: #9e3d97;
-  --primary-foreground: #ffffff;
-  --brand-blue: #c564bb;
-  --accent-amber: #F59E0B;
+  --primary: #ef5388;
+  --brand-blue: #ef5388;
+  --accent-amber: #f59e0b;
 
-  --bg-darkest: #f7f5fa;
-  --bg-dark: #ffffff;
-  --bg-surface: #f0edf7;
+  --bg-darkest: #f3f7fa;
+  --bg-dark: #f3f7fa;
+  --bg-surface: #ffffff;
   --bg-elevated: #ffffff;
   --bg-panel1: #ffffff;
-  --bg-panel2: #f7f5fa;
-  --bg-hover: rgba(9, 0, 41, 0.05);
-  --border: #e2dfec;
-  --border-subtle: #dcd9e8;
-  --text-primary: #0b012c;
-  --text-secondary: #212529;
-  --text-muted: #748494;
-  --text-dark: #8e8a9f;
-  --accent: #c564bb;
-  --accent-hover: #9e3d97;
-  --accent-subtle: rgba(197, 100, 187, 0.12);
-  --accent-border: rgba(197, 100, 187, 0.25);
-  --error-color: #FF3939;
-  --success: #10B981;
+  --bg-panel2: #f3f7fa;
+  --bg-hover: rgba(69, 83, 109, 0.06);
+  --border: rgba(69, 83, 109, 0.12);
+  --border-subtle: rgba(69, 83, 109, 0.08);
+  --text-primary: #45536d;
+  --text-secondary: #748494;
+  --text-muted: #8e8a9f;
+  --text-dark: #45536d;
+  --accent: #ef5388;
+  --accent-hover: #d63f73;
+  --accent-subtle: rgba(239, 83, 136, 0.12);
+  --accent-border: rgba(239, 83, 136, 0.25);
+  --error-color: #FF6169;
+  --success: #5DB760;
   --warning: #F59E0B;
-  --online: #10B981;
+  --online: #5DB760;
   --idle: #888888;
   --offline: #666666;
-  --btn-primary-bg: #c564bb;
+  --btn-primary-bg: #ef5388;
   --btn-primary-text: #ffffff;
-  --btn-primary-hover: #9e3d97;
+  --btn-primary-hover: #d63f73;
   --input-bg: #ffffff;
-  --input-border: #dcd9e8;
+  --input-border: rgba(69, 83, 109, 0.15);
   --card-bg: #ffffff;
-  --card-shadow: 0 4px 20px rgba(9, 0, 41, 0.06);
+  --card-shadow: 0 4px 20px rgba(69, 83, 109, 0.08);
   --server-w: 68px;
   --channel-w: 260px;
   --right-w: 360px;
@@ -119,73 +119,74 @@
 }
 
 /* ════ ELITE QUIZ DARK MODE THEME ════ */
+/* From elite_quiz_app-2.3.7/lib/core/config/colors.dart */
 .dark, [data-theme="dark"] {
-  --primary-color: #c564bb;
-  --secondary-color: linear-gradient(180deg, rgba(255, 255, 255, 0.0512) 0%, rgba(255, 255, 255, 0.1024) 100%);
-  --text-color: #ffffff;
-  --background: #090029;
-  --background-2: linear-gradient(180deg, rgba(255, 255, 255, 0.0512) 0%, rgba(255, 255, 255, 0.1024) 100%);
-  --card: rgba(255, 255, 255, 0.05);
-  --card-foreground: #ffffff;
-  --foreground: #ffffff;
+  --primary-color: #f279a2;
+  --primary-hover: #e0608c;
+  --primary-foreground: #ffffff;
+  --secondary-color: #294261;
+  --text-color: #fefefe;
+  --background: #233354;
+  --background-2: #294261;
+  --card: #294261;
+  --card-foreground: #fefefe;
+  --foreground: #fefefe;
 
   /* CHATTER / APP DARK TOKENS */
-  --chatter-primary: #c564bb;
-  --chatter-pulsing: #e6a0df;
-  --chatter-hashtag: #c564bb;
-  --chatter-green: #c564bb;
-  --chatter-darkgreen: #791c71;
-  --chatter-black: #090029;
-  --chatter-sheet: #150b3d;
-  --chatter-darkbg: #150b3d;
-  --chatter-audiospace: #1c114f;
-  --chatter-audiospace-dark: #120836;
-  --chatter-audiospace-light: #251863;
-  --chatter-audiospace-text: #e2dfec;
-  --chatter-red: #FF3939;
+  --chatter-primary: #f279a2;
+  --chatter-pulsing: #f482a8;
+  --chatter-hashtag: #f279a2;
+  --chatter-green: #5DB760;
+  --chatter-darkgreen: #3d8a40;
+  --chatter-black: #233354;
+  --chatter-sheet: #294261;
+  --chatter-darkbg: #294261;
+  --chatter-audiospace: #294261;
+  --chatter-audiospace-dark: #1e2c45;
+  --chatter-audiospace-light: #325078;
+  --chatter-audiospace-text: #fefefe;
+  --chatter-red: #FF6169;
   --chatter-bluetick: #1D9BF0;
-  --chatter-white: #FFFFFF;
-  --chatter-light-text: #918ea0;
-  --chatter-light-icon: #adaab8;
-  --chatter-dark-text: #747185;
-  --chatter-light-bg: #1c114f;
+  --chatter-white: #ffffff;
+  --chatter-light-text: #b2c1d4;
+  --chatter-light-icon: #b2c1d4;
+  --chatter-dark-text: #8e9fb5;
+  --chatter-light-bg: #1e2c45;
 
-  --primary: #c564bb;
-  --primary-hover: #9e3d97;
-  --primary-foreground: #ffffff;
-  --brand-blue: #c564bb;
-  --accent-amber: #F59E0B;
+  --primary: #f279a2;
+  --brand-blue: #f279a2;
+  --accent-amber: #f59e0b;
 
-  --bg-darkest: #090029;
-  --bg-dark: #0f0535;
-  --bg-surface: #150b3d;
-  --bg-elevated: #1e124f;
-  --bg-panel1: #150b3d;
-  --bg-panel2: #0f0535;
+  --bg-darkest: #233354;
+  --bg-dark: #233354;
+  --bg-surface: #294261;
+  --bg-elevated: #314d72;
+  --bg-panel1: #294261;
+  --bg-panel2: #233354;
   --bg-hover: rgba(255, 255, 255, 0.08);
-  --border: rgba(255, 255, 255, 0.1);
-  --border-subtle: rgba(255, 255, 255, 0.14);
-  --text-primary: #ffffff;
-  --text-secondary: #d1cedb;
-  --text-muted: #918ea0;
-  --text-dark: #747185;
-  --accent: #c564bb;
-  --accent-hover: #9e3d97;
-  --accent-subtle: rgba(197, 100, 187, 0.15);
-  --accent-border: rgba(197, 100, 187, 0.35);
-  --error-color: #FF3939;
-  --success: #10B981;
+  --border: rgba(255, 255, 255, 0.12);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --text-primary: #fefefe;
+  --text-secondary: #b2c1d4;
+  --text-muted: #8e9fb5;
+  --text-dark: #7a8c9e;
+  --accent: #f279a2;
+  --accent-hover: #e0608c;
+  --accent-subtle: rgba(242, 121, 162, 0.15);
+  --accent-border: rgba(242, 121, 162, 0.35);
+  --error-color: #FF6169;
+  --success: #5DB760;
   --warning: #F59E0B;
-  --online: #10B981;
+  --online: #5DB760;
   --idle: #888888;
   --offline: #666666;
-  --btn-primary-bg: #c564bb;
+  --btn-primary-bg: #f279a2;
   --btn-primary-text: #ffffff;
-  --btn-primary-hover: #9e3d97;
-  --input-bg: rgba(255, 255, 255, 0.05);
-  --input-border: rgba(255, 255, 255, 0.12);
-  --card-bg: rgba(255, 255, 255, 0.05);
-  --card-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+  --btn-primary-hover: #e0608c;
+  --input-bg: rgba(255, 255, 255, 0.06);
+  --input-border: rgba(255, 255, 255, 0.14);
+  --card-bg: #294261;
+  --card-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
 }
 
 *, *::before, *::after { box-sizing: border-box; }

@@ -1,9 +1,10 @@
 'use client';
 
 import ThemeToggle from '@/components/ThemeToggle';
+import EliteIcon from '@/components/elite/EliteIcon';
 
 export default function ChatterSidebarNav({
-  activeTab = 'feed',
+  activeTab = 'quiz',
   onSelectTab,
   profile,
   unreadChatsCount = 0,
@@ -16,10 +17,15 @@ export default function ChatterSidebarNav({
 }) {
   const tabs = [
     {
+      id: 'quiz',
+      label: 'Home Arena',
+      iconName: 'home',
+    },
+    {
       id: 'feed',
-      label: 'Feed',
-      icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      label: 'Community Feed',
+      customIcon: (active) => (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active ? 'var(--primary-color)' : 'currentColor'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 19l7-7 3 3-7 7-3-3z" />
           <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
           <path d="M2 2l7.586 7.586" />
@@ -28,10 +34,25 @@ export default function ChatterSidebarNav({
       ),
     },
     {
+      id: 'guru',
+      label: 'AI Guru',
+      customIcon: (active) => (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active ? 'var(--primary-color)' : 'currentColor'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+          <circle cx="12" cy="12" r="4" fill={active ? 'var(--primary-color)' : 'none'} />
+        </svg>
+      ),
+    },
+    {
+      id: 'leaderboard',
+      label: 'Leaderboard',
+      iconName: 'leaderboard',
+    },
+    {
       id: 'rooms',
       label: 'Study Rooms',
-      icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      customIcon: (active) => (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active ? 'var(--primary-color)' : 'currentColor'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
           <circle cx="9" cy="7" r="4" />
           <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
@@ -40,84 +61,127 @@ export default function ChatterSidebarNav({
       ),
     },
     {
-      id: 'quiz',
-      label: 'Quiz Arena',
-      icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
-          <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-          <path d="M4 22h16" />
-          <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
-          <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
-          <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-        </svg>
-      ),
-    },
-    {
-      id: 'guru',
-      label: 'AI Guru',
-      icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10" />
-          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-          <line x1="12" y1="17" x2="12.01" y2="17" />
-        </svg>
-      ),
-    },
-    {
       id: 'chats',
-      label: 'Chats',
+      label: 'Chats & DMs',
       hasBadge: unreadChatsCount > 0,
-      icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      customIcon: (active) => (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active ? 'var(--primary-color)' : 'currentColor'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
         </svg>
       ),
     },
     {
       id: 'profile',
-      label: 'Profile',
-      icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-          <circle cx="12" cy="7" r="4" />
-        </svg>
-      ),
+      label: 'My Profile',
+      iconName: 'profile',
     },
   ];
 
   return (
-    <aside className="chatter-desktop-sidebar" aria-label="Desktop Main Navigation">
+    <aside
+      className="chatter-desktop-sidebar"
+      aria-label="Desktop Main Navigation"
+      style={{
+        width: 250,
+        backgroundColor: 'var(--card)',
+        borderRight: '1px solid var(--border)',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        padding: '20px 16px',
+        boxSizing: 'border-box',
+        height: '100dvh',
+        overflowY: 'auto',
+      }}
+    >
       <div>
         {/* Brand Header */}
-        <div className="chatter-desktop-brand">
-          <div className="chatter-logo-tag" style={{ fontSize: 22, gap: 6 }}>
-            <span>Study<span style={{ color: 'var(--chatter-primary)' }}>Cord</span></span>
-            <span className="chatter-logo-tag__dot" style={{ width: 7, height: 7 }} />
+        <div style={{ padding: '4px 8px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                backgroundColor: 'var(--primary-color)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(239, 83, 136, 0.35)',
+              }}
+            >
+              <EliteIcon name="home" size={20} color="#ffffff" />
+            </div>
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+                Elite<span style={{ color: 'var(--primary-color)' }}>Quiz</span>
+              </div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                StudyCord
+              </div>
+            </div>
           </div>
+          <ThemeToggle />
         </div>
 
-        {/* 5 Chatter Tabs */}
-        <div className="chatter-desktop-nav-group">
+        {/* Navigation Group */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
                 type="button"
-                className={`chatter-desktop-nav-btn ${isActive ? 'chatter-desktop-nav-btn--active' : ''}`}
                 onClick={() => onSelectTab(tab.id)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: '11px 14px',
+                  borderRadius: 12,
+                  border: 'none',
+                  backgroundColor: isActive ? 'var(--accent-subtle)' : 'transparent',
+                  color: isActive ? 'var(--primary-color)' : 'var(--text-secondary)',
+                  fontWeight: isActive ? 800 : 600,
+                  fontSize: 14.5,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'all 0.15s ease',
+                  position: 'relative',
+                  width: '100%',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isActive) e.currentTarget.style.backgroundColor = 'var(--bg-hover)';
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive) e.currentTarget.style.backgroundColor = 'transparent';
+                }}
               >
-                {tab.icon}
-                <span>{tab.label}</span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 22 }}>
+                  {tab.iconName ? (
+                    <EliteIcon
+                      name={tab.iconName}
+                      active={isActive}
+                      size={20}
+                      color={isActive ? 'var(--primary-color)' : 'var(--text-secondary)'}
+                    />
+                  ) : (
+                    tab.customIcon?.(isActive)
+                  )}
+                </div>
+
+                <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {tab.label}
+                </span>
+
                 {tab.hasBadge && (
                   <span
                     style={{
-                      marginLeft: 'auto',
                       width: 8,
                       height: 8,
                       borderRadius: '50%',
-                      background: 'var(--chatter-red)',
+                      backgroundColor: 'var(--error-color)',
+                      boxShadow: '0 0 0 2px var(--card)',
                     }}
                   />
                 )}
@@ -127,33 +191,38 @@ export default function ChatterSidebarNav({
         </div>
       </div>
 
-      {/* Desktop Footer (Voice Session Bar + User Status Card) */}
-      <div className="chatter-desktop-footer">
-        {/* Active Audio Space indicator if connected */}
+      {/* Desktop Footer (Active Space indicator + User Account Card) */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {isJoinedInVoiceRoom && (
           <div
             onClick={onOpenVoice}
-            title="Click to return to active study space"
             style={{
-              background: 'var(--chatter-audiospace)',
-              border: '1px solid rgba(64, 227, 120, 0.35)',
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--accent-border)',
               borderRadius: 12,
               padding: '10px 12px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               cursor: onOpenVoice ? 'pointer' : 'default',
-              transition: 'border-color 0.15s ease',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
-              <span className="chatter-audiospace-live-dot" />
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  backgroundColor: 'var(--success)',
+                  animation: 'pulse 1.5s infinite',
+                }}
+              />
               <div style={{ overflow: 'hidden' }}>
-                <div style={{ fontSize: 12.5, color: 'var(--chatter-primary)', fontWeight: 700 }}>
-                  CONNECTED TO SPACE
+                <div style={{ fontSize: 11, color: 'var(--primary-color)', fontWeight: 800, textTransform: 'uppercase' }}>
+                  Connected Space
                 </div>
-                <div style={{ fontSize: 13, color: '#fff', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                  {activeVoiceChannelName || 'Audio Room'}
+                <div style={{ fontSize: 13, color: 'var(--text-primary)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', fontWeight: 600 }}>
+                  {activeVoiceChannelName || 'Study Room'}
                 </div>
               </div>
             </div>
@@ -163,171 +232,65 @@ export default function ChatterSidebarNav({
                 e.stopPropagation();
                 onLeaveVoice?.();
               }}
-              title="Leave Room"
               style={{
-                background: 'rgba(255, 57, 57, 0.15)',
+                background: 'rgba(255, 97, 105, 0.15)',
                 border: 'none',
-                color: 'var(--chatter-red)',
-                borderRadius: '50%',
-                width: 28,
-                height: 28,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                color: 'var(--error-color)',
+                borderRadius: 8,
+                padding: '4px 8px',
+                fontSize: 12,
+                fontWeight: 700,
                 cursor: 'pointer',
               }}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
+              Leave
             </button>
           </div>
         )}
 
-        {/* User Card */}
+        {/* User Mini Profile Card */}
         <div
+          onClick={() => onSelectTab('profile')}
           style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '8px 4px',
+            gap: 10,
+            padding: '10px 12px',
+            borderRadius: 12,
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--border)',
+            cursor: 'pointer',
+            transition: 'background 0.15s ease',
           }}
         >
           <div
-            onClick={() => onSelectTab('profile')}
-            style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', overflow: 'hidden' }}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: '50%',
+              border: '2px solid var(--primary-color)',
+              overflow: 'hidden',
+              flexShrink: 0,
+              backgroundColor: 'var(--background)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
           >
-            <div style={{ position: 'relative' }}>
-              {profile?.avatar_url ? (
-                <img
-                  src={profile.avatar_url}
-                  alt={profile.name}
-                  style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }}
-                />
-              ) : (
-                <div
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: '50%',
-                    background: 'var(--chatter-sheet)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 14,
-                    fontWeight: 700,
-                    color: 'var(--chatter-primary)',
-                  }}
-                >
-                  {profile?.name?.[0]?.toUpperCase() || 'S'}
-                </div>
-              )}
-              <span
-                style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  right: 0,
-                  width: 10,
-                  height: 10,
-                  borderRadius: '50%',
-                  background: 'var(--chatter-primary)',
-                  border: '2px solid var(--chatter-black)',
-                }}
-              />
-            </div>
-            <div style={{ overflow: 'hidden' }}>
-              <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                {profile?.name || 'Scholar'}
-              </div>
-              <div style={{ fontSize: 12.5, color: 'var(--chatter-light-text)' }}>
-                @{profile?.username || 'student'}
-              </div>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <ThemeToggle />
-
-            <a
-              href="/admin"
-              title="Admin Portal"
-              style={{
-                background: 'rgba(240, 83, 135, 0.12)',
-                border: '1px solid rgba(240, 83, 135, 0.3)',
-                color: '#f05387',
-                padding: '4px 8px',
-                borderRadius: 8,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-                textDecoration: 'none',
-                fontSize: 11,
-                fontWeight: 800,
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <span>🛠️</span>
-              <span>Admin</span>
-            </a>
-
-            <button
-              type="button"
-              onClick={onOpenSettings}
-              title="Settings"
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--chatter-light-text)',
-                cursor: 'pointer',
-                padding: 6,
-                borderRadius: 8,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'color 0.15s ease',
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-              </svg>
-            </button>
-
-            {onLogout && (
-              <button
-                type="button"
-                onClick={onLogout}
-                title="Log Out"
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--chatter-light-text)',
-                  cursor: 'pointer',
-                  padding: 6,
-                  borderRadius: 8,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'color 0.15s ease, background 0.15s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = 'var(--chatter-red)';
-                  e.currentTarget.style.background = 'rgba(255, 59, 48, 0.12)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = 'var(--chatter-light-text)';
-                  e.currentTarget.style.background = 'transparent';
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                  <polyline points="16 17 21 12 16 7" />
-                  <line x1="21" y1="12" x2="9" y2="12" />
-                </svg>
-              </button>
+            {profile?.avatar_url ? (
+              <img src={profile.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <img src="/elite_assets/config/profile/1.svg" alt="Avatar" style={{ width: 28, height: 28 }} />
             )}
+          </div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {profile?.name || 'Scholar'}
+            </div>
+            <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <EliteIcon name="coin" size={12} color="var(--accent-amber)" />
+              <span style={{ fontWeight: 700, color: 'var(--accent-amber)' }}>{profile?.coins || 100}</span> coins
+            </div>
           </div>
         </div>
       </div>

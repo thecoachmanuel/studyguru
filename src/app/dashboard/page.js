@@ -1552,19 +1552,23 @@ export default function DashboardPage() {
       </div>
 
       {/* Quiz Arena Tab (Elite Quiz Web Engine) */}
-      {chatterTab === 'quiz' && (
+      {(chatterTab === 'quiz' || chatterTab === 'home' || chatterTab === 'leaderboard') && (
         <div style={{ flex: 1, display: 'flex', height: '100dvh', overflow: 'hidden', background: 'var(--background)' }}>
           <ChatterQuizArenaView
             user={user || profile}
+            profile={profile || dbProfile}
+            initialTab={chatterTab === 'leaderboard' ? 'leaderboard' : 'home'}
             onBack={() => setChatterTab('feed')}
             onOpenGuru={() => setChatterTab('guru')}
+            onOpenNotifications={() => setNotificationsModalOpen(true)}
+            onOpenCoinStore={() => {}}
           />
         </div>
       )}
 
       {/* If chatterTab === 'profile', render ChatterProfileView with desktop right sidebar */}
       {chatterTab === 'profile' && (
-        <div style={{ flex: 1, display: 'flex', height: '100dvh', overflow: 'hidden', background: 'var(--chatter-black)' }}>
+        <div style={{ flex: 1, display: 'flex', height: '100dvh', overflow: 'hidden', background: 'var(--background)' }}>
           <div className="chatter-main-column">
             <div className="chatter-center-container">
               <ChatterTopBar

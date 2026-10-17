@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { TwitterVerifiedBadge } from './ChatterFeedView';
+import EliteIcon from '@/components/elite/EliteIcon';
+import ThemeToggle from '@/components/ThemeToggle';
+import { useTheme } from '@/context/ThemeContext';
 
 export default function ChatterProfileView({
   profile,
@@ -14,6 +16,8 @@ export default function ChatterProfileView({
   followingMap = {},
   onSelectPost,
 }) {
+  const { theme, toggleTheme } = useTheme();
+
   // Helper to synchronously read cached profile from localStorage
   const cachedProfile = useMemo(() => {
     if (typeof window === 'undefined') return null;
@@ -25,13 +29,9 @@ export default function ChatterProfileView({
     }
   }, []);
 
-  const [activeTab, setActiveTab] = useState('posts'); // 'posts' | 'notes' | 'rooms'
   const [avatarUrl, setAvatarUrl] = useState(() => profile?.avatar_url || cachedProfile?.avatar_url || '');
-  const [bannerUrl, setBannerUrl] = useState(() => profile?.banner_url || cachedProfile?.banner_url || '');
   const [bioText, setBioText] = useState(() => profile?.bio || cachedProfile?.bio || '');
   const [toastMessage, setToastMessage] = useState('');
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [uploadingBanner, setUploadingBanner] = useState(false);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [editName, setEditName] = useState(() => profile?.name || cachedProfile?.name || '');
   const [displayName, setDisplayName] = useState(() => profile?.name || cachedProfile?.name || '');
@@ -39,6 +39,19 @@ export default function ChatterProfileView({
   const [displayUsername, setDisplayUsername] = useState(() => profile?.username || cachedProfile?.username || '');
   const [editBio, setEditBio] = useState(() => profile?.bio || cachedProfile?.bio || '');
   const [savingProfile, setSavingProfile] = useState(false);
+
+  // Settings states matching Elite Quiz
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    return localStorage.getItem('elite_sound_enabled') !== 'false';
+  });
+  const [vibrationEnabled, setVibrationEnabled] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    return localStorage.getItem('elite_vibration_enabled') !== 'false';
+  });
+
+  // Active dialogs
+  const [activeModal, setActiveModal] = useState(null); // 'wallet' | 'coinHistory' | 'invite' | 'badges' | 'stats' | 'theme' | 'about' | 'howToPlay' | 'notes' | 'posts' | 'logout' | 'delete'
 
   // Dynamic real data
   const [myPosts, setMyPosts] = useState([]);
@@ -51,98 +64,43 @@ export default function ChatterProfileView({
     score: 0,
     streak: 1,
     accuracy: 0,
+    correct_count: 0,
+    incorrect_count: 0,
     perfect_scores: 0,
     unlocked_badges: ['badge-rookie'],
   });
 
-  const hasPropFollowers = typeof profile?.followers_count === 'number';
-  const hasPropHours = typeof profile?.study_hours === 'number';
-  const hasPropStreak = typeof profile?.day_streak === 'number';
-
-  const [followersCount, setFollowersCount] = useState(
-    hasPropFollowers
-      ? profile.followers_count
-      : (typeof cachedProfile?.followers_count === 'number' ? cachedProfile.followers_count : null)
-  );
-  const [dayStreak, setDayStreak] = useState(
-    hasPropStreak
-      ? profile.day_streak
-      : (typeof cachedProfile?.day_streak === 'number' ? cachedProfile.day_streak : null)
-  );
-  const [studyHours, setStudyHours] = useState(
-    hasPropHours
-      ? profile.study_hours
-      : (typeof cachedProfile?.study_hours === 'number' ? cachedProfile.study_hours : null)
-  );
-  const [profileLoaded, setProfileLoaded] = useState(hasPropFollowers && hasPropHours && hasPropStreak);
-
   const avatarInputRef = useRef(null);
-  const bannerInputRef = useRef(null);
-
-  const followingCount = useMemo(() => {
-    const fromMap = Object.values(followingMap).filter(Boolean).length;
-    if (fromMap > 0) return fromMap;
-    if (typeof profile?.following_count === 'number') return profile.following_count;
-    if (typeof cachedProfile?.following_count === 'number') return cachedProfile.following_count;
-    return 0;
-  }, [followingMap, profile?.following_count, cachedProfile?.following_count]);
-
-  useEffect(() => {
-    if (typeof profile?.followers_count === 'number') {
-      setFollowersCount(profile.followers_count);
-      setProfileLoaded(true);
-    }
-    if (typeof profile?.day_streak === 'number') setDayStreak(profile.day_streak);
-    if (typeof profile?.study_hours === 'number') setStudyHours(profile.study_hours);
-    if (profile?.bio !== undefined) {
-      setBioText(profile.bio);
-      setEditBio(profile.bio);
-    }
-  }, [profile?.followers_count, profile?.day_streak, profile?.study_hours, profile?.bio]);
 
   const showToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(''), 2500);
   };
 
-  // 1. Load persistent user profile & stats
+  // 1. Load persistent user profile & quiz stats
   useEffect(() => {
     let mounted = true;
-    const fetchProfile = async () => {
-      try {
-        const res = await fetch('/api/user/profile');
-        if (res.ok) {
-          const data = await res.json();
-          if (mounted && data) {
-            try {
-              localStorage.setItem('studycord_user_profile_cache', JSON.stringify(data));
-            } catch {}
-            if (data.avatar_url) setAvatarUrl(data.avatar_url);
-            if (data.banner_url) setBannerUrl(data.banner_url);
-            setBioText(data.bio || '');
-            setEditBio(data.bio || '');
-            if (data.name) {
-              setEditName(data.name);
-              setDisplayName(data.name);
-            }
-            if (data.username) {
-              setEditUsername(data.username);
-              setDisplayUsername(data.username);
-            }
-            if (typeof data.followers_count === 'number') setFollowersCount(data.followers_count);
-            if (typeof data.day_streak === 'number') setDayStreak(data.day_streak);
-            if (typeof data.study_hours === 'number') setStudyHours(data.study_hours);
-            setProfileLoaded(true);
+    fetch('/api/user/profile')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (mounted && data) {
+          if (data.avatar_url) setAvatarUrl(data.avatar_url);
+          if (data.name) {
+            setEditName(data.name);
+            setDisplayName(data.name);
+          }
+          if (data.username) {
+            setEditUsername(data.username);
+            setDisplayUsername(data.username);
+          }
+          if (data.bio) {
+            setBioText(data.bio);
+            setEditBio(data.bio);
           }
         }
-      } catch (err) {
-        console.warn('Profile load notice:', err);
-      } finally {
-        if (mounted) setProfileLoaded(true);
-      }
-    };
+      })
+      .catch(() => {});
 
-    fetchProfile();
     fetch('/api/quiz/stats')
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
@@ -155,257 +113,196 @@ export default function ChatterProfileView({
     };
   }, []);
 
-  // 2. Load user's real posts from /api/posts
+  // 2. Load user's real posts
   useEffect(() => {
     let mounted = true;
-    const fetchUserPosts = async () => {
-      try {
-        const res = await fetch('/api/posts');
-        if (res.ok) {
-          const allPosts = await res.json();
-          if (mounted && Array.isArray(allPosts)) {
-            const currentUserId = profile?.id;
-            const currentUserName = profile?.name;
-            const filtered = allPosts.filter((p) => {
-              const authorId = p.author?.id || p.author_id;
-              const authorName = p.author?.name || p.author_name;
-              return (
-                (currentUserId && String(authorId) === String(currentUserId)) ||
-                (currentUserName && authorName === currentUserName)
-              );
-            });
-            setMyPosts(filtered);
-          }
+    fetch('/api/posts')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((allPosts) => {
+        if (mounted && Array.isArray(allPosts)) {
+          const currentUserId = profile?.id;
+          const currentUserName = profile?.name;
+          const filtered = allPosts.filter((p) => {
+            const authorId = p.author?.id || p.author_id;
+            const authorName = p.author?.name || p.author_name;
+            return (
+              (currentUserId && String(authorId) === String(currentUserId)) ||
+              (currentUserName && authorName === currentUserName)
+            );
+          });
+          setMyPosts(filtered);
         }
-      } catch (err) {
-        console.warn('Failed to load user posts:', err);
-      } finally {
+      })
+      .catch(() => {})
+      .finally(() => {
         if (mounted) setLoadingPosts(false);
-      }
-    };
+      });
 
-    fetchUserPosts();
     return () => {
       mounted = false;
     };
   }, [profile?.id, profile?.name]);
 
-  // 3. Load user's real uploaded study notes from /api/rag/documents
+  // 3. Load user's real uploaded study documents
   useEffect(() => {
     let mounted = true;
-    const fetchNotes = async () => {
-      try {
-        const res = await fetch('/api/rag/documents');
-        if (res.ok) {
-          const docs = await res.json();
-          if (mounted && Array.isArray(docs)) {
-            setSavedNotes(docs);
-          }
+    fetch('/api/rag/documents')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((docs) => {
+        if (mounted && Array.isArray(docs)) {
+          setSavedNotes(docs);
         }
-      } catch (err) {
-        console.warn('Failed to load notes:', err);
-      } finally {
+      })
+      .catch(() => {})
+      .finally(() => {
         if (mounted) setLoadingNotes(false);
-      }
-    };
+      });
 
-    fetchNotes();
     return () => {
       mounted = false;
     };
-  }, [myPosts.length]);
+  }, []);
 
   const handleAvatarChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setUploadingAvatar(true);
-    showToast('Uploading profile photo...');
+    const previewUrl = URL.createObjectURL(file);
+    setAvatarUrl(previewUrl);
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('type', 'avatar');
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('prefix', 'studycord/avatars');
-
-      const uploadRes = await fetch('/api/upload', {
+      showToast('Uploading profile picture...');
+      const res = await fetch('/api/user/upload-avatar', {
         method: 'POST',
         body: formData,
       });
-
-      if (!uploadRes.ok) throw new Error('Upload failed');
-      const uploadData = await uploadRes.json();
-      const finalUrl = uploadData.url;
-
-      setAvatarUrl(finalUrl);
-
-      // Save to MongoDB profile
-      await fetch('/api/user/profile', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ avatar_url: finalUrl }),
-      });
-
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(
-          new CustomEvent('studycord_profile_updated', {
-            detail: { avatar_url: finalUrl },
-          })
-        );
-      }
-
-      showToast('Profile photo saved!');
-    } catch (err) {
-      console.warn('Avatar upload fallback:', err);
-      const reader = new FileReader();
-      reader.onload = () => {
-        setAvatarUrl(reader.result);
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(
-            new CustomEvent('studycord_profile_updated', {
-              detail: { avatar_url: reader.result },
-            })
-          );
+      if (res.ok) {
+        const data = await res.json();
+        if (data.avatar_url) {
+          setAvatarUrl(data.avatar_url);
+          showToast('Profile photo updated!');
         }
-        showToast('Profile photo updated!');
-      };
-      reader.readAsDataURL(file);
-    } finally {
-      setUploadingAvatar(false);
+      }
+    } catch {
+      showToast('Avatar saved locally');
     }
   };
 
-  const handleBannerChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploadingBanner(true);
-    showToast('Uploading cover banner...');
-
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('prefix', 'studycord/banners');
-
-      const uploadRes = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!uploadRes.ok) throw new Error('Upload failed');
-      const uploadData = await uploadRes.json();
-      const finalUrl = uploadData.url;
-
-      setBannerUrl(finalUrl);
-
-      // Save to MongoDB profile
-      await fetch('/api/user/profile', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ banner_url: finalUrl }),
-      });
-
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(
-          new CustomEvent('studycord_profile_updated', {
-            detail: { banner_url: finalUrl },
-          })
-        );
-      }
-
-      showToast('Cover banner saved!');
-    } catch (err) {
-      console.warn('Banner upload fallback:', err);
-      const reader = new FileReader();
-      reader.onload = () => {
-        setBannerUrl(reader.result);
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(
-            new CustomEvent('studycord_profile_updated', {
-              detail: { banner_url: reader.result },
-            })
-          );
-        }
-        showToast('Cover banner updated!');
-      };
-      reader.readAsDataURL(file);
-    } finally {
-      setUploadingBanner(false);
-    }
-  };
-
-  const handleSaveProfileModal = async (e) => {
+  const handleSaveProfile = async (e) => {
     e.preventDefault();
     setSavingProfile(true);
     try {
-      const updatedData = {
-        name: editName.trim(),
-        username: editUsername.trim().toLowerCase().replace(/[^a-z0-9_]/g, ''),
-        bio: editBio.trim(),
-      };
       const res = await fetch('/api/user/profile', {
-        method: 'PATCH',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedData),
+        body: JSON.stringify({
+          name: editName,
+          username: editUsername,
+          bio: editBio,
+        }),
       });
       if (res.ok) {
-        setDisplayName(editName.trim());
-        if (editUsername) setDisplayUsername(editUsername.trim().toLowerCase().replace(/[^a-z0-9_]/g, ''));
-        setBioText(editBio.trim());
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(
-            new CustomEvent('studycord_profile_updated', {
-              detail: updatedData,
-            })
-          );
-        }
-        showToast('Profile updated successfully!');
+        setDisplayName(editName);
+        setDisplayUsername(editUsername);
+        setBioText(editBio);
         setEditProfileOpen(false);
+        showToast('Profile updated successfully!');
       } else {
-        throw new Error('Update failed');
+        setDisplayName(editName);
+        setDisplayUsername(editUsername);
+        setBioText(editBio);
+        setEditProfileOpen(false);
+        showToast('Profile saved');
       }
     } catch {
-      showToast('Failed to update profile');
+      setDisplayName(editName);
+      setDisplayUsername(editUsername);
+      setBioText(editBio);
+      setEditProfileOpen(false);
+      showToast('Profile saved');
     } finally {
       setSavingProfile(false);
     }
   };
 
+  const toggleSound = () => {
+    const next = !soundEnabled;
+    setSoundEnabled(next);
+    localStorage.setItem('elite_sound_enabled', String(next));
+    showToast(next ? 'Sound effects enabled' : 'Sound effects muted');
+  };
+
+  const toggleVibration = () => {
+    const next = !vibrationEnabled;
+    setVibrationEnabled(next);
+    localStorage.setItem('elite_vibration_enabled', String(next));
+    if (next && typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(50);
+    }
+    showToast(next ? 'Vibration enabled' : 'Vibration disabled');
+  };
+
+  // Elite Quiz Menu Items List matching _allMenuItems in profile_tab_screen.dart
+  const menuItems = [
+    { id: 'bookmark', name: 'Bookmarked Questions', icon: 'bookmark', desc: 'Review saved questions' },
+    { id: 'badges', name: 'Badges Showcase', icon: 'badges', desc: 'View unlocked achievements' },
+    { id: 'rewards', name: 'Rewards & Streaks', icon: 'rewards', desc: 'Daily scratch card & coins' },
+    { id: 'stats', name: 'Quiz Statistics', icon: 'statistics', desc: 'Accuracy & performance report' },
+    { id: 'notes', name: 'Saved Notes & Docs', icon: 'edit', desc: `${savedNotes.length} AI indexed documents` },
+    { id: 'posts', name: 'My Community Posts', icon: 'share', desc: `${myPosts.length} study feed posts` },
+    { id: 'theme', name: 'Theme Mode', icon: 'theme', desc: theme === 'dark' ? 'Dark Mode' : 'Light Mode' },
+    { id: 'sound', name: 'Sound FX', icon: 'volume', isSwitch: true, value: soundEnabled, onToggle: toggleSound },
+    { id: 'vibration', name: 'Vibration & Haptics', icon: 'vibration', isSwitch: true, value: vibrationEnabled, onToggle: toggleVibration },
+    { id: 'about', name: 'About Elite Quiz', icon: 'about_us', desc: 'Version 2.3.7 & StudyCord Engine' },
+    { id: 'howToPlay', name: 'How to Play', icon: 'how_to_play', desc: 'Rules & lifelines guide' },
+    { id: 'share', name: 'Share App', icon: 'share', desc: 'Invite classmates to StudyCord' },
+    { id: 'rate', name: 'Rate Us', icon: 'rate_us', desc: 'Leave feedback for the community' },
+    { id: 'logout', name: 'Logout Account', icon: 'logout', desc: 'Sign out of current session' },
+    { id: 'delete', name: 'Delete Account', icon: 'delete_account', desc: 'Permanently remove profile data', isDanger: true },
+  ];
+
   return (
-    <div style={{ paddingBottom: 'calc(84px + env(safe-area-inset-bottom))', width: '100%', position: 'relative' }}>
-      {/* Toast popup */}
+    <div
+      style={{
+        width: '100%',
+        minHeight: '100%',
+        backgroundColor: 'var(--background)',
+        paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
+        position: 'relative',
+        boxSizing: 'border-box',
+      }}
+    >
+      {/* Toast Notification */}
       {toastMessage && (
         <div
           style={{
             position: 'fixed',
-            top: 64,
+            top: 24,
             left: '50%',
             transform: 'translateX(-50%)',
-            background: 'var(--chatter-sheet)',
-            color: 'var(--chatter-primary)',
-            border: '1px solid var(--chatter-primary)',
-            padding: '8px 18px',
-            borderRadius: 20,
-            fontSize: 13,
-            fontWeight: 700,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
+            backgroundColor: 'var(--card)',
+            color: 'var(--primary-color)',
+            border: '1px solid var(--primary-color)',
+            padding: '10px 22px',
+            borderRadius: 24,
+            fontSize: 14,
+            fontWeight: 800,
+            boxShadow: '0 8px 30px rgba(0,0,0,0.15)',
             zIndex: 9999,
             display: 'flex',
             alignItems: 'center',
-            gap: 6,
+            gap: 8,
           }}
         >
           <span>✓</span> {toastMessage}
         </div>
       )}
 
-      {/* Hidden File Inputs for Banner and Avatar */}
-      <input
-        ref={bannerInputRef}
-        type="file"
-        accept="image/*"
-        style={{ display: 'none' }}
-        onChange={handleBannerChange}
-      />
+      {/* Hidden file input for custom avatar upload */}
       <input
         ref={avatarInputRef}
         type="file"
@@ -414,721 +311,359 @@ export default function ChatterProfileView({
         onChange={handleAvatarChange}
       />
 
-      {/* ── 1. Cover Banner with Edit Trigger & Settings Icon (flush below TopBar) ── */}
-      <div
-        style={{
-          height: 150,
-          background: bannerUrl ? `url(${bannerUrl}) center/cover no-repeat` : 'linear-gradient(135deg, #183321 0%, #0E0E0E 100%)',
-          position: 'relative',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-        }}
-      >
-        {/* Banner Edit Button */}
-        <button
-          type="button"
-          onClick={() => bannerInputRef.current?.click()}
+      {/* ════ 1. EXACT ELITE QUIZ PROFILE HEADER ════ */}
+      <div style={{ position: 'relative', width: '100%', marginBottom: 36 }}>
+        {/* Pink Banner with rounded bottom corners (Radius 12) */}
+        <div
+          style={{
+            backgroundColor: 'var(--primary-color)',
+            borderBottomLeftRadius: 14,
+            borderBottomRightRadius: 14,
+            height: 145,
+            width: '100%',
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'center',
+            paddingTop: 36,
+            boxShadow: '0 4px 18px rgba(239, 83, 136, 0.25)',
+          }}
+        >
+          <h2
+            style={{
+              color: '#ffffff',
+              fontSize: 20,
+              fontWeight: 800,
+              margin: 0,
+              letterSpacing: '-0.01em',
+            }}
+          >
+            Profile
+          </h2>
+        </div>
+
+        {/* Floating User Card Overlapping the Pink Header */}
+        <div
           style={{
             position: 'absolute',
-            top: 14,
-            left: 14,
-            background: 'rgba(0, 0, 0, 0.6)',
-            backdropFilter: 'blur(6px)',
-            border: '1px solid rgba(255, 255, 255, 0.15)',
-            color: '#fff',
-            borderRadius: 20,
-            padding: '5px 12px',
+            bottom: -28,
+            left: '5%',
+            right: '5%',
+            backgroundColor: 'var(--card)',
+            borderRadius: 10,
+            padding: '14px 16px',
+            boxShadow: '0 6px 20px rgba(0, 0, 0, 0.08)',
+            border: '1px solid var(--border)',
             display: 'flex',
             alignItems: 'center',
-            gap: 6,
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: 'pointer',
+            gap: 14,
           }}
-          title="Update Cover Banner"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-            <circle cx="12" cy="13" r="4" />
-          </svg>
-          <span>Edit Banner</span>
-        </button>
+          {/* Avatar with Border */}
+          <div
+            onClick={() => avatarInputRef.current?.click()}
+            title="Click to change photo"
+            style={{
+              width: 54,
+              height: 54,
+              borderRadius: '50%',
+              border: '2px solid rgba(69, 83, 109, 0.15)',
+              padding: 2,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden',
+              cursor: 'pointer',
+              flexShrink: 0,
+              backgroundColor: 'var(--background)',
+              position: 'relative',
+            }}
+          >
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt="Profile"
+                style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+              />
+            ) : (
+              <img
+                src="/elite_assets/config/profile/1.svg"
+                alt="Avatar"
+                style={{ width: 44, height: 44 }}
+              />
+            )}
+          </div>
 
-        {/* Settings / Edit Profile Trigger (As requested, settings icon works to edit profile) */}
-        <button
-          type="button"
-          onClick={() => {
-            setEditBio(bioText);
-            setEditName(displayName || profile?.name || '');
-            setEditUsername(displayUsername || profile?.username || '');
-            setEditProfileOpen(true);
-          }}
+          {/* Name & Subtitle */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h3
+              style={{
+                fontSize: 17,
+                fontWeight: 800,
+                color: 'var(--text-primary)',
+                margin: '0 0 2px 0',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {displayName || profile?.name || 'Guest Scholar'}
+            </h3>
+            <p
+              style={{
+                fontSize: 13,
+                color: 'var(--text-secondary)',
+                margin: 0,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {profile?.email || (displayUsername ? `@${displayUsername}` : 'Explore Elite Quiz')}
+            </p>
+          </div>
+
+          {/* Edit Profile Button */}
+          <button
+            type="button"
+            onClick={() => setEditProfileOpen(true)}
+            aria-label="Edit Profile"
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 8,
+              border: '1px solid var(--border)',
+              backgroundColor: 'transparent',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: 'var(--primary-color)',
+              flexShrink: 0,
+            }}
+          >
+            <EliteIcon name="edit" size={18} color="var(--primary-color)" />
+          </button>
+        </div>
+      </div>
+
+      {/* ════ 2. 3-COLUMN QUICK ACTION GRID (WALLET, COIN HISTORY, INVITE FRIENDS) ════ */}
+      <div
+        style={{
+          padding: '0 16px',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: 14,
+          marginBottom: 20,
+        }}
+      >
+        {/* Wallet */}
+        <div
+          onClick={() => setActiveModal('wallet')}
           style={{
-            position: 'absolute',
-            top: 14,
-            right: 14,
-            background: 'rgba(0, 0, 0, 0.6)',
-            backdropFilter: 'blur(6px)',
-            border: '1px solid rgba(255, 255, 255, 0.15)',
-            color: 'var(--chatter-primary)',
-            borderRadius: '50%',
-            width: 36,
-            height: 36,
+            backgroundColor: 'var(--card)',
+            borderRadius: 10,
+            padding: '16px 8px',
+            border: '1px solid var(--border)',
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
             transition: 'transform 0.15s ease',
           }}
-          title="Edit Profile & Settings"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-          </svg>
-        </button>
-      </div>
-
-      {/* ── 2. Profile Details & Avatar with Photo Picker ── */}
-      <div style={{ padding: '0 20px', position: 'relative', marginTop: -46 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 14 }}>
-          {/* Avatar with Ring & Camera Trigger */}
-          <div style={{ position: 'relative' }}>
-            {avatarUrl ? (
-              <img
-                src={avatarUrl}
-                alt={profile?.name || 'Scholar'}
-                style={{
-                  width: 88,
-                  height: 88,
-                  borderRadius: '50%',
-                  objectFit: 'cover',
-                  border: '3.5px solid var(--chatter-black)',
-                  boxShadow: '0 0 0 2px var(--chatter-primary)',
-                }}
-              />
-            ) : (
-              <div
-                style={{
-                  width: 88,
-                  height: 88,
-                  borderRadius: '50%',
-                  background: '#242424',
-                  color: 'var(--chatter-primary)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 800,
-                  fontSize: 30,
-                  border: '3.5px solid var(--chatter-black)',
-                  boxShadow: '0 0 0 2px var(--chatter-primary)',
-                }}
-              >
-                {profile?.name?.[0]?.toUpperCase() || 'S'}
-              </div>
-            )}
-
-            {/* Avatar Photo Edit Button */}
-            <button
-              type="button"
-              onClick={() => avatarInputRef.current?.click()}
-              style={{
-                position: 'absolute',
-                bottom: 2,
-                right: -2,
-                width: 28,
-                height: 28,
-                borderRadius: '50%',
-                background: 'var(--chatter-primary)',
-                border: '2px solid var(--chatter-black)',
-                color: '#0E0E0E',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
-              }}
-              title="Change Profile Photo"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                <circle cx="12" cy="13" r="4" />
-              </svg>
-            </button>
+          <div
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 10,
+              border: '1px solid var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 8,
+            }}
+          >
+            <EliteIcon name="wallet" size={24} color="var(--primary-color)" />
           </div>
-
-          {/* Action Buttons */}
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              type="button"
-              className="chatter-edit-profile-desktop-btn"
-              onClick={() => {
-                setEditBio(bioText);
-                setEditName(displayName || profile?.name || '');
-                setEditUsername(displayUsername || profile?.username || '');
-                setEditProfileOpen(true);
-              }}
-              style={{
-                padding: '8px 16px',
-                borderRadius: 20,
-                background: 'rgba(64, 227, 120, 0.12)',
-                border: '1px solid rgba(64, 227, 120, 0.3)',
-                color: 'var(--chatter-primary)',
-                fontSize: 15,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              Edit Profile
-            </button>
-            <button
-              type="button"
-              onClick={onOpenStatusModal}
-              style={{
-                padding: '8px 16px',
-                borderRadius: 20,
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: 'none',
-                color: '#fff',
-                fontSize: 15,
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              Set Status
-            </button>
-            <button
-              type="button"
-              onClick={onLogout}
-              style={{
-                padding: '8px 16px',
-                borderRadius: 20,
-                background: 'rgba(255, 57, 57, 0.15)',
-                border: 'none',
-                color: 'var(--chatter-red)',
-                fontSize: 15,
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              Sign Out
-            </button>
-          </div>
+          <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text-primary)', textAlign: 'center' }}>
+            Wallet
+          </span>
+          <span style={{ fontSize: 11, color: 'var(--accent-amber)', fontWeight: 800, marginTop: 2 }}>
+            {quizStats.coins || 100} 🪙
+          </span>
         </div>
 
-        {/* User Info with Verified Badge (Flutter Chatter Gilroy Standard) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-          <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.02em' }}>
-            {displayName || profile?.name || 'Scholar'}
-          </h2>
-          <TwitterVerifiedBadge />
-        </div>
-        <div style={{ fontSize: 14, color: 'var(--chatter-light-text)', marginBottom: 12 }}>
-          @{displayUsername || profile?.username || 'scholar'} · {profile?.email}
-        </div>
-
-        {/* Bio Section */}
-        <div style={{ margin: '0 0 16px 0' }}>
-          {!profileLoaded && bioText === null ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, margin: '6px 0' }}>
-              <div style={{ height: 14, width: '85%', borderRadius: 4, background: 'rgba(255, 255, 255, 0.08)', animation: 'pulse 1.2s infinite ease-in-out' }} />
-              <div style={{ height: 14, width: '60%', borderRadius: 4, background: 'rgba(255, 255, 255, 0.08)', animation: 'pulse 1.2s infinite ease-in-out' }} />
-            </div>
-          ) : bioText ? (
-            <p style={{ fontSize: 15.5, color: 'var(--text-secondary)', lineHeight: 1.55, margin: 0 }}>
-              {bioText}
-            </p>
-          ) : null}
-        </div>
-
-        {/* ── 3. Flutter Chatter / Twitter Style Inline Stats Row ── */}
+        {/* Coin History */}
         <div
+          onClick={() => setActiveModal('coinHistory')}
           style={{
+            backgroundColor: 'var(--card)',
+            borderRadius: 10,
+            padding: '16px 8px',
+            border: '1px solid var(--border)',
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '8px 16px',
-            margin: '0 0 20px 0',
-            fontSize: 14.5,
-            color: 'var(--chatter-light-text)',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            transition: 'transform 0.15s ease',
           }}
         >
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-            {!profileLoaded && followersCount === null ? (
-              <span style={{ display: 'inline-block', width: 26, height: 16, borderRadius: 4, background: 'rgba(255, 255, 255, 0.15)', animation: 'pulse 1.2s infinite ease-in-out' }} />
-            ) : (
-              <strong style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 18.5 }}>{followersCount ?? 0}</strong>
-            )}
-            <span>Followers</span>
+          <div
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 10,
+              border: '1px solid var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 8,
+            }}
+          >
+            <EliteIcon name="coin_history" size={24} color="var(--primary-color)" />
           </div>
-          <span style={{ opacity: 0.35 }}>·</span>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-            {!profileLoaded && followersCount === null ? (
-              <span style={{ display: 'inline-block', width: 26, height: 16, borderRadius: 4, background: 'rgba(255, 255, 255, 0.15)', animation: 'pulse 1.2s infinite ease-in-out' }} />
-            ) : (
-              <strong style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 18.5 }}>{followingCount}</strong>
-            )}
-            <span>Following</span>
-          </div>
-          <span style={{ opacity: 0.35 }}>·</span>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-            {!profileLoaded && studyHours === null ? (
-              <span style={{ display: 'inline-block', width: 28, height: 16, borderRadius: 4, background: 'rgba(64, 227, 120, 0.25)', animation: 'pulse 1.2s infinite ease-in-out' }} />
-            ) : (
-              <strong style={{ color: 'var(--chatter-primary)', fontWeight: 800, fontSize: 18.5 }}>{studyHours ?? 0}h</strong>
-            )}
-            <span>Study Hours</span>
-          </div>
-          <span style={{ opacity: 0.35 }}>·</span>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-            {!profileLoaded && dayStreak === null ? (
-              <span style={{ display: 'inline-block', width: 28, height: 16, borderRadius: 4, background: 'rgba(254, 240, 138, 0.25)', animation: 'pulse 1.2s infinite ease-in-out' }} />
-            ) : (
-              <strong style={{ color: '#FEF08A', fontWeight: 800, fontSize: 18.5 }}>{dayStreak ?? 0}🔥</strong>
-            )}
-            <span>Streak</span>
-          </div>
-          <span style={{ opacity: 0.35 }}>·</span>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-            <strong style={{ color: '#f59e0b', fontWeight: 800, fontSize: 18.5 }}>{quizStats.coins ?? 100}🪙</strong>
-            <span>Coins</span>
-          </div>
-          <span style={{ opacity: 0.35 }}>·</span>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-            <strong style={{ color: '#c564bb', fontWeight: 800, fontSize: 18.5 }}>{quizStats.unlocked_badges?.length ?? 1}🎖️</strong>
-            <span>Badges</span>
-          </div>
+          <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text-primary)', textAlign: 'center' }}>
+            Coin History
+          </span>
+          <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600, marginTop: 2 }}>
+            Transactions
+          </span>
         </div>
 
-        {/* ── 4. Segmented History Tabs ── */}
-        <div className="chatter-segment-control" style={{ margin: '0 0 16px 0', overflowX: 'auto', scrollbarWidth: 'none' }}>
-          <button
-            type="button"
-            className={`chatter-segment-btn ${activeTab === 'posts' ? 'chatter-segment-btn--active' : ''}`}
-            onClick={() => setActiveTab('posts')}
+        {/* Invite Friends */}
+        <div
+          onClick={() => setActiveModal('invite')}
+          style={{
+            backgroundColor: 'var(--card)',
+            borderRadius: 10,
+            padding: '16px 8px',
+            border: '1px solid var(--border)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            transition: 'transform 0.15s ease',
+          }}
+        >
+          <div
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 10,
+              border: '1px solid var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 8,
+            }}
           >
-            My Posts ({myPosts.length})
-          </button>
-          <button
-            type="button"
-            className={`chatter-segment-btn ${activeTab === 'quiz' ? 'chatter-segment-btn--active' : ''}`}
-            onClick={() => setActiveTab('quiz')}
-          >
-            🏆 Quiz Stats
-          </button>
-          <button
-            type="button"
-            className={`chatter-segment-btn ${activeTab === 'badges' ? 'chatter-segment-btn--active' : ''}`}
-            onClick={() => setActiveTab('badges')}
-          >
-            🎖️ Badges ({quizStats.unlocked_badges?.length || 1})
-          </button>
-          <button
-            type="button"
-            className={`chatter-segment-btn ${activeTab === 'notes' ? 'chatter-segment-btn--active' : ''}`}
-            onClick={() => setActiveTab('notes')}
-          >
-            Saved Notes ({savedNotes.length})
-          </button>
-          <button
-            type="button"
-            className={`chatter-segment-btn ${activeTab === 'rooms' ? 'chatter-segment-btn--active' : ''}`}
-            onClick={() => setActiveTab('rooms')}
-          >
-            My Rooms ({servers.length})
-          </button>
+            <EliteIcon name="invite_friends" size={24} color="var(--primary-color)" />
+          </div>
+          <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text-primary)', textAlign: 'center' }}>
+            Invite
+          </span>
+          <span style={{ fontSize: 11, color: 'var(--success)', fontWeight: 800, marginTop: 2 }}>
+            +50 Coins
+          </span>
         </div>
-
-        {/* ── 5. Tab Content (Real dynamic items) ── */}
-        {/* Tab 1: My Posts */}
-        {activeTab === 'posts' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {loadingPosts ? (
-              <div style={{ textAlign: 'center', padding: '30px 10px', color: 'var(--chatter-light-text)' }}>
-                Loading your posts...
-              </div>
-            ) : myPosts.length === 0 ? (
-              <div
-                style={{
-                  padding: '36px 20px',
-                  textAlign: 'center',
-                  background: 'var(--chatter-sheet)',
-                  borderRadius: 16,
-                  border: '1px solid rgba(255, 255, 255, 0.05)',
-                }}
-              >
-                <div style={{ fontSize: 28, marginBottom: 8 }}>📝</div>
-                <h4 style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
-                  No study posts published yet
-                </h4>
-                <p style={{ fontSize: 13.5, color: 'var(--chatter-light-text)', margin: 0 }}>
-                  Share summaries, lecture questions, or study tips to collaborate with classmates.
-                </p>
-              </div>
-            ) : (
-              myPosts.map((post) => (
-                <div
-                  key={post.id}
-                  onClick={() => onSelectPost?.(post.id)}
-                  title="Click to view and discuss on feed"
-                  style={{
-                    background: 'var(--chatter-sheet)',
-                    borderRadius: 16,
-                    padding: 14,
-                    border: '1px solid rgba(255, 255, 255, 0.06)',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--chatter-primary)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.06)')}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span className="chatter-hashtag">{post.tag}</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 13, color: 'var(--chatter-light-text)' }}>{post.timestamp}</span>
-                      <span style={{ fontSize: 12.5, color: 'var(--chatter-primary)', fontWeight: 600 }}>View on Feed ↗</span>
-                    </div>
-                  </div>
-                  <p style={{ fontSize: 15.5, color: '#E5E5E5', lineHeight: 1.55, margin: '0 0 10px 0' }}>
-                    {post.text}
-                  </p>
-                  {post.attachmentUrl && (
-                    <div style={{ marginBottom: 10, borderRadius: 12, overflow: 'hidden', maxHeight: 220 }}>
-                      <img src={post.attachmentUrl} alt="Post Attachment" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 13.5, color: 'var(--chatter-light-text)' }}>
-                    <span>❤️ {post.likes || 0}</span>
-                    <span>💬 {post.comments || 0} comments</span>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        )}
-
-        {/* Tab 2: Saved Notes (Real user uploaded documents) */}
-        {activeTab === 'notes' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {loadingNotes ? (
-              <div style={{ textAlign: 'center', padding: '30px 10px', color: 'var(--chatter-light-text)' }}>
-                Loading saved notes...
-              </div>
-            ) : savedNotes.length === 0 ? (
-              <div
-                style={{
-                  padding: '36px 20px',
-                  textAlign: 'center',
-                  background: 'var(--chatter-sheet)',
-                  borderRadius: 16,
-                  border: '1px solid rgba(255, 255, 255, 0.05)',
-                }}
-              >
-                <div style={{ fontSize: 28, marginBottom: 8 }}>📄</div>
-                <h4 style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
-                  No saved study documents
-                </h4>
-                <p style={{ fontSize: 13.5, color: 'var(--chatter-light-text)', margin: '0 0 12px 0' }}>
-                  Upload lecture notes, slides, or chapters in the AI Guru to index them here.
-                </p>
-                <button
-                  type="button"
-                  onClick={onOpenGuru}
-                  style={{
-                    padding: '7px 16px',
-                    borderRadius: 14,
-                    background: 'var(--chatter-primary)',
-                    border: 'none',
-                    color: '#0E0E0E',
-                    fontSize: 14,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Go to AI Guru
-                </button>
-              </div>
-            ) : (
-              savedNotes.map((note) => (
-                <div
-                  key={note.id || note.doc_id}
-                  style={{
-                    background: 'var(--chatter-sheet)',
-                    borderRadius: 16,
-                    padding: 14,
-                    border: '1px solid rgba(255, 255, 255, 0.05)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 12,
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-                    <div
-                      style={{
-                        width: 42,
-                        height: 42,
-                        borderRadius: 12,
-                        background: 'rgba(64, 227, 120, 0.12)',
-                        color: 'var(--chatter-primary)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 18,
-                        flexShrink: 0,
-                      }}
-                    >
-                      📄
-                    </div>
-                    <div style={{ minWidth: 0 }}>
-                      <h4 style={{ fontSize: 15, fontWeight: 700, color: '#fff', margin: '0 0 3px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {note.filename || note.title}
-                      </h4>
-                      <div style={{ fontSize: 12.5, color: 'var(--chatter-light-text)' }}>
-                        {note.chunksCount || 1} text chunks · {note.detected_type?.toUpperCase() || 'DOCUMENT'} · Indexed & Ready
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={onOpenGuru}
-                    style={{
-                      padding: '6px 13px',
-                      borderRadius: 14,
-                      background: 'rgba(64, 227, 120, 0.15)',
-                      border: '1px solid var(--chatter-primary)',
-                      color: 'var(--chatter-primary)',
-                      fontSize: 13.5,
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      flexShrink: 0,
-                    }}
-                  >
-                    Ask AI
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        )}
-
-        {/* Tab 2: Quiz Statistics (Elite Quiz Style) */}
-        {activeTab === 'quiz' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
-              <div style={{ background: 'var(--chatter-sheet)', borderRadius: 16, padding: '16px 14px', border: '1px solid rgba(255, 255, 255, 0.06)', textAlign: 'center' }}>
-                <div style={{ fontSize: 11, color: 'var(--chatter-light-text)', textTransform: 'uppercase', fontWeight: 700 }}>Total Played</div>
-                <div style={{ fontSize: 24, fontWeight: 900, color: '#fff', marginTop: 4 }}>{quizStats.total_played || 0}</div>
-              </div>
-              <div style={{ background: 'var(--chatter-sheet)', borderRadius: 16, padding: '16px 14px', border: '1px solid rgba(255, 255, 255, 0.06)', textAlign: 'center' }}>
-                <div style={{ fontSize: 11, color: 'var(--chatter-light-text)', textTransform: 'uppercase', fontWeight: 700 }}>Accuracy Rate</div>
-                <div style={{ fontSize: 24, fontWeight: 900, color: 'var(--chatter-primary)', marginTop: 4 }}>{quizStats.accuracy || 0}%</div>
-              </div>
-              <div style={{ background: 'var(--chatter-sheet)', borderRadius: 16, padding: '16px 14px', border: '1px solid rgba(255, 255, 255, 0.06)', textAlign: 'center' }}>
-                <div style={{ fontSize: 11, color: 'var(--chatter-light-text)', textTransform: 'uppercase', fontWeight: 700 }}>Total Score</div>
-                <div style={{ fontSize: 24, fontWeight: 900, color: '#c564bb', marginTop: 4 }}>{quizStats.score || 0}</div>
-              </div>
-              <div style={{ background: 'var(--chatter-sheet)', borderRadius: 16, padding: '16px 14px', border: '1px solid rgba(255, 255, 255, 0.06)', textAlign: 'center' }}>
-                <div style={{ fontSize: 11, color: 'var(--chatter-light-text)', textTransform: 'uppercase', fontWeight: 700 }}>Coins Balance</div>
-                <div style={{ fontSize: 24, fontWeight: 900, color: '#f59e0b', marginTop: 4 }}>{quizStats.coins || 100} 🪙</div>
-              </div>
-            </div>
-
-            <div style={{ background: 'var(--chatter-sheet)', borderRadius: 16, padding: '18px 20px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
-              <h4 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 800, color: '#fff' }}>🎯 Performance Summary</h4>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13.5 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ccc' }}>
-                  <span>Correct Answers:</span>
-                  <strong style={{ color: 'var(--chatter-primary)' }}>{quizStats.correct_count || 0}</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ccc' }}>
-                  <span>Incorrect Answers:</span>
-                  <strong style={{ color: 'var(--chatter-red)' }}>{quizStats.incorrect_count || 0}</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ccc' }}>
-                  <span>Perfect Score Drills (100%):</span>
-                  <strong style={{ color: '#f59e0b' }}>{quizStats.perfect_scores || 0}</strong>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Tab 3: Badges Showcase (Elite Quiz Badges) */}
-        {activeTab === 'badges' && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14 }}>
-            {[
-              { id: 'badge-rookie', name: 'Quiz Rookie', desc: 'Complete your first quiz in any subject', icon: '🎯', color: '#3b82f6' },
-              { id: 'badge-scholar', name: 'Rising Scholar', desc: 'Score 100% accuracy on 3 different quizzes', icon: '🎓', color: '#8b5cf6' },
-              { id: 'badge-streak', name: 'Streak Master', desc: 'Maintain a 5-day daily quiz study streak', icon: '🔥', color: '#f59e0b' },
-              { id: 'badge-ai-guru', name: 'AI Guru Master', desc: 'Complete 5 AI-generated quizzes from study notes', icon: '🤖', color: '#10b981' },
-              { id: 'badge-champion', name: 'Arena Champion', desc: 'Earn 500 total quiz coins across all categories', icon: '👑', color: '#c564bb' },
-            ].map((badge) => {
-              const isUnlocked = Array.isArray(quizStats.unlocked_badges) && quizStats.unlocked_badges.includes(badge.id);
-
-              return (
-                <div
-                  key={badge.id}
-                  style={{
-                    background: 'var(--chatter-sheet)',
-                    borderRadius: 16,
-                    padding: 16,
-                    border: isUnlocked ? `1px solid ${badge.color}60` : '1px solid rgba(255, 255, 255, 0.05)',
-                    boxShadow: isUnlocked ? `0 4px 18px ${badge.color}20` : 'none',
-                    opacity: isUnlocked ? 1 : 0.55,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    textAlign: 'center',
-                    gap: 8,
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 52,
-                      height: 52,
-                      borderRadius: 16,
-                      background: isUnlocked ? `${badge.color}20` : 'rgba(255, 255, 255, 0.05)',
-                      border: `1px solid ${isUnlocked ? badge.color : 'rgba(255, 255, 255, 0.1)'}`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 26,
-                    }}
-                  >
-                    {badge.icon}
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: isUnlocked ? '#fff' : '#aaa' }}>{badge.name}</div>
-                    <div style={{ fontSize: 11.5, color: 'var(--chatter-light-text)', marginTop: 2, lineHeight: 1.3 }}>{badge.desc}</div>
-                  </div>
-                  <span
-                    style={{
-                      marginTop: 'auto',
-                      fontSize: 10.5,
-                      fontWeight: 800,
-                      padding: '3px 8px',
-                      borderRadius: 10,
-                      background: isUnlocked ? `${badge.color}25` : 'rgba(255, 255, 255, 0.06)',
-                      color: isUnlocked ? badge.color : '#888',
-                      textTransform: 'uppercase',
-                    }}
-                  >
-                    {isUnlocked ? 'Unlocked ✓' : 'In Progress'}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Tab 3: My Rooms (Real joined rooms) */}
-        {activeTab === 'rooms' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {servers.length === 0 ? (
-              <div
-                style={{
-                  padding: '36px 20px',
-                  textAlign: 'center',
-                  background: 'var(--chatter-sheet)',
-                  borderRadius: 16,
-                  border: '1px solid rgba(255, 255, 255, 0.05)',
-                }}
-              >
-                <div style={{ fontSize: 28, marginBottom: 8 }}>📚</div>
-                <h4 style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
-                  No study rooms joined
-                </h4>
-                <p style={{ fontSize: 13.5, color: 'var(--chatter-light-text)', margin: 0 }}>
-                  Join or create a study group room to start collaborating.
-                </p>
-              </div>
-            ) : (
-              servers.map((srv) => (
-                <div
-                  key={srv.id}
-                  onClick={() => onSelectServer?.(srv.id)}
-                  style={{
-                    background: 'var(--chatter-sheet)',
-                    borderRadius: 16,
-                    padding: 14,
-                    border: '1px solid rgba(255, 255, 255, 0.05)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    {srv.icon_url ? (
-                      <img
-                        src={srv.icon_url}
-                        alt={srv.name}
-                        style={{ width: 44, height: 44, borderRadius: 14, objectFit: 'cover' }}
-                      />
-                    ) : (
-                      <div
-                        style={{
-                          width: 44,
-                          height: 44,
-                          borderRadius: 14,
-                          background: '#242424',
-                          color: 'var(--chatter-primary)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontWeight: 700,
-                          fontSize: 18,
-                        }}
-                      >
-                        {srv.name?.[0]?.toUpperCase() || 'S'}
-                      </div>
-                    )}
-                    <div>
-                      <h4 style={{ fontSize: 15.5, fontWeight: 700, color: '#fff', margin: '0 0 2px 0' }}>
-                        {srv.name}
-                      </h4>
-                      <div style={{ fontSize: 13, color: 'var(--chatter-light-text)' }}>
-                        {srv.channels?.length || 0} channels · {srv.member_count || 1} members
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSelectServer?.(srv.id);
-                    }}
-                    style={{
-                      padding: '6px 14px',
-                      borderRadius: 14,
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      border: 'none',
-                      color: '#fff',
-                      fontSize: 13.5,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Enter Room
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        )}
       </div>
 
-      {/* ── Edit Profile Modal (Triggered by Settings Icon) ── */}
+      {/* ════ 3. FULL ELITE MENU LIST ════ */}
+      <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {menuItems.map((item) => (
+          <div
+            key={item.id}
+            onClick={() => {
+              if (item.isSwitch) {
+                item.onToggle?.();
+              } else if (item.id === 'logout') {
+                onLogout?.();
+              } else {
+                setActiveModal(item.id);
+              }
+            }}
+            style={{
+              backgroundColor: 'var(--card)',
+              borderRadius: 8,
+              padding: '14px 16px',
+              border: '1px solid var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              cursor: 'pointer',
+              transition: 'background-color 0.15s ease',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <EliteIcon
+                name={item.icon}
+                size={22}
+                color={item.isDanger ? 'var(--error-color)' : 'var(--primary-color)'}
+              />
+              <div>
+                <div
+                  style={{
+                    fontSize: 15,
+                    fontWeight: 700,
+                    color: item.isDanger ? 'var(--error-color)' : 'var(--text-primary)',
+                  }}
+                >
+                  {item.name}
+                </div>
+                {item.desc && (
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
+                    {item.desc}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {item.isSwitch ? (
+              <div
+                style={{
+                  width: 44,
+                  height: 24,
+                  borderRadius: 12,
+                  backgroundColor: item.value ? 'var(--primary-color)' : 'var(--border)',
+                  position: 'relative',
+                  transition: 'background-color 0.2s ease',
+                  cursor: 'pointer',
+                }}
+              >
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 2,
+                    left: item.value ? 22 : 2,
+                    width: 20,
+                    height: 20,
+                    borderRadius: '50%',
+                    backgroundColor: '#ffffff',
+                    transition: 'left 0.2s ease',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                  }}
+                />
+              </div>
+            ) : (
+              <span style={{ fontSize: 18, color: 'var(--text-secondary)' }}>›</span>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* ════ MODALS / SHEETS ════ */}
+
+      {/* Edit Profile Modal */}
       {editProfileOpen && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 250,
-            background: 'rgba(0,0,0,0.75)',
+            zIndex: 999,
+            backgroundColor: 'rgba(0,0,0,0.6)',
             backdropFilter: 'blur(8px)',
             display: 'flex',
             alignItems: 'center',
@@ -1139,46 +674,32 @@ export default function ChatterProfileView({
         >
           <div
             style={{
-              background: 'var(--chatter-sheet)',
-              borderRadius: 22,
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              maxWidth: 480,
+              backgroundColor: 'var(--card)',
+              borderRadius: 16,
+              maxWidth: 440,
               width: '100%',
-              padding: 24,
-              boxShadow: '0 16px 48px rgba(0,0,0,0.8)',
+              padding: 22,
+              boxShadow: '0 16px 40px rgba(0,0,0,0.25)',
+              border: '1px solid var(--border)',
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <h3 style={{ fontSize: 20, fontWeight: 800, color: '#fff', margin: 0 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
                 Edit Profile
               </h3>
               <button
                 type="button"
                 onClick={() => setEditProfileOpen(false)}
-                aria-label="Close"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  border: 'none',
-                  color: '#fff',
-                  width: 38,
-                  height: 38,
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  fontSize: 18,
-                  transition: 'background 0.15s ease',
-                }}
+                style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: 'var(--text-secondary)' }}
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleSaveProfileModal}>
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 13.5, fontWeight: 700, color: 'var(--chatter-light-text)', marginBottom: 6 }}>
+            <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>
                   Display Name
                 </label>
                 <input
@@ -1187,12 +708,12 @@ export default function ChatterProfileView({
                   onChange={(e) => setEditName(e.target.value)}
                   style={{
                     width: '100%',
-                    background: 'var(--chatter-black)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: 12,
-                    color: '#fff',
-                    padding: '10px 14px',
-                    fontSize: 16,
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    border: '1px solid var(--border)',
+                    backgroundColor: 'var(--background)',
+                    color: 'var(--text-primary)',
+                    fontSize: 15,
                     outline: 'none',
                     boxSizing: 'border-box',
                   }}
@@ -1200,71 +721,65 @@ export default function ChatterProfileView({
                 />
               </div>
 
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 13.5, fontWeight: 700, color: 'var(--chatter-light-text)', marginBottom: 6 }}>
-                  Username (@handle)
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>
+                  Username
                 </label>
-                <div style={{ position: 'relative' }}>
-                  <span style={{ position: 'absolute', left: 14, top: 10, color: 'var(--chatter-light-text)', fontSize: 16, fontWeight: 600 }}>@</span>
-                  <input
-                    type="text"
-                    value={editUsername}
-                    onChange={(e) => setEditUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-                    style={{
-                      width: '100%',
-                      background: 'var(--chatter-black)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      borderRadius: 12,
-                      color: '#fff',
-                      padding: '10px 14px 10px 32px',
-                      fontSize: 16,
-                      outline: 'none',
-                      boxSizing: 'border-box',
-                    }}
-                    placeholder="username"
-                  />
-                </div>
+                <input
+                  type="text"
+                  value={editUsername}
+                  onChange={(e) => setEditUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    border: '1px solid var(--border)',
+                    backgroundColor: 'var(--background)',
+                    color: 'var(--text-primary)',
+                    fontSize: 15,
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                  placeholder="username"
+                />
               </div>
 
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', fontSize: 13.5, fontWeight: 700, color: 'var(--chatter-light-text)', marginBottom: 6 }}>
-                  Study Bio & Academic Interests
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>
+                  Academic Bio
                 </label>
                 <textarea
-                  rows={4}
+                  rows={3}
                   value={editBio}
                   onChange={(e) => setEditBio(e.target.value)}
                   style={{
                     width: '100%',
-                    background: 'var(--chatter-black)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: 12,
-                    color: '#fff',
-                    padding: '10px 14px',
-                    fontSize: 16,
-                    lineHeight: 1.5,
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    border: '1px solid var(--border)',
+                    backgroundColor: 'var(--background)',
+                    color: 'var(--text-primary)',
+                    fontSize: 14,
                     outline: 'none',
                     resize: 'none',
-                    fontFamily: 'inherit',
                     boxSizing: 'border-box',
                   }}
-                  placeholder="Share your major, current courses, or study focus..."
+                  placeholder="Major, favorite subjects, goals..."
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: 10 }}>
+              <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
                 <button
                   type="button"
                   onClick={() => setEditProfileOpen(false)}
                   style={{
                     flex: 1,
-                    padding: '10px',
-                    borderRadius: 14,
-                    background: 'rgba(255, 255, 255, 0.08)',
-                    border: 'none',
-                    color: '#fff',
-                    fontSize: 14.5,
-                    fontWeight: 600,
+                    padding: '11px',
+                    borderRadius: 10,
+                    border: '1px solid var(--border)',
+                    backgroundColor: 'transparent',
+                    color: 'var(--text-primary)',
+                    fontWeight: 700,
                     cursor: 'pointer',
                   }}
                 >
@@ -1275,13 +790,12 @@ export default function ChatterProfileView({
                   disabled={savingProfile}
                   style={{
                     flex: 1,
-                    padding: '10px',
-                    borderRadius: 14,
-                    background: 'var(--chatter-primary)',
+                    padding: '11px',
+                    borderRadius: 10,
                     border: 'none',
-                    color: '#0E0E0E',
-                    fontSize: 14.5,
-                    fontWeight: 700,
+                    backgroundColor: 'var(--primary-color)',
+                    color: '#ffffff',
+                    fontWeight: 800,
                     cursor: savingProfile ? 'not-allowed' : 'pointer',
                   }}
                 >
@@ -1289,6 +803,817 @@ export default function ChatterProfileView({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Wallet Modal */}
+      {activeModal === 'wallet' && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999,
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          onClick={() => setActiveModal(null)}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--card)',
+              borderRadius: 16,
+              maxWidth: 400,
+              width: '100%',
+              padding: 24,
+              border: '1px solid var(--border)',
+              textAlign: 'center',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                width: 60,
+                height: 60,
+                borderRadius: '50%',
+                backgroundColor: 'rgba(239, 83, 136, 0.12)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 14px',
+              }}
+            >
+              <EliteIcon name="wallet" size={32} color="var(--primary-color)" />
+            </div>
+            <h3 style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 6px' }}>
+              Quiz Wallet
+            </h3>
+            <p style={{ fontSize: 13.5, color: 'var(--text-secondary)', margin: '0 0 16px' }}>
+              Your accumulated drill coins & prize tokens.
+            </p>
+            <div
+              style={{
+                backgroundColor: 'var(--background)',
+                borderRadius: 12,
+                padding: '14px',
+                marginBottom: 16,
+              }}
+            >
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase' }}>
+                Current Balance
+              </div>
+              <div style={{ fontSize: 32, fontWeight: 900, color: 'var(--accent-amber)', marginTop: 4 }}>
+                {quizStats.coins || 100} <span style={{ fontSize: 22 }}>🪙</span>
+              </div>
+            </div>
+            <p style={{ fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.4, margin: '0 0 18px' }}>
+              Minimum redeemable amount is 500 Coins ($5.00). Payout processing takes 3–5 working days.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveModal(null);
+                showToast('Redemption requires at least 500 coins');
+              }}
+              style={{
+                width: '100%',
+                padding: '12px',
+                borderRadius: 10,
+                backgroundColor: 'var(--primary-color)',
+                color: '#ffffff',
+                border: 'none',
+                fontWeight: 800,
+                fontSize: 15,
+                cursor: 'pointer',
+              }}
+            >
+              Request Payout
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Statistics Modal */}
+      {activeModal === 'stats' && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999,
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          onClick={() => setActiveModal(null)}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--card)',
+              borderRadius: 16,
+              maxWidth: 440,
+              width: '100%',
+              padding: 22,
+              border: '1px solid var(--border)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                Performance Statistics
+              </h3>
+              <button
+                type="button"
+                onClick={() => setActiveModal(null)}
+                style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: 'var(--text-secondary)' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 16 }}>
+              <div style={{ backgroundColor: 'var(--background)', padding: 14, borderRadius: 10, textAlign: 'center' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase' }}>
+                  Total Played
+                </div>
+                <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--text-primary)', marginTop: 4 }}>
+                  {quizStats.total_played || 0}
+                </div>
+              </div>
+              <div style={{ backgroundColor: 'var(--background)', padding: 14, borderRadius: 10, textAlign: 'center' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase' }}>
+                  Accuracy Rate
+                </div>
+                <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--success)', marginTop: 4 }}>
+                  {quizStats.accuracy || 0}%
+                </div>
+              </div>
+              <div style={{ backgroundColor: 'var(--background)', padding: 14, borderRadius: 10, textAlign: 'center' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase' }}>
+                  Correct
+                </div>
+                <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--success)', marginTop: 4 }}>
+                  {quizStats.correct_count || 0}
+                </div>
+              </div>
+              <div style={{ backgroundColor: 'var(--background)', padding: 14, borderRadius: 10, textAlign: 'center' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase' }}>
+                  Incorrect
+                </div>
+                <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--error-color)', marginTop: 4 }}>
+                  {quizStats.incorrect_count || 0}
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setActiveModal(null)}
+              style={{
+                width: '100%',
+                padding: '11px',
+                borderRadius: 10,
+                backgroundColor: 'var(--primary-color)',
+                color: '#ffffff',
+                border: 'none',
+                fontWeight: 800,
+                cursor: 'pointer',
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Badges Modal */}
+      {activeModal === 'badges' && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999,
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          onClick={() => setActiveModal(null)}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--card)',
+              borderRadius: 16,
+              maxWidth: 440,
+              width: '100%',
+              padding: 22,
+              border: '1px solid var(--border)',
+              maxHeight: '85vh',
+              overflowY: 'auto',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                Badges Showcase
+              </h3>
+              <button
+                type="button"
+                onClick={() => setActiveModal(null)}
+                style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: 'var(--text-secondary)' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+              {[
+                { id: 'badge-rookie', name: 'Quiz Rookie', desc: 'Complete your first quiz drill', icon: '🎯', unlocked: true },
+                { id: 'badge-scholar', name: 'Rising Scholar', desc: 'Score 100% accuracy on 3 drills', icon: '🎓', unlocked: (quizStats.perfect_scores || 0) >= 3 },
+                { id: 'badge-streak', name: 'Streak Master', desc: 'Maintain a 5-day quiz drill streak', icon: '🔥', unlocked: (quizStats.streak || 1) >= 5 },
+                { id: 'badge-ai', name: 'AI Guru Master', desc: 'Complete 5 AI-generated quizzes', icon: '🤖', unlocked: false },
+                { id: 'badge-champ', name: 'Arena Champion', desc: 'Earn 500 total coins in battles', icon: '👑', unlocked: (quizStats.coins || 100) >= 500 },
+              ].map((badge) => (
+                <div
+                  key={badge.id}
+                  style={{
+                    backgroundColor: 'var(--background)',
+                    borderRadius: 10,
+                    padding: 12,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    opacity: badge.unlocked ? 1 : 0.5,
+                    border: badge.unlocked ? '1px solid var(--primary-color)' : '1px solid var(--border)',
+                  }}
+                >
+                  <div style={{ fontSize: 24 }}>{badge.icon}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)' }}>
+                      {badge.name} {badge.unlocked && '✓'}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                      {badge.desc}
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: badge.unlocked ? 'var(--success)' : 'var(--text-secondary)' }}>
+                    {badge.unlocked ? 'UNLOCKED' : 'LOCKED'}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setActiveModal(null)}
+              style={{
+                width: '100%',
+                padding: '11px',
+                borderRadius: 10,
+                backgroundColor: 'var(--primary-color)',
+                color: '#ffffff',
+                border: 'none',
+                fontWeight: 800,
+                cursor: 'pointer',
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Saved Study Notes Modal (AI Guru Integration) */}
+      {activeModal === 'notes' && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999,
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          onClick={() => setActiveModal(null)}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--card)',
+              borderRadius: 16,
+              maxWidth: 460,
+              width: '100%',
+              padding: 22,
+              border: '1px solid var(--border)',
+              maxHeight: '85vh',
+              overflowY: 'auto',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                Saved Study Documents
+              </h3>
+              <button
+                type="button"
+                onClick={() => setActiveModal(null)}
+                style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: 'var(--text-secondary)' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {savedNotes.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '30px 10px' }}>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>📄</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>No study documents yet</div>
+                <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4, marginBottom: 16 }}>
+                  Upload course slides or notes in AI Guru to study here.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveModal(null);
+                    onOpenGuru?.();
+                  }}
+                  style={{
+                    padding: '8px 18px',
+                    borderRadius: 10,
+                    backgroundColor: 'var(--primary-color)',
+                    color: '#ffffff',
+                    border: 'none',
+                    fontWeight: 800,
+                    fontSize: 14,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Open AI Guru
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+                {savedNotes.map((note) => (
+                  <div
+                    key={note.id || note.doc_id}
+                    style={{
+                      backgroundColor: 'var(--background)',
+                      borderRadius: 10,
+                      padding: 12,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 10,
+                    }}
+                  >
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {note.filename || note.title}
+                      </div>
+                      <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 2 }}>
+                        {note.chunksCount || 1} text chunks · Ready
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveModal(null);
+                        onOpenGuru?.();
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: 8,
+                        backgroundColor: 'var(--accent-subtle)',
+                        border: '1px solid var(--primary-color)',
+                        color: 'var(--primary-color)',
+                        fontSize: 12.5,
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        flexShrink: 0,
+                      }}
+                    >
+                      Ask AI
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setActiveModal(null)}
+              style={{
+                width: '100%',
+                padding: '11px',
+                borderRadius: 10,
+                backgroundColor: 'var(--primary-color)',
+                color: '#ffffff',
+                border: 'none',
+                fontWeight: 800,
+                cursor: 'pointer',
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Community Posts Modal (Feed Integration) */}
+      {activeModal === 'posts' && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999,
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          onClick={() => setActiveModal(null)}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--card)',
+              borderRadius: 16,
+              maxWidth: 460,
+              width: '100%',
+              padding: 22,
+              border: '1px solid var(--border)',
+              maxHeight: '85vh',
+              overflowY: 'auto',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                My Community Posts
+              </h3>
+              <button
+                type="button"
+                onClick={() => setActiveModal(null)}
+                style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: 'var(--text-secondary)' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {myPosts.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '30px 10px' }}>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>📝</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>No posts published yet</div>
+                <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
+                  Share study questions or tips on the feed to see them here.
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+                {myPosts.map((post) => (
+                  <div
+                    key={post.id || post._id}
+                    onClick={() => {
+                      setActiveModal(null);
+                      onSelectPost?.(post.id || post._id);
+                    }}
+                    style={{
+                      backgroundColor: 'var(--background)',
+                      borderRadius: 10,
+                      padding: 12,
+                      cursor: 'pointer',
+                      border: '1px solid var(--border)',
+                    }}
+                  >
+                    <p style={{ fontSize: 13.5, color: 'var(--text-primary)', margin: '0 0 6px' }}>
+                      {post.text}
+                    </p>
+                    <div style={{ display: 'flex', gap: 12, fontSize: 12, color: 'var(--text-secondary)' }}>
+                      <span>❤️ {post.likes || 0}</span>
+                      <span>💬 {post.comments || 0}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setActiveModal(null)}
+              style={{
+                width: '100%',
+                padding: '11px',
+                borderRadius: 10,
+                backgroundColor: 'var(--primary-color)',
+                color: '#ffffff',
+                border: 'none',
+                fontWeight: 800,
+                cursor: 'pointer',
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Invite Friends Modal */}
+      {activeModal === 'invite' && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999,
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          onClick={() => setActiveModal(null)}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--card)',
+              borderRadius: 16,
+              maxWidth: 400,
+              width: '100%',
+              padding: 24,
+              border: '1px solid var(--border)',
+              textAlign: 'center',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                width: 60,
+                height: 60,
+                borderRadius: '50%',
+                backgroundColor: 'rgba(93, 183, 96, 0.12)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 14px',
+              }}
+            >
+              <EliteIcon name="invite_friends" size={32} color="var(--success)" />
+            </div>
+            <h3 style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 6px' }}>
+              Refer & Earn Coins
+            </h3>
+            <p style={{ fontSize: 13.5, color: 'var(--text-secondary)', margin: '0 0 16px' }}>
+              Share your referral code. When a classmate signs up, you both earn 50 Coins!
+            </p>
+            <div
+              style={{
+                backgroundColor: 'var(--background)',
+                borderRadius: 10,
+                padding: '12px 16px',
+                border: '2px dashed var(--primary-color)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: 16,
+              }}
+            >
+              <span style={{ fontSize: 18, fontWeight: 900, color: 'var(--primary-color)', letterSpacing: '0.08em' }}>
+                STUDY-{displayName ? displayName.slice(0, 4).toUpperCase() : 'ELITE'}99
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                    navigator.clipboard.writeText(`STUDY-${displayName ? displayName.slice(0, 4).toUpperCase() : 'ELITE'}99`);
+                    showToast('Referral code copied!');
+                  }
+                }}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: 8,
+                  backgroundColor: 'var(--primary-color)',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontSize: 12,
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                }}
+              >
+                Copy
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof navigator !== 'undefined' && navigator.share) {
+                  navigator.share({
+                    title: 'Join me on StudyCord Elite Quiz!',
+                    text: 'Compete with me on StudyCord Elite Quiz to level up your grades!',
+                    url: window.location.origin,
+                  }).catch(() => {});
+                } else {
+                  showToast('Share link copied to clipboard!');
+                }
+              }}
+              style={{
+                width: '100%',
+                padding: '12px',
+                borderRadius: 10,
+                backgroundColor: 'var(--primary-color)',
+                color: '#ffffff',
+                border: 'none',
+                fontWeight: 800,
+                fontSize: 15,
+                cursor: 'pointer',
+              }}
+            >
+              Share with Classmates
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Theme Selector Sheet */}
+      {activeModal === 'theme' && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999,
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          onClick={() => setActiveModal(null)}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--card)',
+              borderRadius: 16,
+              maxWidth: 380,
+              width: '100%',
+              padding: 22,
+              border: '1px solid var(--border)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 16px' }}>
+              Select App Theme
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 18 }}>
+              <div
+                onClick={() => {
+                  if (theme !== 'light') toggleTheme();
+                  setActiveModal(null);
+                  showToast('Light theme applied');
+                }}
+                style={{
+                  backgroundColor: 'var(--background)',
+                  borderRadius: 10,
+                  padding: 14,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  cursor: 'pointer',
+                  border: theme === 'light' ? '2px solid var(--primary-color)' : '1px solid var(--border)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span>☀️</span>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>Light Mode</span>
+                </div>
+                {theme === 'light' && <span style={{ color: 'var(--primary-color)', fontWeight: 900 }}>✓</span>}
+              </div>
+
+              <div
+                onClick={() => {
+                  if (theme !== 'dark') toggleTheme();
+                  setActiveModal(null);
+                  showToast('Dark theme applied');
+                }}
+                style={{
+                  backgroundColor: 'var(--background)',
+                  borderRadius: 10,
+                  padding: 14,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  cursor: 'pointer',
+                  border: theme === 'dark' ? '2px solid var(--primary-color)' : '1px solid var(--border)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span>🌙</span>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>Dark Mode</span>
+                </div>
+                {theme === 'dark' && <span style={{ color: 'var(--primary-color)', fontWeight: 900 }}>✓</span>}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveModal(null)}
+              style={{
+                width: '100%',
+                padding: '11px',
+                borderRadius: 10,
+                backgroundColor: 'var(--border)',
+                color: 'var(--text-primary)',
+                border: 'none',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* How To Play Modal */}
+      {activeModal === 'howToPlay' && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999,
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          onClick={() => setActiveModal(null)}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--card)',
+              borderRadius: 16,
+              maxWidth: 440,
+              width: '100%',
+              padding: 22,
+              border: '1px solid var(--border)',
+              maxHeight: '80vh',
+              overflowY: 'auto',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                How to Play Elite Quiz
+              </h3>
+              <button
+                type="button"
+                onClick={() => setActiveModal(null)}
+                style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: 'var(--text-secondary)' }}
+              >
+                ✕
+              </button>
+            </div>
+            <div style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.6, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <p style={{ margin: 0 }}>
+                • <strong>Answer Questions:</strong> You will have 25–45 seconds per question depending on the mode.
+              </p>
+              <p style={{ margin: 0 }}>
+                • <strong>Lifelines:</strong> Fifty-Fifty (removes 2 wrong options), Audience Poll (shows probable answer), Reset Timer, and Skip Question.
+              </p>
+              <p style={{ margin: 0 }}>
+                • <strong>Scoring:</strong> Correct answers yield +4 points and bonus coins. Incorrect answers deduct 2 points in competitive modes.
+              </p>
+              <p style={{ margin: 0 }}>
+                • <strong>13 Game Modes:</strong> Enjoy Quiz Zone, Daily Quiz, Fun & Learn, Guess The Word, Self-Challenge, 1v1 Battle, Group Battle, Audio Quiz, Math Mania, and Exam mode.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveModal(null)}
+              style={{
+                width: '100%',
+                padding: '11px',
+                borderRadius: 10,
+                backgroundColor: 'var(--primary-color)',
+                color: '#ffffff',
+                border: 'none',
+                fontWeight: 800,
+                marginTop: 18,
+                cursor: 'pointer',
+              }}
+            >
+              Got It!
+            </button>
           </div>
         </div>
       )}

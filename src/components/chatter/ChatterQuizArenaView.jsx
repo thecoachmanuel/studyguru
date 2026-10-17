@@ -2,6 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import QuizPlayModal from '@/components/quiz/QuizPlayModal';
+import EliteIcon from '@/components/elite/EliteIcon';
+import EliteUserHeader from '@/components/elite/EliteUserHeader';
+import UserAchievements from '@/components/elite/UserAchievements';
+import QuizGridCard from '@/components/elite/QuizGridCard';
 
 // 13 Elite Quiz Game Modes Specifications
 const ELITE_QUIZ_MODES = [
@@ -177,7 +181,23 @@ const FUN_LEARN_STORIES = [
   },
 ];
 
-export default function ChatterQuizArenaView({ user, onBack, onOpenGuru }) {
+export default function ChatterQuizArenaView({
+  user,
+  profile,
+  initialTab = 'home',
+  onBack,
+  onOpenGuru,
+  onOpenNotifications,
+  onOpenCoinStore,
+}) {
+  const [arenaTab, setArenaTab] = useState(initialTab || 'home'); // 'home' | 'quiz_zone' | 'play_zone' | 'leaderboard'
+  const [leaderboardFilter, setLeaderboardFilter] = useState('all_time'); // 'all_time' | 'month' | 'daily'
+  const [dailyCoinsClaimed, setDailyCoinsClaimed] = useState(false);
+
+  useEffect(() => {
+    if (initialTab) setArenaTab(initialTab);
+  }, [initialTab]);
+
   const [categories, setCategories] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [stats, setStats] = useState({
@@ -646,524 +666,763 @@ export default function ChatterQuizArenaView({ user, onBack, onOpenGuru }) {
         background: 'var(--background)',
         color: 'var(--text-primary)',
         fontFamily: 'var(--font-family)',
-        padding: '20px 24px 90px',
-        maxWidth: 1140,
-        margin: '0 auto',
-        width: '100%',
-        boxSizing: 'border-box',
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
-      {/* ── Top Header & Stats Bar ── */}
+      {/* ── Elite Floating User Profile Header ── */}
+      <EliteUserHeader
+        profile={profile || user}
+        onBack={onBack}
+        onOpenGuru={onOpenGuru}
+        onOpenNotifications={onOpenNotifications}
+        onOpenCoinStore={onOpenCoinStore}
+      />
+
+      {/* ── Main Scroll Content ── */}
       <div
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 16,
-          marginBottom: 26,
-          paddingBottom: 18,
-          borderBottom: '1px solid var(--border)',
+          width: '100%',
+          maxWidth: 960,
+          margin: '0 auto',
+          padding: '16px 16px 100px',
+          boxSizing: 'border-box',
+          flex: 1,
         }}
       >
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 28 }}>🏆</span>
-            <h1 style={{ margin: 0, fontSize: 24, fontWeight: 900, letterSpacing: '-0.5px', color: 'var(--text-primary)' }}>
-              Quiz <span style={{ color: 'var(--primary-color)' }}>Arena</span>
-            </h1>
-            <span
-              style={{
-                background: 'rgba(197, 100, 187, 0.15)',
-                border: '1px solid rgba(197, 100, 187, 0.35)',
-                color: 'var(--primary-color)',
-                fontSize: 11,
-                fontWeight: 800,
-                padding: '3px 9px',
-                borderRadius: 12,
-              }}
-            >
-              Elite Engine v2
-            </span>
-          </div>
-          <p style={{ margin: '4px 0 0', fontSize: 13.5, color: 'var(--text-muted)' }}>
-            13 game modes, AI note synthesis, real-time battle duels & global scholar leaderboards
-          </p>
-        </div>
-
-        {/* Stats Row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <div
-            style={{
-              background: 'rgba(245, 158, 11, 0.12)',
-              border: '1px solid rgba(245, 158, 11, 0.3)',
-              padding: '6px 14px',
-              borderRadius: 20,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              fontSize: 13,
-              fontWeight: 800,
-              color: '#f59e0b',
-            }}
-          >
-            <span>🪙</span>
-            <span>{stats.coins || 100} Coins</span>
-          </div>
-
-          <div
-            style={{
-              background: 'rgba(239, 68, 68, 0.12)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              padding: '6px 14px',
-              borderRadius: 20,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              fontSize: 13,
-              fontWeight: 800,
-              color: '#ef4444',
-            }}
-          >
-            <span>🔥</span>
-            <span>{stats.streak || 1} Day Streak</span>
-          </div>
-
-          <div
-            style={{
-              background: 'rgba(16, 185, 129, 0.12)',
-              border: '1px solid rgba(16, 185, 129, 0.3)',
-              padding: '6px 14px',
-              borderRadius: 20,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              fontSize: 13,
-              fontWeight: 800,
-              color: '#10b981',
-            }}
-          >
-            <span>🎯</span>
-            <span>{stats.accuracy || 85}% Accuracy</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ── 3 Hero Feature Cards ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginBottom: 32 }}>
-        {/* 1. AI Note-to-Quiz Card */}
+        {/* ── Sub Navigation Tabs (Elite Quiz Style) ── */}
         <div
-          onClick={() => setActiveModeModal('ai_quiz')}
-          className="bgWave"
           style={{
-            background: 'linear-gradient(135deg, rgba(197, 100, 187, 0.22) 0%, rgba(139, 92, 246, 0.16) 100%)',
-            border: '1px solid rgba(197, 100, 187, 0.35)',
-            borderRadius: 22,
-            padding: 22,
-            cursor: 'pointer',
-            transition: 'transform 0.18s ease, box-shadow 0.18s ease',
-            position: 'relative',
-            overflow: 'hidden',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            marginBottom: 20,
+            overflowX: 'auto',
+            paddingBottom: 4,
+            scrollbarWidth: 'none',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-2px)')}
-          onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-            <span style={{ fontSize: 32 }}>✨</span>
-            <div>
-              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: 'var(--text-primary)' }}>
-                AI Note-to-Quiz
-              </h3>
-              <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--primary-color)' }}>POWERED BY GEMINI</span>
-            </div>
-          </div>
-          <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.45 }}>
-            Synthesize interactive drill questions directly from your study PDFs, documents, or lecture topics!
-          </p>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 800, color: 'var(--primary-color)' }}>
-            <span>Synthesize with AI</span>
-            <span>→</span>
-          </div>
-        </div>
-
-        {/* 2. Self Challenge Card */}
-        <div
-          onClick={() => setActiveModeModal('self_challenge')}
-          className="bgWave"
-          style={{
-            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.22) 0%, rgba(14, 165, 233, 0.16) 100%)',
-            border: '1px solid rgba(59, 130, 246, 0.35)',
-            borderRadius: 22,
-            padding: 22,
-            cursor: 'pointer',
-            transition: 'transform 0.18s ease',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-2px)')}
-          onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-            <span style={{ fontSize: 32 }}>⏱️</span>
-            <div>
-              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: 'var(--text-primary)' }}>
-                Self-Challenge
-              </h3>
-              <span style={{ fontSize: 11, fontWeight: 800, color: '#60a5fa' }}>CUSTOM SPEED DRILL</span>
-            </div>
-          </div>
-          <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.45 }}>
-            Select your target subject, question count, and test your readiness under a custom countdown timer.
-          </p>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 800, color: '#60a5fa' }}>
-            <span>Configure Challenge</span>
-            <span>→</span>
-          </div>
-        </div>
-
-        {/* 3. Daily Streak Challenge */}
-        <div
-          onClick={handleStartDailyQuiz}
-          className="bgWave"
-          style={{
-            background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.22) 0%, rgba(217, 119, 6, 0.16) 100%)',
-            border: '1px solid rgba(245, 158, 11, 0.35)',
-            borderRadius: 22,
-            padding: 22,
-            cursor: 'pointer',
-            transition: 'transform 0.18s ease',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-2px)')}
-          onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-            <span style={{ fontSize: 32 }}>🔥</span>
-            <div>
-              <h3 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: 'var(--text-primary)' }}>
-                Daily Streak Quiz
-              </h3>
-              <span style={{ fontSize: 11, fontWeight: 800, color: '#f59e0b' }}>+50 BONUS COINS</span>
-            </div>
-          </div>
-          <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.45 }}>
-            5 fresh questions daily to protect your study streak and earn double coin rewards.
-          </p>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 800, color: '#f59e0b' }}>
-            <span>Play Daily Quiz</span>
-            <span>→</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ── ALL 13 ELITE QUIZ MODES GRID ── */}
-      <div style={{ marginBottom: 38 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-          <div>
-            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>
-              🎮 Elite Quiz Modes
-            </h2>
-            <p style={{ margin: '3px 0 0', fontSize: 13, color: 'var(--text-muted)' }}>
-              Complete all 13 interactive game modes and compete for scholar badges
-            </p>
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 18 }}>
-          {ELITE_QUIZ_MODES.map((mode) => (
-            <div
-              key={mode.id}
-              onClick={() => {
-                if (mode.id === 'quiz_zone') setActiveModeModal('quiz_zone');
-                else if (mode.id === 'daily_quiz') handleStartDailyQuiz();
-                else if (mode.id === 'true_false') handleStartTrueFalseQuiz();
-                else if (mode.id === 'fun_learn') setActiveModeModal('fun_learn');
-                else if (mode.id === 'guess_the_word') setActiveModeModal('guess_word');
-                else if (mode.id === 'self_challenge') setActiveModeModal('self_challenge');
-                else if (mode.id === '1_vs_1_battle') handleStart1v1Battle();
-                else if (mode.id === 'group_battle') handleCreateGroupRoom();
-                else if (mode.id === 'audio_questions') handleStartAudioQuiz();
-                else if (mode.id === 'math_mania') handleStartMathMania();
-                else if (mode.id === 'exam_module') setActiveModeModal('exam_module');
-                else if (mode.id === 'multi_match') setActiveModeModal('multi_match');
-                else if (mode.id === 'play_bookmarks') {
-                  handleLaunchCategoryQuiz({ id: 'all', name: 'Saved Bookmarks' });
-                }
-              }}
-              className="bgWave"
-              style={{
-                background: 'var(--card)',
-                border: '1px solid var(--border)',
-                borderRadius: 22,
-                padding: '22px 20px',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                position: 'relative',
-                overflow: 'hidden',
-                boxShadow: '0 4px 18px rgba(9, 0, 41, 0.04)',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-3px)';
-                e.currentTarget.style.borderColor = mode.color;
-                e.currentTarget.style.boxShadow = `0 8px 24px ${mode.color}25`;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.borderColor = 'var(--border)';
-                e.currentTarget.style.boxShadow = '0 4px 18px rgba(9, 0, 41, 0.04)';
-              }}
-            >
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                  <div
-                    style={{
-                      width: 50,
-                      height: 50,
-                      borderRadius: 16,
-                      background: mode.accentBg,
-                      border: `1px solid ${mode.accentBorder}`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 26,
-                    }}
-                  >
-                    {mode.icon}
-                  </div>
-                  <span
-                    style={{
-                      background: mode.accentBg,
-                      color: mode.color,
-                      fontSize: 10.5,
-                      fontWeight: 800,
-                      padding: '3px 8px',
-                      borderRadius: 10,
-                      letterSpacing: '0.02em',
-                    }}
-                  >
-                    {mode.tag}
-                  </span>
-                </div>
-
-                <h4 style={{ margin: '0 0 6px', fontSize: 16.5, fontWeight: 800, color: 'var(--text-primary)' }}>
-                  {mode.title}
-                </h4>
-                <p style={{ margin: 0, fontSize: 12.5, color: 'var(--text-muted)', lineHeight: 1.45 }}>
-                  {mode.desc}
-                </p>
-              </div>
-
-              <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 12, color: mode.color, fontWeight: 800 }}>Play Now</span>
-                <span
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: '50%',
-                    background: mode.color,
-                    color: '#fff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 12,
-                    boxShadow: `0 2px 10px ${mode.color}45`,
-                  }}
-                >
-                  ▶
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Quiz Zone: Categories ── */}
-      <div style={{ marginBottom: 38 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-          <div>
-            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>
-              🎯 Quiz Zone Categories
-            </h2>
-            <p style={{ margin: '3px 0 0', fontSize: 13, color: 'var(--text-muted)' }}>
-              Drill core academic subjects and unlock mastery badges
-            </p>
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
-          {categories.map((cat) => (
-            <div
-              key={cat.id || cat._id}
-              onClick={() => handleLaunchCategoryQuiz(cat)}
-              className="bgWave"
-              style={{
-                background: 'var(--card)',
-                border: '1px solid var(--border)',
-                borderRadius: 20,
-                padding: '20px 18px',
-                cursor: 'pointer',
-                transition: 'all 0.18s ease',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.borderColor = 'var(--primary-color)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.borderColor = 'var(--border)';
-              }}
-            >
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <span style={{ fontSize: 32 }}>{cat.image || '📚'}</span>
-                  <span
-                    style={{
-                      background: 'rgba(197, 100, 187, 0.12)',
-                      fontSize: 11,
-                      fontWeight: 700,
-                      padding: '3px 8px',
-                      borderRadius: 10,
-                      color: 'var(--primary-color)',
-                    }}
-                  >
-                    {cat.question_count || 12} Questions
-                  </span>
-                </div>
-                <h4 style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>
-                  {cat.name}
-                </h4>
-                <p style={{ margin: 0, fontSize: 12.5, color: 'var(--text-muted)', lineHeight: 1.45 }}>
-                  {cat.description || 'Practice core academic concepts'}
-                </p>
-              </div>
-
-              <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 11.5, color: 'var(--primary-color)', fontWeight: 800 }}>Start Quiz</span>
-                <span
-                  style={{
-                    width: 26,
-                    height: 26,
-                    borderRadius: '50%',
-                    background: 'var(--primary-color)',
-                    color: '#fff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 12,
-                  }}
-                >
-                  ▶
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Global Scholar Leaderboard Podium ── */}
-      <div
-        style={{
-          background: 'var(--card)',
-          border: '1px solid var(--border)',
-          borderRadius: 24,
-          padding: '24px 22px',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <div>
-            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: 'var(--text-primary)' }}>
-              🏆 Scholar Leaderboard
-            </h3>
-            <span style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>Top scoring students across all 13 quiz arenas</span>
-          </div>
-          <span
-            style={{
-              background: 'rgba(16, 185, 129, 0.12)',
-              color: '#10b981',
-              padding: '4px 10px',
-              borderRadius: 12,
-              fontSize: 12,
-              fontWeight: 800,
-            }}
-          >
-            Active Season
-          </span>
-        </div>
-
-        {/* Top 3 Podium */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 20 }}>
-          {leaderboard.slice(0, 3).map((s, idx) => {
-            const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉';
-            const medalColor = idx === 0 ? '#f59e0b' : idx === 1 ? '#94a3b8' : '#b45309';
-
+          {[
+            { id: 'home', label: 'Home', icon: 'home' },
+            { id: 'quiz_zone', label: 'Quiz Zone', icon: 'categories' },
+            { id: 'play_zone', label: 'Play Zone', icon: 'play' },
+            { id: 'leaderboard', label: 'Leaderboard', icon: 'leaderboard' },
+          ].map((tab) => {
+            const isActive = arenaTab === tab.id;
             return (
-              <div
-                key={idx}
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setArenaTab(tab.id)}
                 style={{
-                  background: 'var(--bg-hover)',
-                  borderRadius: 18,
-                  border: `1px solid ${medalColor}40`,
-                  padding: 16,
-                  textAlign: 'center',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '9px 18px',
+                  borderRadius: 22,
+                  fontSize: 13.5,
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  border: isActive ? 'none' : '1px solid var(--border)',
+                  background: isActive ? 'var(--primary-color)' : 'var(--card)',
+                  color: isActive ? '#ffffff' : 'var(--text-muted)',
+                  boxShadow: isActive ? '0 4px 14px rgba(239, 83, 136, 0.35)' : 'none',
+                  transition: 'all 0.18s ease',
+                  whiteSpace: 'nowrap',
                 }}
               >
-                <div style={{ fontSize: 24, marginBottom: 4 }}>{medal}</div>
-                <div
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: '50%',
-                    background: medalColor,
-                    margin: '0 auto 8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 900,
-                    color: '#fff',
-                    fontSize: 16,
-                  }}
-                >
-                  {s.name?.charAt(0) || 'S'}
-                </div>
-                <div style={{ fontWeight: 800, fontSize: 14.5, color: 'var(--text-primary)' }}>{s.name}</div>
-                <div style={{ fontSize: 12, color: 'var(--primary-color)', fontWeight: 800, marginTop: 4 }}>
-                  {s.score} pts • {s.coins} 🪙
-                </div>
-              </div>
+                <EliteIcon
+                  name={tab.icon}
+                  size={16}
+                  color={isActive ? '#ffffff' : 'var(--text-muted)'}
+                />
+                <span>{tab.label}</span>
+              </button>
             );
           })}
         </div>
 
-        {/* 4th+ list */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {leaderboard.slice(3, 7).map((s, idx) => (
+        {/* ══════════ TAB 1: HOME (Elite Quiz Home Replica) ══════════ */}
+        {arenaTab === 'home' && (
+          <div>
+            {/* User Achievements Floating Card: Rank, Coins, Score */}
+            <UserAchievements
+              userRank={stats.rank || '1'}
+              userCoins={stats.coins || 100}
+              userScore={stats.score || 500}
+            />
+
+            {/* Daily Coins Bonus Banner */}
             <div
-              key={idx}
+              onClick={() => {
+                if (!dailyCoinsClaimed) {
+                  setDailyCoinsClaimed(true);
+                  setStats((prev) => ({ ...prev, coins: (prev.coins || 100) + 50 }));
+                }
+              }}
               style={{
+                marginTop: 18,
+                background: 'var(--card)',
+                borderRadius: 12,
+                padding: '14px 18px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 16,
+                cursor: 'pointer',
+                boxShadow: '0 4px 14px rgba(0, 0, 0, 0.04)',
+                border: '1px solid var(--border)',
+                transition: 'transform 0.15s ease',
+              }}
+            >
+              <div
+                style={{
+                  width: 50,
+                  height: 50,
+                  borderRadius: '50%',
+                  background: 'var(--primary-color)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <img
+                  src="/elite_assets/images/daily_coins.svg"
+                  alt="Daily Coins"
+                  style={{ width: 32, height: 32 }}
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h4 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>
+                  {dailyCoinsClaimed ? 'Daily Bonus Collected!' : 'Daily Free Coins'}
+                </h4>
+                <p style={{ margin: '3px 0 0', fontSize: 13, color: 'var(--text-muted)' }}>
+                  {dailyCoinsClaimed ? '+50 Coins awarded to your account today' : 'Claim 50 bonus coins every 24 hours'}
+                </p>
+              </div>
+              <button
+                type="button"
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: 8,
+                  background: dailyCoinsClaimed ? 'var(--bg-hover)' : 'var(--primary-color)',
+                  color: dailyCoinsClaimed ? 'var(--text-muted)' : '#ffffff',
+                  border: 'none',
+                  fontSize: 12.5,
+                  fontWeight: 800,
+                  cursor: dailyCoinsClaimed ? 'default' : 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {dailyCoinsClaimed ? 'Claimed ✓' : 'Claim +50'}
+              </button>
+            </div>
+
+            {/* Live Contest Section */}
+            <div style={{ marginTop: 26 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <h3 style={{ margin: 0, fontSize: 19, fontWeight: 800, color: 'var(--text-primary)' }}>
+                  Contest
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setActiveModeModal('quiz_zone')}
+                  style={{ background: 'none', border: 'none', fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', cursor: 'pointer' }}
+                >
+                  View All
+                </button>
+              </div>
+
+              <div
+                style={{
+                  background: 'var(--card)',
+                  borderRadius: 12,
+                  padding: 16,
+                  border: '1px solid var(--border)',
+                  boxShadow: '0 4px 14px rgba(0, 0, 0, 0.04)',
+                }}
+              >
+                <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                  <div
+                    style={{
+                      width: 52,
+                      height: 52,
+                      borderRadius: 10,
+                      background: 'rgba(239, 83, 136, 0.12)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 26,
+                      flexShrink: 0,
+                    }}
+                  >
+                    🏆
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <h4 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>
+                      Mega Scholar Grand Contest
+                    </h4>
+                    <p style={{ margin: '4px 0 8px', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                      Compete with active scholars across university curricula. Winner receives 500 coins!
+                    </p>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                      <span>Entry: <strong style={{ color: 'var(--text-primary)' }}>20 Coins</strong></span>
+                      <span>•</span>
+                      <span>Ends: <strong style={{ color: 'var(--text-primary)' }}>Today</strong></span>
+                      <span>•</span>
+                      <span><strong style={{ color: 'var(--text-primary)' }}>180</strong> Scholars</span>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleLaunchCategoryQuiz({ id: 'contest_grand', name: 'Mega Scholar Grand Contest' })}
+                  style={{
+                    marginTop: 14,
+                    width: '100%',
+                    padding: '10px 0',
+                    borderRadius: 8,
+                    background: 'var(--page-background)',
+                    color: 'var(--primary-color)',
+                    border: 'none',
+                    fontSize: 15,
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                  }}
+                >
+                  Play Now
+                </button>
+              </div>
+            </div>
+
+            {/* Battle of the Day (Exact 2-column Grid) */}
+            <div style={{ marginTop: 28 }}>
+              <h3 style={{ margin: '0 0 14px', fontSize: 19, fontWeight: 800, color: 'var(--text-primary)' }}>
+                Battle of the Day
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
+                <QuizGridCard
+                  title="Group Play"
+                  desc="Play with friends in live room"
+                  img="/elite_assets/images/group_battle.svg"
+                  onTap={handleCreateGroupRoom}
+                />
+                <QuizGridCard
+                  title="1 vs 1 Battle"
+                  desc="Battle with random player"
+                  img="/elite_assets/images/one_vs_one.svg"
+                  onTap={handleStart1v1Battle}
+                />
+              </div>
+            </div>
+
+            {/* Self / Exam Zone (Exact 2-column Grid) */}
+            <div style={{ marginTop: 28 }}>
+              <h3 style={{ margin: '0 0 14px', fontSize: 19, fontWeight: 800, color: 'var(--text-primary)' }}>
+                Self / Exam Zone
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
+                <QuizGridCard
+                  title="Exam"
+                  desc="Exam with negative marking"
+                  img="/elite_assets/images/exam.svg"
+                  onTap={() => setActiveModeModal('exam_module')}
+                />
+                <QuizGridCard
+                  title="Self Challenge"
+                  desc="Test yourself with timer"
+                  img="/elite_assets/images/self_challenge.svg"
+                  onTap={() => setActiveModeModal('self_challenge')}
+                />
+              </div>
+            </div>
+
+            {/* StudyCord Feature: AI Note-to-Quiz Synthesizer */}
+            <div style={{ marginTop: 28 }}>
+              <h3 style={{ margin: '0 0 14px', fontSize: 19, fontWeight: 800, color: 'var(--text-primary)' }}>
+                AI Guru Quiz Maker
+              </h3>
+              <div
+                onClick={() => setActiveModeModal('ai_quiz')}
+                style={{
+                  background: 'linear-gradient(135deg, rgba(239, 83, 136, 0.12) 0%, rgba(197, 100, 187, 0.18) 100%)',
+                  border: '1.5px solid rgba(239, 83, 136, 0.35)',
+                  borderRadius: 14,
+                  padding: '18px 20px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 16,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <div
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: '50%',
+                      background: 'var(--primary-color)',
+                      color: '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 24,
+                      flexShrink: 0,
+                    }}
+                  >
+                    ✨
+                  </div>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>
+                      Synthesize From Study Notes
+                    </h4>
+                    <p style={{ margin: '4px 0 0', fontSize: 12.5, color: 'var(--text-muted)' }}>
+                      Convert any lecture topic, PDF or document into interactive drills with AI Guru
+                    </p>
+                  </div>
+                </div>
+                <span style={{ fontSize: 20, color: 'var(--primary-color)', fontWeight: 900 }}>→</span>
+              </div>
+            </div>
+
+            {/* Play Zone Quick Pick */}
+            <div style={{ marginTop: 28, marginBottom: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <h3 style={{ margin: 0, fontSize: 19, fontWeight: 800, color: 'var(--text-primary)' }}>
+                  Play Zone Highlights
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setArenaTab('play_zone')}
+                  style={{ background: 'none', border: 'none', fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', cursor: 'pointer' }}
+                >
+                  View All ({ELITE_QUIZ_MODES.length})
+                </button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
+                <QuizGridCard
+                  title="Daily Quiz"
+                  desc="Fresh questions every day"
+                  img="/elite_assets/images/daily_quiz.svg"
+                  onTap={handleStartDailyQuiz}
+                />
+                <QuizGridCard
+                  title="Guess The Word"
+                  desc="Vocabulary mystery drill"
+                  img="/elite_assets/images/guess_the_word.svg"
+                  onTap={() => setActiveModeModal('guess_word')}
+                />
+                <QuizGridCard
+                  title="Fun & Learn"
+                  desc="Comprehension study game"
+                  img="/elite_assets/images/fun_n_learn.svg"
+                  onTap={() => setActiveModeModal('fun_learn')}
+                />
+                <QuizGridCard
+                  title="True / False"
+                  desc="Rapid speed answer choices"
+                  img="/elite_assets/images/true_false_quiz.svg"
+                  onTap={handleStartTrueFalseQuiz}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ══════════ TAB 2: QUIZ ZONE CATEGORIES (Elite Quiz Zone Replica) ══════════ */}
+        {arenaTab === 'quiz_zone' && (
+          <div style={{ marginTop: 8 }}>
+            <h3 style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>
+              Quiz Zone
+            </h3>
+            <p style={{ margin: '0 0 18px', fontSize: 13, color: 'var(--text-muted)' }}>
+              Select an academic category to level up your mastery
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {categories.map((cat) => (
+                <div
+                  key={cat.id || cat._id}
+                  onClick={() => handleLaunchCategoryQuiz(cat)}
+                  style={{
+                    background: 'var(--card)',
+                    borderRadius: 12,
+                    padding: '14px 16px',
+                    border: '1px solid var(--border)',
+                    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.03)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 14,
+                    cursor: 'pointer',
+                    transition: 'transform 0.15s ease',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
+                    <div
+                      style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: 8,
+                        border: '1px solid var(--border)',
+                        background: 'var(--bg-hover)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 24,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {cat.image || '📚'}
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <h4 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {cat.name}
+                      </h4>
+                      <p style={{ margin: '3px 0 0', fontSize: 13, color: 'var(--text-muted)' }}>
+                        Questions: {cat.question_count || 12}
+                      </p>
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 6,
+                      border: '1px solid var(--border)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 16,
+                      color: 'var(--text-primary)',
+                      flexShrink: 0,
+                    }}
+                  >
+                    ›
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ══════════ TAB 3: PLAY ZONE MODES (Elite Play Zone Replica) ══════════ */}
+        {arenaTab === 'play_zone' && (
+          <div style={{ marginTop: 8 }}>
+            <h3 style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>
+              Play Zone
+            </h3>
+            <p style={{ margin: '0 0 18px', fontSize: 13, color: 'var(--text-muted)' }}>
+              Explore all interactive quiz game modes and earn coins
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
+              <QuizGridCard
+                title="Daily Quiz"
+                desc="Daily new quiz challenge"
+                img="/elite_assets/images/daily_quiz.svg"
+                onTap={handleStartDailyQuiz}
+              />
+              <QuizGridCard
+                title="Fun & Learn"
+                desc="Comprehension reading game"
+                img="/elite_assets/images/fun_n_learn.svg"
+                onTap={() => setActiveModeModal('fun_learn')}
+              />
+              <QuizGridCard
+                title="Guess The Word"
+                desc="Vocabulary puzzle drill"
+                img="/elite_assets/images/guess_the_word.svg"
+                onTap={() => setActiveModeModal('guess_word')}
+              />
+              <QuizGridCard
+                title="Audio Questions"
+                desc="Listen and answer fast"
+                img="/elite_assets/images/audio_quiz.svg"
+                onTap={handleStartAudioQuiz}
+              />
+              <QuizGridCard
+                title="Math Mania"
+                desc="Quick calculus and arithmetic"
+                img="/elite_assets/images/maths_quiz.svg"
+                onTap={handleStartMathMania}
+              />
+              <QuizGridCard
+                title="True / False"
+                desc="Speed true/false choices"
+                img="/elite_assets/images/true_false_quiz.svg"
+                onTap={handleStartTrueFalseQuiz}
+              />
+              <QuizGridCard
+                title="Multi Match"
+                desc="Match terms with definitions"
+                img="/elite_assets/images/multi_match.svg"
+                onTap={() => setActiveModeModal('multi_match')}
+              />
+              <QuizGridCard
+                title="Self Challenge"
+                desc="Custom count & countdown"
+                img="/elite_assets/images/self_challenge.svg"
+                onTap={() => setActiveModeModal('self_challenge')}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* ══════════ TAB 4: LEADERBOARD PODIUM & LIST (Elite Quiz Replica) ══════════ */}
+        {arenaTab === 'leaderboard' && (
+          <div style={{ marginTop: 8 }}>
+            <h3 style={{ margin: '0 0 14px', fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>
+              Leaderboard
+            </h3>
+
+            {/* Filter Pills */}
+            <div
+              style={{
+                display: 'flex',
+                background: 'var(--card)',
+                borderRadius: 12,
+                padding: 4,
+                border: '1px solid var(--border)',
+                marginBottom: 20,
+              }}
+            >
+              {[
+                { id: 'all_time', label: 'All Time' },
+                { id: 'month', label: 'Month' },
+                { id: 'daily', label: 'Daily' },
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setLeaderboardFilter(f.id)}
+                  style={{
+                    flex: 1,
+                    padding: '8px 0',
+                    borderRadius: 8,
+                    border: 'none',
+                    background: leaderboardFilter === f.id ? 'var(--primary-color)' : 'transparent',
+                    color: leaderboardFilter === f.id ? '#ffffff' : 'var(--text-muted)',
+                    fontSize: 13,
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Top 3 Podium */}
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 12, padding: '16px 0 12px' }}>
+              {/* Rank 2 (Silver) */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 90 }}>
+                <div style={{ position: 'relative', width: 62, height: 62 }}>
+                  <img
+                    src={leaderboard[1]?.avatar || '/elite_assets/images/profile/2.png'}
+                    alt="Rank 2"
+                    style={{ width: '100%', height: '100%', borderRadius: '50%', border: '2.5px solid #94a3b8', objectFit: 'cover' }}
+                  />
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: -8,
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      width: 24,
+                      height: 24,
+                      borderRadius: '50%',
+                      background: '#94a3b8',
+                      color: '#ffffff',
+                      fontSize: 12,
+                      fontWeight: 900,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '2px solid var(--card)',
+                    }}
+                  >
+                    2
+                  </div>
+                </div>
+                <span style={{ marginTop: 12, fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', maxWidth: 84, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {leaderboard[1]?.name || 'Scholar 2'}
+                </span>
+                <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)', marginTop: 2 }}>
+                  {leaderboard[1]?.score || 420}
+                </span>
+              </div>
+
+              {/* Rank 1 (Gold - Taller) */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 104, marginBottom: 12 }}>
+                <span style={{ fontSize: 24, marginBottom: -4 }}>👑</span>
+                <div style={{ position: 'relative', width: 76, height: 76 }}>
+                  <img
+                    src={leaderboard[0]?.avatar || '/elite_assets/images/profile/1.png'}
+                    alt="Rank 1"
+                    style={{ width: '100%', height: '100%', borderRadius: '50%', border: '3px solid #f59e0b', objectFit: 'cover' }}
+                  />
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: -9,
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      width: 28,
+                      height: 28,
+                      borderRadius: '50%',
+                      background: '#f59e0b',
+                      color: '#ffffff',
+                      fontSize: 13,
+                      fontWeight: 900,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '2px solid var(--card)',
+                    }}
+                  >
+                    1
+                  </div>
+                </div>
+                <span style={{ marginTop: 12, fontSize: 14, fontWeight: 800, color: 'var(--text-primary)', maxWidth: 96, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {leaderboard[0]?.name || 'Top Scholar'}
+                </span>
+                <span style={{ fontSize: 16, fontWeight: 900, color: 'var(--primary-color)', marginTop: 2 }}>
+                  {leaderboard[0]?.score || 650}
+                </span>
+              </div>
+
+              {/* Rank 3 (Bronze) */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 90 }}>
+                <div style={{ position: 'relative', width: 62, height: 62 }}>
+                  <img
+                    src={leaderboard[2]?.avatar || '/elite_assets/images/profile/3.png'}
+                    alt="Rank 3"
+                    style={{ width: '100%', height: '100%', borderRadius: '50%', border: '2.5px solid #b45309', objectFit: 'cover' }}
+                  />
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: -8,
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      width: 24,
+                      height: 24,
+                      borderRadius: '50%',
+                      background: '#b45309',
+                      color: '#ffffff',
+                      fontSize: 12,
+                      fontWeight: 900,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '2px solid var(--card)',
+                    }}
+                  >
+                    3
+                  </div>
+                </div>
+                <span style={{ marginTop: 12, fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', maxWidth: 84, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {leaderboard[2]?.name || 'Scholar 3'}
+                </span>
+                <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)', marginTop: 2 }}>
+                  {leaderboard[2]?.score || 380}
+                </span>
+              </div>
+            </div>
+
+            {/* List of ranks 4 to 10 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0, background: 'var(--card)', borderRadius: 14, border: '1px solid var(--border)', overflow: 'hidden', marginTop: 10 }}>
+              {leaderboard.slice(3, 10).map((s, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 16px',
+                    borderBottom: idx < leaderboard.slice(3, 10).length - 1 ? '1px solid var(--border)' : 'none',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <span style={{ width: 22, fontSize: 14, fontWeight: 800, color: 'var(--text-muted)' }}>
+                      #{idx + 4}
+                    </span>
+                    <div
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: '50%',
+                        background: 'var(--bg-hover)',
+                        border: '1px solid var(--border)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 14,
+                        fontWeight: 800,
+                        color: 'var(--text-primary)',
+                      }}
+                    >
+                      {s.name?.charAt(0) || 'S'}
+                    </div>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
+                      {s.name}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)' }}>
+                    {s.score} pts
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Sticky "My Rank" Bar */}
+            <div
+              style={{
+                position: 'sticky',
+                bottom: 10,
+                marginTop: 18,
+                background: 'var(--card)',
+                borderRadius: 12,
+                padding: '12px 18px',
+                border: '1.5px solid var(--primary-color)',
+                boxShadow: '0 6px 20px rgba(0, 0, 0, 0.08)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '10px 14px',
-                borderRadius: 12,
-                background: 'var(--bg-hover)',
-                border: '1px solid var(--border)',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-muted)', width: 22 }}>
-                  #{idx + 4}
+                <span style={{ fontSize: 14, fontWeight: 900, color: 'var(--primary-color)' }}>
+                  #{stats.rank || 1}
                 </span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{s.name}</span>
+                <div style={{ width: 34, height: 34, borderRadius: '50%', overflow: 'hidden', border: '1px solid var(--primary-color)' }}>
+                  <img
+                    src={profile?.avatar_url || '/elite_assets/images/profile/1.png'}
+                    alt="My Profile"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    onError={(e) => {
+                      e.currentTarget.src = '/elite_assets/images/profile/1.png';
+                    }}
+                  />
+                </div>
+                <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)' }}>
+                  {profile?.full_name || profile?.username || user?.user_metadata?.full_name || 'My Rank'}
+                </span>
               </div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#f59e0b' }}>
-                {s.score} pts
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 900, color: 'var(--primary-color)' }}>
+                <span>{stats.score || 500} pts</span>
               </div>
             </div>
-          ))}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* ══════════ MODALS FOR GAME MODES ══════════ */}
