@@ -1561,7 +1561,7 @@ export default function DashboardPage() {
             onBack={() => setChatterTab('feed')}
             onOpenGuru={() => setChatterTab('guru')}
             onOpenNotifications={() => setNotificationsModalOpen(true)}
-            onOpenCoinStore={() => {}}
+            onOpenCoinStore={() => router.push('/coin-store')}
           />
         </div>
       )}

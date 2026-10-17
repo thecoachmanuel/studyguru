@@ -324,6 +324,26 @@ export default function LoginPage() {
           >
             <span>🎮 Play as Guest (Explore Quiz Arena)</span>
           </button>
+
+          <Link
+            href="/onboarding"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              fontSize: 13,
+              fontWeight: 700,
+              color: 'var(--text-secondary)',
+              textDecoration: 'none',
+              padding: '6px 12px',
+              borderRadius: 10,
+              background: 'var(--bg-hover)',
+              border: '1px solid var(--border)',
+            }}
+          >
+            <span>✨ Take App Tour</span>
+          </Link>
         </div>
 
         {/* Footer Go to Sign Up Link */}
