@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import EliteIcon from '@/components/elite/EliteIcon';
 
 export default function QuizPlayModal({
   isOpen,
@@ -22,14 +23,25 @@ export default function QuizPlayModal({
   const [sharingStory, setSharingStory] = useState(false);
   const [sharedToast, setSharedToast] = useState('');
 
-  // Lifelines
+  // 4 Elite Quiz Lifelines
   const [lifeline5050Used, setLifeline5050Used] = useState(false);
   const [lifelineTimerUsed, setLifelineTimerUsed] = useState(false);
   const [lifelineHintUsed, setLifelineHintUsed] = useState(false);
+  const [lifelineSkipUsed, setLifelineSkipUsed] = useState(false);
   const [hiddenOptions, setHiddenOptions] = useState([]);
   const [audiencePoll, setAudiencePoll] = useState(null);
 
   const currentQ = questions[currentIndex] || null;
+
+  // Sound effects matching Elite Quiz
+  const playSound = (soundName) => {
+    if (typeof window === 'undefined') return;
+    try {
+      const audio = new Audio(`/elite_assets/config/sounds/${soundName}.mp3`);
+      audio.volume = 0.55;
+      audio.play().catch(() => {});
+    } catch (_) {}
+  };
 
   // Countdown timer
   useEffect(() => {
@@ -70,13 +82,17 @@ export default function QuizPlayModal({
     const isCorrect = optIndex === currentQ.answer_index || (optIndex >= 0 && currentQ.options[optIndex] === currentQ.answer);
 
     if (isCorrect) {
+      playSound('right');
       setScore((prev) => prev + 100);
       setCoinsEarned((prev) => prev + 10);
       setCorrectAnswersCount((prev) => prev + 1);
+    } else {
+      playSound('wrong');
     }
   };
 
   const handleNext = async () => {
+    playSound('click');
     if (currentIndex < totalQuestions - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {
@@ -109,6 +125,7 @@ export default function QuizPlayModal({
   // 50:50 Lifeline
   const handleUse5050 = () => {
     if (lifeline5050Used || isAnswered || !currentQ) return;
+    playSound('click');
     setLifeline5050Used(true);
 
     const correctIdx = currentQ.answer_index;
@@ -124,13 +141,28 @@ export default function QuizPlayModal({
   // Reset Time Lifeline
   const handleUseTimerReset = () => {
     if (lifelineTimerUsed || isAnswered) return;
+    playSound('click');
     setLifelineTimerUsed(true);
     setTimeLeft(30);
+  };
+
+  // Skip Question Lifeline
+  const handleUseSkip = () => {
+    if (lifelineSkipUsed || isAnswered) return;
+    playSound('click');
+    setLifelineSkipUsed(true);
+    if (currentIndex < totalQuestions - 1) {
+      setCurrentIndex((prev) => prev + 1);
+    } else {
+      setIsCompleted(true);
+      onQuizCompleted?.();
+    }
   };
 
   // Audience Poll / AI Hint
   const handleUseAudiencePoll = () => {
     if (lifelineHintUsed || isAnswered || !currentQ) return;
+    playSound('click');
     setLifelineHintUsed(true);
 
     const correctIdx = currentQ.answer_index;
@@ -234,7 +266,7 @@ export default function QuizPlayModal({
             left: 0,
             right: 0,
             height: 4,
-            background: 'linear-gradient(90deg, #c564bb 0%, #40E378 50%, #f59e0b 100%)',
+            background: 'linear-gradient(90deg, var(--primary-color) 0%, #40E378 50%, #f59e0b 100%)',
           }}
         />
 
@@ -273,15 +305,15 @@ export default function QuizPlayModal({
                   gap: 6,
                   padding: '6px 14px',
                   borderRadius: 20,
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  background: 'var(--bg-hover)',
+                  border: '1px solid var(--border)',
                   fontSize: 13,
                   fontWeight: 700,
                 }}
               >
                 <span>Question</span>
-                <span style={{ color: '#c564bb', fontWeight: 900 }}>{currentIndex + 1}</span>
-                <span style={{ color: 'rgba(255, 255, 255, 0.4)' }}>/ {totalQuestions}</span>
+                <span style={{ color: 'var(--primary-color)', fontWeight: 900 }}>{currentIndex + 1}</span>
+                <span style={{ color: 'var(--text-secondary)' }}>/ {totalQuestions}</span>
               </div>
 
               {/* Timer Pill */}
@@ -292,9 +324,9 @@ export default function QuizPlayModal({
                   gap: 6,
                   padding: '6px 14px',
                   borderRadius: 20,
-                  background: timeLeft <= 5 ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255, 255, 255, 0.08)',
-                  border: timeLeft <= 5 ? '1px solid rgba(239, 68, 68, 0.6)' : '1px solid rgba(255, 255, 255, 0.12)',
-                  color: timeLeft <= 5 ? '#f87171' : '#fff',
+                  background: timeLeft <= 5 ? 'rgba(239, 68, 68, 0.25)' : 'var(--bg-hover)',
+                  border: timeLeft <= 5 ? '1px solid rgba(239, 68, 68, 0.6)' : '1px solid var(--border)',
+                  color: timeLeft <= 5 ? '#f87171' : 'var(--text-primary)',
                   fontSize: 13,
                   fontWeight: 800,
                   transition: 'all 0.2s ease',
@@ -320,7 +352,7 @@ export default function QuizPlayModal({
                     fontWeight: 800,
                   }}
                 >
-                  <span>🪙</span>
+                  <img src="/elite_assets/images/coin.svg" alt="Coin" style={{ width: 14, height: 14 }} />
                   <span>+{coinsEarned}</span>
                 </div>
 
@@ -328,9 +360,9 @@ export default function QuizPlayModal({
                   type="button"
                   onClick={onClose}
                   style={{
-                    background: 'rgba(255, 255, 255, 0.08)',
-                    border: 'none',
-                    color: '#fff',
+                    background: 'var(--bg-hover)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-primary)',
                     width: 32,
                     height: 32,
                     borderRadius: '50%',
@@ -348,74 +380,125 @@ export default function QuizPlayModal({
             </div>
 
             {/* Timer Progress Bar */}
-            <div style={{ height: 4, background: 'rgba(255, 255, 255, 0.1)', borderRadius: 2, marginBottom: 20, overflow: 'hidden' }}>
+            <div style={{ height: 4, background: 'var(--border)', borderRadius: 2, marginBottom: 20, overflow: 'hidden' }}>
               <div
                 style={{
                   height: '100%',
                   width: `${(timeLeft / 30) * 100}%`,
-                  background: timeLeft <= 5 ? '#ef4444' : '#c564bb',
+                  background: timeLeft <= 5 ? '#ef4444' : 'var(--primary-color)',
                   transition: 'width 1s linear',
                 }}
               />
             </div>
 
-            {/* Lifelines Rail */}
-            <div style={{ display: 'flex', gap: 8, marginBottom: 20, justifyContent: 'center' }}>
+            {/* 4 Elite Quiz Lifelines Rail */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 20 }}>
+              {/* 50:50 */}
               <button
                 type="button"
                 disabled={lifeline5050Used || isAnswered}
                 onClick={handleUse5050}
                 style={{
-                  padding: '6px 14px',
+                  padding: '8px 10px',
                   borderRadius: 14,
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
-                  background: lifeline5050Used ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.08)',
-                  color: lifeline5050Used ? 'rgba(255, 255, 255, 0.25)' : '#fff',
-                  fontSize: 12,
+                  border: '1px solid var(--border)',
+                  background: lifeline5050Used ? 'rgba(255, 255, 255, 0.02)' : 'var(--bg-hover)',
+                  color: lifeline5050Used ? 'var(--text-secondary)' : 'var(--text-primary)',
+                  fontSize: 11.5,
                   fontWeight: 700,
                   cursor: lifeline5050Used || isAnswered ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  opacity: lifeline5050Used ? 0.45 : 1,
+                  transition: 'all 0.15s ease',
                 }}
-                title="50/50: Remove 2 wrong options"
+                title="50:50 - Remove two wrong options"
               >
-                ⚖️ 50:50
+                <EliteIcon name="fifty_fifty" size={15} color={lifeline5050Used ? 'var(--text-secondary)' : 'var(--primary-color)'} />
+                <span>50:50</span>
               </button>
 
-              <button
-                type="button"
-                disabled={lifelineTimerUsed || isAnswered}
-                onClick={handleUseTimerReset}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: 14,
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
-                  background: lifelineTimerUsed ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.08)',
-                  color: lifelineTimerUsed ? 'rgba(255, 255, 255, 0.25)' : '#fff',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: lifelineTimerUsed || isAnswered ? 'not-allowed' : 'pointer',
-                }}
-                title="Reset Timer back to 30s"
-              >
-                ⏱️ Reset Time
-              </button>
-
+              {/* Audience Poll */}
               <button
                 type="button"
                 disabled={lifelineHintUsed || isAnswered}
                 onClick={handleUseAudiencePoll}
                 style={{
-                  padding: '6px 14px',
+                  padding: '8px 10px',
                   borderRadius: 14,
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
-                  background: lifelineHintUsed ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.08)',
-                  color: lifelineHintUsed ? 'rgba(255, 255, 255, 0.25)' : '#fff',
-                  fontSize: 12,
+                  border: '1px solid var(--border)',
+                  background: lifelineHintUsed ? 'rgba(255, 255, 255, 0.02)' : 'var(--bg-hover)',
+                  color: lifelineHintUsed ? 'var(--text-secondary)' : 'var(--text-primary)',
+                  fontSize: 11.5,
                   fontWeight: 700,
                   cursor: lifelineHintUsed || isAnswered ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  opacity: lifelineHintUsed ? 0.45 : 1,
+                  transition: 'all 0.15s ease',
                 }}
-                title="Audience Poll / AI Consensus"
+                title="Audience Poll - See community stats"
               >
-                📊 Audience Poll
+                <EliteIcon name="audience_poll" size={15} color={lifelineHintUsed ? 'var(--text-secondary)' : 'var(--primary-color)'} />
+                <span>Poll</span>
+              </button>
+
+              {/* Reset Timer */}
+              <button
+                type="button"
+                disabled={lifelineTimerUsed || isAnswered}
+                onClick={handleUseTimerReset}
+                style={{
+                  padding: '8px 10px',
+                  borderRadius: 14,
+                  border: '1px solid var(--border)',
+                  background: lifelineTimerUsed ? 'rgba(255, 255, 255, 0.02)' : 'var(--bg-hover)',
+                  color: lifelineTimerUsed ? 'var(--text-secondary)' : 'var(--text-primary)',
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                  cursor: lifelineTimerUsed || isAnswered ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  opacity: lifelineTimerUsed ? 0.45 : 1,
+                  transition: 'all 0.15s ease',
+                }}
+                title="Reset Timer - Reset countdown back to 30s"
+              >
+                <EliteIcon name="reset_time" size={15} color={lifelineTimerUsed ? 'var(--text-secondary)' : 'var(--primary-color)'} />
+                <span>Timer</span>
+              </button>
+
+              {/* Skip Question */}
+              <button
+                type="button"
+                disabled={lifelineSkipUsed || isAnswered}
+                onClick={handleUseSkip}
+                style={{
+                  padding: '8px 10px',
+                  borderRadius: 14,
+                  border: '1px solid var(--border)',
+                  background: lifelineSkipUsed ? 'rgba(255, 255, 255, 0.02)' : 'var(--bg-hover)',
+                  color: lifelineSkipUsed ? 'var(--text-secondary)' : 'var(--text-primary)',
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                  cursor: lifelineSkipUsed || isAnswered ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  opacity: lifelineSkipUsed ? 0.45 : 1,
+                  transition: 'all 0.15s ease',
+                }}
+                title="Skip - Pass this question without penalty"
+              >
+                <EliteIcon name="skip" size={15} color={lifelineSkipUsed ? 'var(--text-secondary)' : 'var(--primary-color)'} />
+                <span>Skip</span>
               </button>
             </div>
 
@@ -562,7 +645,7 @@ export default function QuizPlayModal({
                     type="button"
                     onClick={handleNext}
                     style={{
-                      background: '#c564bb',
+                      background: 'var(--primary-color)',
                       color: '#fff',
                       border: 'none',
                       padding: '10px 24px',
@@ -570,7 +653,7 @@ export default function QuizPlayModal({
                       fontSize: 14,
                       fontWeight: 800,
                       cursor: 'pointer',
-                      boxShadow: '0 4px 15px rgba(197, 100, 187, 0.4)',
+                      boxShadow: '0 4px 15px rgba(239, 83, 136, 0.4)',
                     }}
                   >
                     {currentIndex < totalQuestions - 1 ? 'Next Question →' : 'View Results 🏆'}
@@ -603,32 +686,42 @@ export default function QuizPlayModal({
         {/* ════ SCREEN 2: QUIZ COMPLETED ════ */}
         {isCompleted && (
           <div style={{ textAlign: 'center', padding: '15px 10px' }}>
-            <div style={{ fontSize: 56, marginBottom: 8 }}>🏆</div>
-            <h2 style={{ fontSize: 24, fontWeight: 900, margin: '0 0 6px', color: '#fff' }}>
+            <img
+              src="/elite_assets/images/score.svg"
+              alt="Quiz Results"
+              style={{
+                width: 88,
+                height: 88,
+                margin: '0 auto 14px',
+                display: 'block',
+                filter: 'drop-shadow(0 6px 16px rgba(239, 83, 136, 0.35))',
+              }}
+            />
+            <h2 style={{ fontSize: 24, fontWeight: 900, margin: '0 0 6px', color: 'var(--text-primary)' }}>
               Quiz Completed!
             </h2>
-            <p style={{ fontSize: 14, color: 'rgba(255, 255, 255, 0.6)', margin: '0 0 24px' }}>
+            <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '0 0 24px' }}>
               {title}
             </p>
 
             {/* Score & Coins Summary Cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 25 }}>
-              <div style={{ background: 'rgba(255, 255, 255, 0.05)', borderRadius: 16, padding: '14px 10px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                <div style={{ fontSize: 11, color: 'rgba(255, 255, 255, 0.5)', textTransform: 'uppercase', fontWeight: 700 }}>Accuracy</div>
+              <div style={{ background: 'var(--bg-hover)', borderRadius: 16, padding: '14px 10px', border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 700 }}>Accuracy</div>
                 <div style={{ fontSize: 22, fontWeight: 900, color: '#40E378', marginTop: 4 }}>
                   {Math.round((correctAnswersCount / totalQuestions) * 100)}%
                 </div>
               </div>
 
-              <div style={{ background: 'rgba(255, 255, 255, 0.05)', borderRadius: 16, padding: '14px 10px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                <div style={{ fontSize: 11, color: 'rgba(255, 255, 255, 0.5)', textTransform: 'uppercase', fontWeight: 700 }}>Score</div>
-                <div style={{ fontSize: 22, fontWeight: 900, color: '#c564bb', marginTop: 4 }}>
+              <div style={{ background: 'var(--bg-hover)', borderRadius: 16, padding: '14px 10px', border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 700 }}>Score</div>
+                <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--primary-color)', marginTop: 4 }}>
                   {score} pts
                 </div>
               </div>
 
-              <div style={{ background: 'rgba(255, 255, 255, 0.05)', borderRadius: 16, padding: '14px 10px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                <div style={{ fontSize: 11, color: 'rgba(255, 255, 255, 0.5)', textTransform: 'uppercase', fontWeight: 700 }}>Coins Earned</div>
+              <div style={{ background: 'var(--bg-hover)', borderRadius: 16, padding: '14px 10px', border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 700 }}>Coins Earned</div>
                 <div style={{ fontSize: 22, fontWeight: 900, color: '#f59e0b', marginTop: 4 }}>
                   +{coinsEarned} 🪙
                 </div>
@@ -639,15 +732,15 @@ export default function QuizPlayModal({
             {typeof window !== 'undefined' && (sessionStorage.getItem('studycord_guest') === '1' || localStorage.getItem('studycord_guest') === '1') && (
               <div
                 style={{
-                  background: 'linear-gradient(135deg, rgba(197, 100, 187, 0.16) 0%, rgba(9, 0, 41, 0.6) 100%)',
-                  border: '1px solid rgba(197, 100, 187, 0.35)',
+                  background: 'linear-gradient(135deg, rgba(239, 83, 136, 0.16) 0%, rgba(9, 0, 41, 0.6) 100%)',
+                  border: '1px solid rgba(239, 83, 136, 0.35)',
                   borderRadius: 16,
                   padding: '14px 18px',
                   marginBottom: 20,
                   textAlign: 'center',
                 }}
               >
-                <div style={{ fontSize: 13.5, color: '#f3e8f8', fontWeight: 600, marginBottom: 10 }}>
+                <div style={{ fontSize: 13.5, color: 'var(--text-primary)', fontWeight: 600, marginBottom: 10 }}>
                   🎓 <strong>Great Drill, Guest Scholar!</strong> Sign up to claim your <strong>+{coinsEarned} 🪙 coins</strong> and rank on the global leaderboard!
                 </div>
                 <button
@@ -671,8 +764,8 @@ export default function QuizPlayModal({
             )}
 
             {/* Social Sharing Actions */}
-            <div style={{ background: 'rgba(0, 0, 0, 0.25)', borderRadius: 16, padding: 16, marginBottom: 25, border: '1px solid rgba(255, 255, 255, 0.08)' }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 12 }}>
+            <div style={{ background: 'var(--bg-hover)', borderRadius: 16, padding: 16, marginBottom: 25, border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12 }}>
                 📣 Challenge Your Classmates:
               </div>
               <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -736,9 +829,9 @@ export default function QuizPlayModal({
                 style={{
                   padding: '10px 22px',
                   borderRadius: 16,
-                  background: 'rgba(255, 255, 255, 0.1)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  color: '#fff',
+                  background: 'var(--bg-hover)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-primary)',
                   fontSize: 14,
                   fontWeight: 700,
                   cursor: 'pointer',
@@ -753,13 +846,13 @@ export default function QuizPlayModal({
                 style={{
                   padding: '10px 24px',
                   borderRadius: 16,
-                  background: '#c564bb',
+                  background: 'var(--primary-color)',
                   border: 'none',
                   color: '#fff',
                   fontSize: 14,
                   fontWeight: 800,
                   cursor: 'pointer',
-                  boxShadow: '0 4px 15px rgba(197, 100, 187, 0.4)',
+                  boxShadow: '0 4px 15px rgba(239, 83, 136, 0.4)',
                 }}
               >
                 Done

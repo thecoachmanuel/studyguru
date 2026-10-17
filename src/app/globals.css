@@ -10344,135 +10344,105 @@ input, textarea, [contenteditable="true"], .chat-markdown, .chatter-post-card {
   }
 }
 
-/* Elite Quiz Web Auth & Guest Styles */
+/* ══════════ ELITE QUIZ 2.3.7 AUTH STYLES ══════════ */
 .elite-auth-page {
   min-height: 100dvh;
-  background-color: #090029;
-  background-image: 
-    radial-gradient(circle at 50% 12%, rgba(197, 100, 187, 0.22) 0%, rgba(9, 0, 41, 0.85) 55%, #090029 100%),
-    radial-gradient(circle at 10% 80%, rgba(64, 227, 120, 0.08) 0%, transparent 40%);
+  background-color: var(--page-background);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 28px 16px;
+  padding: 32px 16px;
   box-sizing: border-box;
-  color: #fff;
+  color: var(--text-primary);
   font-family: var(--font-family);
   position: relative;
-  overflow-x: hidden;
 }
 
 .elite-auth-card {
   width: 100%;
-  max-width: 480px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 28px;
-  padding: 40px 32px;
+  max-width: 440px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 36px 28px;
   box-sizing: border-box;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75), 0 0 35px rgba(197, 100, 187, 0.12);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
   position: relative;
   z-index: 2;
 }
 
-@media (max-width: 575px) {
+@media (max-width: 480px) {
   .elite-auth-card {
-    padding: 28px 20px;
-    border-radius: 22px;
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    padding: 16px 8px;
   }
 }
 
 .elite-auth-headline {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 800;
-  letter-spacing: -0.02em;
-  margin: 0 0 8px 0;
-  color: #ffffff;
+  letter-spacing: -0.01em;
+  margin: 0 0 6px 0;
+  color: var(--text-primary);
   text-align: center;
-  font-family: var(--font-heading);
+  font-family: var(--font-family);
 }
 
 .elite-google-btn {
   width: 100%;
-  padding: 13px 20px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  color: #ffffff;
+  padding: 12px 18px;
+  border-radius: 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 12px;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   font-family: var(--font-family);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
 }
 
 .elite-google-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(197, 100, 187, 0.5);
-  box-shadow: 0 4px 16px rgba(197, 100, 187, 0.2);
+  background: var(--bg-hover);
+  border-color: var(--primary-color);
   transform: translateY(-1px);
 }
 
 .elite-btn-primary {
   width: 100%;
-  padding: 14px 24px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #c564bb 0%, #a43e9c 100%);
+  height: 48px;
+  border-radius: 10px;
+  background: var(--primary-color);
   border: none;
   color: #ffffff;
   font-size: 16px;
   font-weight: 800;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 8px 24px rgba(197, 100, 187, 0.35);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  font-family: var(--font-family);
-}
-
-.elite-btn-primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 28px rgba(197, 100, 187, 0.5);
-  filter: brightness(1.08);
-}
-
-.elite-btn-primary:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-.elite-btn-guest {
-  width: 100%;
-  padding: 12px 20px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px dashed rgba(255, 255, 255, 0.2);
-  color: #d1cedb;
-  font-size: 14.5px;
-  font-weight: 600;
-  cursor: pointer;
+  transition: all 0.18s ease;
+  box-shadow: 0 4px 14px rgba(239, 83, 136, 0.35);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: all 0.2s ease;
   font-family: var(--font-family);
 }
 
-.elite-btn-guest:hover {
-  background: rgba(197, 100, 187, 0.12);
-  border-color: #c564bb;
-  color: #ffffff;
-  box-shadow: 0 4px 18px rgba(197, 100, 187, 0.25);
+.elite-btn-primary:hover:not(:disabled) {
+  opacity: 0.94;
   transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(239, 83, 136, 0.45);
+}
+
+.elite-btn-primary:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .elite-input-wrapper {
@@ -10484,139 +10454,77 @@ input, textarea, [contenteditable="true"], .chat-markdown, .chatter-post-card {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  left: 16px;
+  left: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #918ea0;
+  color: var(--text-muted);
   pointer-events: none;
 }
 
 .elite-input {
   width: 100%;
-  height: 52px;
-  padding: 0 16px 0 48px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #ffffff;
-  font-size: 15.5px;
+  height: 48px;
+  padding: 0 14px 0 44px;
+  border-radius: 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-size: 15px;
   outline: none;
   box-sizing: border-box;
-  transition: all 0.2s ease;
+  transition: all 0.18s ease;
   font-family: var(--font-family);
 }
 
 .elite-input::placeholder {
-  color: #7b788c;
+  color: var(--text-muted);
+  opacity: 0.8;
 }
 
 .elite-input:focus {
-  border-color: #c564bb;
-  background: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 0 0 3px rgba(197, 100, 187, 0.2);
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(239, 83, 136, 0.2);
 }
 
 .elite-password-toggle {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  right: 14px;
+  right: 12px;
   background: none;
   border: none;
-  color: #918ea0;
+  color: var(--text-muted);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 6px;
-  transition: color 0.15s ease;
+  padding: 4px;
 }
 
 .elite-password-toggle:hover {
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
-/* Guest Mode Persistent Banner */
-.guest-banner-bar {
-  background: linear-gradient(90deg, #18093a 0%, #290a42 50%, #18093a 100%);
-  border-bottom: 1px solid rgba(197, 100, 187, 0.3);
-  padding: 9px 16px;
+.elite-btn-guest {
+  width: 100%;
+  padding: 11px 18px;
+  border-radius: 10px;
+  background: var(--bg-hover);
+  border: 1px dashed var(--border);
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  color: #fff;
-  font-size: 13.5px;
-  z-index: 50;
-  box-shadow: 0 2px 12px rgba(9, 0, 41, 0.6);
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--font-family);
+  transition: all 0.15s ease;
 }
 
-/* ══════════ ELITE QUIZ LIGHT MODE ADAPTATIONS ══════════ */
-:root:not(.dark):not([data-theme="dark"]) .guest-banner-bar {
-  background: linear-gradient(90deg, #f0edf7 0%, #faedf9 50%, #f0edf7 100%);
-  border-bottom: 1px solid rgba(197, 100, 187, 0.35);
-  color: #0b012c;
-  box-shadow: 0 2px 12px rgba(9, 0, 41, 0.06);
+.elite-btn-guest:hover {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
 }
-
-:root:not(.dark):not([data-theme="dark"]) .elite-auth-page {
-  background: #f7f5fa;
-  background-image: 
-    radial-gradient(circle at 50% 12%, rgba(197, 100, 187, 0.16) 0%, rgba(247, 245, 250, 0.95) 55%, #f7f5fa 100%),
-    radial-gradient(circle at 10% 80%, rgba(197, 100, 187, 0.08) 0%, transparent 40%);
-  color: #0b012c;
-}
-
-:root:not(.dark):not([data-theme="dark"]) .elite-auth-card {
-  background: #ffffff;
-  border: 1px solid #e2dfec;
-  box-shadow: 0 20px 50px rgba(9, 0, 41, 0.08);
-}
-
-:root:not(.dark):not([data-theme="dark"]) .elite-auth-headline {
-  color: #0b012c;
-}
-
-:root:not(.dark):not([data-theme="dark"]) .elite-google-btn {
-  background: #ffffff;
-  border: 1px solid #dcd9e8;
-  color: #0b012c;
-}
-
-:root:not(.dark):not([data-theme="dark"]) .elite-google-btn:hover:not(:disabled) {
-  background: #f7f5fa;
-  border-color: #c564bb;
-}
-
-:root:not(.dark):not([data-theme="dark"]) .elite-input {
-  background: #f7f5fa;
-  border: 1px solid #dcd9e8;
-  color: #0b012c;
-}
-
-:root:not(.dark):not([data-theme="dark"]) .elite-input::placeholder {
-  color: #8e8a9f;
-}
-
-:root:not(.dark):not([data-theme="dark"]) .elite-btn-guest {
-  background: #ffffff;
-  border: 1px dashed #c564bb;
-  color: #585566;
-}
-
-:root:not(.dark):not([data-theme="dark"]) .elite-btn-guest:hover {
-  background: rgba(197, 100, 187, 0.08);
-  color: #c564bb;
-}
-
-:root:not(.dark):not([data-theme="dark"]) .elite-password-toggle {
-  color: #8e8a9f;
-}
-
-:root:not(.dark):not([data-theme="dark"]) .elite-password-toggle:hover {
-  color: #0b012c;
-}
-
-
-
