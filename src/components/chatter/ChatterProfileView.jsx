@@ -45,6 +45,15 @@ export default function ChatterProfileView({
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [savedNotes, setSavedNotes] = useState([]);
   const [loadingNotes, setLoadingNotes] = useState(true);
+  const [quizStats, setQuizStats] = useState({
+    coins: 100,
+    total_played: 0,
+    score: 0,
+    streak: 1,
+    accuracy: 0,
+    perfect_scores: 0,
+    unlocked_badges: ['badge-rookie'],
+  });
 
   const hasPropFollowers = typeof profile?.followers_count === 'number';
   const hasPropHours = typeof profile?.study_hours === 'number';
@@ -134,6 +143,13 @@ export default function ChatterProfileView({
     };
 
     fetchProfile();
+    fetch('/api/quiz/stats')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (mounted && d?.stats) setQuizStats(d.stats);
+      })
+      .catch(() => {});
+
     return () => {
       mounted = false;
     };
@@ -671,16 +687,40 @@ export default function ChatterProfileView({
             )}
             <span>Streak</span>
           </div>
+          <span style={{ opacity: 0.35 }}>·</span>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <strong style={{ color: '#f59e0b', fontWeight: 800, fontSize: 18.5 }}>{quizStats.coins ?? 100}🪙</strong>
+            <span>Coins</span>
+          </div>
+          <span style={{ opacity: 0.35 }}>·</span>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <strong style={{ color: '#c564bb', fontWeight: 800, fontSize: 18.5 }}>{quizStats.unlocked_badges?.length ?? 1}🎖️</strong>
+            <span>Badges</span>
+          </div>
         </div>
 
         {/* ── 4. Segmented History Tabs ── */}
-        <div className="chatter-segment-control" style={{ margin: '0 0 16px 0' }}>
+        <div className="chatter-segment-control" style={{ margin: '0 0 16px 0', overflowX: 'auto', scrollbarWidth: 'none' }}>
           <button
             type="button"
             className={`chatter-segment-btn ${activeTab === 'posts' ? 'chatter-segment-btn--active' : ''}`}
             onClick={() => setActiveTab('posts')}
           >
             My Posts ({myPosts.length})
+          </button>
+          <button
+            type="button"
+            className={`chatter-segment-btn ${activeTab === 'quiz' ? 'chatter-segment-btn--active' : ''}`}
+            onClick={() => setActiveTab('quiz')}
+          >
+            🏆 Quiz Stats
+          </button>
+          <button
+            type="button"
+            className={`chatter-segment-btn ${activeTab === 'badges' ? 'chatter-segment-btn--active' : ''}`}
+            onClick={() => setActiveTab('badges')}
+          >
+            🎖️ Badges ({quizStats.unlocked_badges?.length || 1})
           </button>
           <button
             type="button"
@@ -867,8 +907,113 @@ export default function ChatterProfileView({
                     Ask AI
                   </button>
                 </div>
-              ))
-            )}
+        {/* Tab 2: Quiz Statistics (Elite Quiz Style) */}
+        {activeTab === 'quiz' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
+              <div style={{ background: 'var(--chatter-sheet)', borderRadius: 16, padding: '16px 14px', border: '1px solid rgba(255, 255, 255, 0.06)', textAlign: 'center' }}>
+                <div style={{ fontSize: 11, color: 'var(--chatter-light-text)', textTransform: 'uppercase', fontWeight: 700 }}>Total Played</div>
+                <div style={{ fontSize: 24, fontWeight: 900, color: '#fff', marginTop: 4 }}>{quizStats.total_played || 0}</div>
+              </div>
+              <div style={{ background: 'var(--chatter-sheet)', borderRadius: 16, padding: '16px 14px', border: '1px solid rgba(255, 255, 255, 0.06)', textAlign: 'center' }}>
+                <div style={{ fontSize: 11, color: 'var(--chatter-light-text)', textTransform: 'uppercase', fontWeight: 700 }}>Accuracy Rate</div>
+                <div style={{ fontSize: 24, fontWeight: 900, color: 'var(--chatter-primary)', marginTop: 4 }}>{quizStats.accuracy || 0}%</div>
+              </div>
+              <div style={{ background: 'var(--chatter-sheet)', borderRadius: 16, padding: '16px 14px', border: '1px solid rgba(255, 255, 255, 0.06)', textAlign: 'center' }}>
+                <div style={{ fontSize: 11, color: 'var(--chatter-light-text)', textTransform: 'uppercase', fontWeight: 700 }}>Total Score</div>
+                <div style={{ fontSize: 24, fontWeight: 900, color: '#c564bb', marginTop: 4 }}>{quizStats.score || 0}</div>
+              </div>
+              <div style={{ background: 'var(--chatter-sheet)', borderRadius: 16, padding: '16px 14px', border: '1px solid rgba(255, 255, 255, 0.06)', textAlign: 'center' }}>
+                <div style={{ fontSize: 11, color: 'var(--chatter-light-text)', textTransform: 'uppercase', fontWeight: 700 }}>Coins Balance</div>
+                <div style={{ fontSize: 24, fontWeight: 900, color: '#f59e0b', marginTop: 4 }}>{quizStats.coins || 100} 🪙</div>
+              </div>
+            </div>
+
+            <div style={{ background: 'var(--chatter-sheet)', borderRadius: 16, padding: '18px 20px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+              <h4 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 800, color: '#fff' }}>🎯 Performance Summary</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13.5 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ccc' }}>
+                  <span>Correct Answers:</span>
+                  <strong style={{ color: 'var(--chatter-primary)' }}>{quizStats.correct_count || 0}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ccc' }}>
+                  <span>Incorrect Answers:</span>
+                  <strong style={{ color: 'var(--chatter-red)' }}>{quizStats.incorrect_count || 0}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ccc' }}>
+                  <span>Perfect Score Drills (100%):</span>
+                  <strong style={{ color: '#f59e0b' }}>{quizStats.perfect_scores || 0}</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tab 3: Badges Showcase (Elite Quiz Badges) */}
+        {activeTab === 'badges' && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14 }}>
+            {[
+              { id: 'badge-rookie', name: 'Quiz Rookie', desc: 'Complete your first quiz in any subject', icon: '🎯', color: '#3b82f6' },
+              { id: 'badge-scholar', name: 'Rising Scholar', desc: 'Score 100% accuracy on 3 different quizzes', icon: '🎓', color: '#8b5cf6' },
+              { id: 'badge-streak', name: 'Streak Master', desc: 'Maintain a 5-day daily quiz study streak', icon: '🔥', color: '#f59e0b' },
+              { id: 'badge-ai-guru', name: 'AI Guru Master', desc: 'Complete 5 AI-generated quizzes from study notes', icon: '🤖', color: '#10b981' },
+              { id: 'badge-champion', name: 'Arena Champion', desc: 'Earn 500 total quiz coins across all categories', icon: '👑', color: '#c564bb' },
+            ].map((badge) => {
+              const isUnlocked = Array.isArray(quizStats.unlocked_badges) && quizStats.unlocked_badges.includes(badge.id);
+
+              return (
+                <div
+                  key={badge.id}
+                  style={{
+                    background: 'var(--chatter-sheet)',
+                    borderRadius: 16,
+                    padding: 16,
+                    border: isUnlocked ? `1px solid ${badge.color}60` : '1px solid rgba(255, 255, 255, 0.05)',
+                    boxShadow: isUnlocked ? `0 4px 18px ${badge.color}20` : 'none',
+                    opacity: isUnlocked ? 1 : 0.55,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    textAlign: 'center',
+                    gap: 8,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 52,
+                      height: 52,
+                      borderRadius: 16,
+                      background: isUnlocked ? `${badge.color}20` : 'rgba(255, 255, 255, 0.05)',
+                      border: `1px solid ${isUnlocked ? badge.color : 'rgba(255, 255, 255, 0.1)'}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 26,
+                    }}
+                  >
+                    {badge.icon}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: isUnlocked ? '#fff' : '#aaa' }}>{badge.name}</div>
+                    <div style={{ fontSize: 11.5, color: 'var(--chatter-light-text)', marginTop: 2, lineHeight: 1.3 }}>{badge.desc}</div>
+                  </div>
+                  <span
+                    style={{
+                      marginTop: 'auto',
+                      fontSize: 10.5,
+                      fontWeight: 800,
+                      padding: '3px 8px',
+                      borderRadius: 10,
+                      background: isUnlocked ? `${badge.color}25` : 'rgba(255, 255, 255, 0.06)',
+                      color: isUnlocked ? badge.color : '#888',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    {isUnlocked ? 'Unlocked ✓' : 'In Progress'}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         )}
 

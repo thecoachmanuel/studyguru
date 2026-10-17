@@ -10259,3 +10259,45 @@ input, textarea, [contenteditable="true"], .chat-markdown, .chatter-post-card {
   z-index: 250 !important;
 }
 
+/* ════ 8. Elite Quiz Engine & Admin Dashboard Styling ════ */
+:root {
+  --quiz-bg: #090029;
+  --quiz-primary: #c564bb;
+  --quiz-accent: #40E378;
+  --admin-theme: #f05387;
+}
+
+.admin-root-container {
+  min-height: 100vh;
+  background-color: #f4f6f9;
+  color: #34395e;
+}
+
+.morphisam {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.quiz-lifeline-btn {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.quiz-lifeline-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: rgba(197, 100, 187, 0.6) !important;
+  box-shadow: 0 4px 14px rgba(197, 100, 187, 0.3) !important;
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(197, 100, 187, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(197, 100, 187, 0.6);
+  }
+}
+
+

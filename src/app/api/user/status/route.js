@@ -35,10 +35,14 @@ export async function GET(req) {
       $or: [{ _id: safeObjectId(userId) }, { id: userId }],
     });
 
-    const myStatus = userDoc?.status || {
-      state: 'online',
-      text: '',
-      emoji: '🟢',
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const rawStatus = userDoc?.status || {};
+    const isStatusExpired = rawStatus.updated_at && new Date(rawStatus.updated_at).getTime() < twentyFourHoursAgo.getTime();
+    const myStatus = {
+      state: rawStatus.state || 'online',
+      text: isStatusExpired ? '' : (rawStatus.text || ''),
+      emoji: isStatusExpired ? '🟢' : (rawStatus.emoji || '🟢'),
     };
 
     if (!isFeed) {
@@ -49,11 +53,12 @@ export async function GET(req) {
     const follows = await db.collection('follows').find({ follower_id: userId }).toArray().catch(() => []);
     const followingIds = new Set(follows.map((f) => String(f.following_id)));
 
-    // Query active status notes set by community users
+    // Query active status notes set by community users within the last 24 hours
     const usersWithStatus = await db.collection('users')
       .find({
         $and: [
           { 'status.text': { $exists: true, $ne: '' } },
+          { 'status.updated_at': { $gte: twentyFourHoursAgo } },
           { _id: { $ne: safeObjectId(userId) } },
           { id: { $ne: userId } },
         ],

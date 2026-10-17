@@ -20,6 +20,7 @@ import ChatterRoomsView from '@/components/chatter/ChatterRoomsView';
 import ChatterChatsView from '@/components/chatter/ChatterChatsView';
 import ChatterGuruView from '@/components/chatter/ChatterGuruView';
 import ChatterProfileView from '@/components/chatter/ChatterProfileView';
+import ChatterQuizArenaView from '@/components/chatter/ChatterQuizArenaView';
 import DirectMessagesModal from '@/components/DirectMessagesModal';
 import UserStatusModal from '@/components/UserStatusModal';
 import ChatterChatRoom from '@/components/chatter/ChatterChatRoom';
@@ -1454,6 +1455,17 @@ export default function DashboardPage() {
           onBack={() => setChatterTab('feed')}
         />
       </div>
+
+      {/* Quiz Arena Tab (Elite Quiz Web Engine) */}
+      {chatterTab === 'quiz' && (
+        <div style={{ flex: 1, display: 'flex', height: '100dvh', overflow: 'hidden', background: '#090029' }}>
+          <ChatterQuizArenaView
+            user={user}
+            onBack={() => setChatterTab('feed')}
+            onOpenGuru={() => setChatterTab('guru')}
+          />
+        </div>
+      )}
 
       {/* If chatterTab === 'profile', render ChatterProfileView with desktop right sidebar */}
       {chatterTab === 'profile' && (

@@ -401,11 +401,10 @@ export default function ChatterGuruView({
   }, [messages, loading]);
 
   const freeChatPrompts = [
-    '📞 Find company contact & WhatsApp',
-    '📊 Company figures & leadership',
-    '🌐 Search Web: Latest science news',
     '💡 Explain a concept simply',
+    '🧠 Brainstorm study schedule',
     '💻 Debug code or algorithm',
+    '📐 Step-by-step problem walkthrough',
   ];
 
   const guidedStudyPrompts = [
@@ -2346,40 +2345,7 @@ export default function ChatterGuruView({
         })}
 
         {loading && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', paddingLeft: 4, gap: 6 }}>
-            {isWebSearchActive && (
-              <div
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '4px 10px',
-                  borderRadius: 12,
-                  background: 'rgba(64, 227, 120, 0.12)',
-                  border: '1px solid rgba(64, 227, 120, 0.28)',
-                  color: 'var(--chatter-primary)',
-                  fontSize: 12,
-                  fontWeight: 650,
-                }}
-              >
-                <svg
-                  width="13"
-                  height="13"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  style={{ animation: 'chatter-spin 2s linear infinite' }}
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="2" y1="12" x2="22" y2="12" />
-                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                </svg>
-                <span>Searching live web, extracting WhatsApp, contacts & company figures...</span>
-              </div>
-            )}
+          <div style={{ display: 'flex', justifyContent: 'flex-start', paddingLeft: 4 }}>
             <div
               className="chatter-ai-typing-bubble"
               style={{
@@ -2422,21 +2388,6 @@ export default function ChatterGuruView({
             key={i}
             type="button"
             onClick={() => {
-              if (p.includes('Find company contact')) {
-                setIsWebSearchActive(true);
-                setInputText('Find the official contact info, WhatsApp number, email, and customer support for ');
-                setTimeout(() => inputRef.current?.focus(), 50);
-                return;
-              }
-              if (p.includes('Company figures')) {
-                setIsWebSearchActive(true);
-                setInputText('Find the company figures, annual revenue, employee count, and founders for ');
-                setTimeout(() => inputRef.current?.focus(), 50);
-                return;
-              }
-              if (p.includes('Search Web')) {
-                setIsWebSearchActive(true);
-              }
               if (p.includes('Quiz') || p.includes('Assessment')) {
                 if (aiMode === 'guided' && uploadedDocs.length === 0) {
                   docFileInputRef.current?.click();
@@ -2598,13 +2549,11 @@ export default function ChatterGuruView({
               }, 120);
             }}
             placeholder={
-              isWebSearchActive
-                ? 'Search live web, find WhatsApp & contacts, or lookup company figures...'
-                : aiMode === 'free'
-                  ? 'Ask AI Guru anything across any subject...'
-                  : uploadedDocs.find((d) => d.doc_id === selectedDocId)
-                    ? `Ask guided questions on ${uploadedDocs.find((d) => d.doc_id === selectedDocId)?.filename}...`
-                    : 'Upload a document or ask questions about your notes...'
+              aiMode === 'free'
+                ? 'Ask AI Guru anything across any subject...'
+                : uploadedDocs.find((d) => d.doc_id === selectedDocId)
+                  ? `Ask guided questions on ${uploadedDocs.find((d) => d.doc_id === selectedDocId)?.filename}...`
+                  : 'Upload a document or ask questions about your notes...'
             }
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
